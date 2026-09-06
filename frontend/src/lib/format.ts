@@ -21,12 +21,17 @@ const formateurDate = new Intl.DateTimeFormat(LOCALE, {
   timeZone: 'UTC',
 })
 
+// `timeZone` épinglé, comme pour formateurDate : sans lui, le rendu serveur utilise le fuseau
+// de la machine et le navigateur celui du visiteur — deux textes différents pour la même date,
+// donc une différence d'hydratation à chaque affichage d'une heure. L'UTC est aussi l'heure
+// locale du marché visé (Abidjan est à UTC+0), l'affichage reste donc juste pour les joueurs.
 const formateurDateHeure = new Intl.DateTimeFormat(LOCALE, {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
   hour: '2-digit',
   minute: '2-digit',
+  timeZone: 'UTC',
 })
 
 const formateurRelatif = new Intl.RelativeTimeFormat(LOCALE, { numeric: 'auto' })

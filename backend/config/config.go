@@ -16,6 +16,17 @@ type Config struct {
 	AppBaseURL string
 	CorsOrigin string
 
+	// WSOriginesAutorisees complète CorsOrigin pour l'ouverture du socket temps réel
+	// (GET /api/temps-reel). Liste séparée par des virgules, chaque entrée étant une
+	// origine complète (« https://quiperd.example »). Une origine absente des deux
+	// listes est refusée à la poignée de main : c'est la protection contre le
+	// détournement de socket inter-site (CSWSH). La valeur `*` désactive le contrôle
+	// et n'est tolérable qu'en développement.
+	WSOriginesAutorisees []string
+	// WSTicketTTLSecondes est la durée de vie du ticket d'ouverture de socket
+	// (clé Redis `ws:ticket:<valeur>`), consommé une seule fois. 60 s par défaut.
+	WSTicketTTLSecondes int
+
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -28,7 +39,7 @@ type Config struct {
 	RedisPassword string
 	RedisDB       int
 
-	JWTSecret          string
+	JWTSecret           string
 	JWTExpirationHeures int
 
 	StockagePreuvesDir string
@@ -65,6 +76,9 @@ func Charger() *Config {
 		AppPort:    getEnv("APP_PORT", "8080"),
 		AppBaseURL: getEnv("APP_BASE_URL", "http://localhost:8080"),
 		CorsOrigin: getEnv("CORS_ORIGIN", "http://localhost:3000"),
+
+		WSOriginesAutorisees: splitCSV(getEnv("WS_ORIGINES_AUTORISEES", "")),
+		WSTicketTTLSecondes:  getEnvInt("WS_TICKET_TTL_SECONDES", 60),
 
 		DBHost:     getEnv("DB_HOST", "localhost"),
 		DBPort:     getEnv("DB_PORT", "5432"),
@@ -112,6 +126,29 @@ func normaliserFusion(u string) string {
 
 func (c *Config) EstProduction() bool {
 	return c.AppEnv == "production"
+}
+
+// OriginesWebSocket construit la liste blanche des origines admises à ouvrir le
+// socket temps réel : l'origine du frontend (CORS_ORIGIN) plus les origines
+// supplémentaires de WS_ORIGINES_AUTORISEES. Les entrées sont normalisées en
+// minuscules et sans barre oblique finale pour être comparées telles quelles à
+// l'en-tête `Origin` de la requête d'upgrade.
+func (c *Config) OriginesWebSocket() []string {
+	brutes := append([]string{c.CorsOrigin}, c.WSOriginesAutorisees...)
+	vues := make(map[string]struct{}, len(brutes))
+	out := make([]string, 0, len(brutes))
+	for _, o := range brutes {
+		n := strings.TrimRight(strings.ToLower(strings.TrimSpace(o)), "/")
+		if n == "" {
+			continue
+		}
+		if _, deja := vues[n]; deja {
+			continue
+		}
+		vues[n] = struct{}{}
+		out = append(out, n)
+	}
+	return out
 }
 
 func (c *Config) PrestataireActif(nom string) bool {

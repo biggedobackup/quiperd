@@ -1,10 +1,13 @@
-/** Module `matchs` — mes matchs, détail, déclaration de score, validation (admin), litige. */
+/**
+ * Module `matchs` — mes matchs, détail, déclaration de score, confirmation du score adverse,
+ * choix après un match nul, validation (admin), litige.
+ */
 import { createServerFn } from '@tanstack/react-start'
 import { enResultat, requete, type Resultat } from '@/server/http-client'
 import { appelAdmin, appelJoueur } from '@/server/session'
 import { TAILLE_PAGE_ADMIN, type Page } from '@/models/pagination'
 import type { Litige } from '@/models/litige'
-import type { Declaration, DetailMatch, MatchEnrichi } from '@/models/match'
+import type { ChoixNulValeur, Declaration, DetailMatch, MatchEnrichi } from '@/models/match'
 
 export type RoleAppel = 'joueur' | 'admin'
 
@@ -42,6 +45,34 @@ export const declarerScore = createServerFn({ method: 'POST' })
     const { matchId, ...corps } = data
     return enResultat(appelJoueur<MatchEnrichi>(`/matchs/${matchId}/declaration`, { methode: 'POST', corps }))
   })
+
+/**
+ * `POST /api/matchs/:id/confirmation` — le second joueur accepte le score proposé par son
+ * adversaire. Aucun chiffre n'est envoyé : le serveur écrit lui-même la déclaration miroir,
+ * puis règle le match immédiatement (aucune preuve, aucun arbitre, quel que soit le montant).
+ */
+export const confirmerScore = createServerFn({ method: 'POST' })
+  .inputValidator((d: { matchId: string }) => d)
+  .handler(async ({ data }): Promise<Resultat<MatchEnrichi>> =>
+    enResultat(appelJoueur<MatchEnrichi>(`/matchs/${data.matchId}/confirmation`, { methode: 'POST' })),
+  )
+
+/**
+ * `POST /api/matchs/:id/choix-nul` — après un nul déclaré des deux côtés : `rejouer`
+ * (nouvelle manche, aucun mouvement d'argent, l'escrow reste bloqué) ou `partager`
+ * (chacun récupère sa mise moins la commission). Rejouer n'a lieu que si les DEUX
+ * joueurs le choisissent ; sinon le partage est appliqué.
+ */
+export const choisirApresNul = createServerFn({ method: 'POST' })
+  .inputValidator((d: { matchId: string; choix: ChoixNulValeur }) => d)
+  .handler(async ({ data }): Promise<Resultat<MatchEnrichi>> =>
+    enResultat(
+      appelJoueur<MatchEnrichi>(`/matchs/${data.matchId}/choix-nul`, {
+        methode: 'POST',
+        corps: { choix: data.choix },
+      }),
+    ),
+  )
 
 export const validerMatch = createServerFn({ method: 'POST' })
   .inputValidator((d: { id: string }) => d)

@@ -160,6 +160,17 @@ func RembourserMise(tx *gorm.DB, defiID, userID uuid.UUID, taux decimal.Decimal,
 	return rendreMise(tx, p, &mise, taux, nil, "RB", motif)
 }
 
+// MiseDuDefi renvoie la mise d'un joueur sur un défi, quel que soit son statut. Sert aux
+// modules qui doivent retrouver les écritures de grand livre rattachées à cette mise pour
+// les pousser en temps réel (defis : création, annulation, expiration).
+func MiseDuDefi(db *gorm.DB, defiID, userID uuid.UUID) (*Mise, error) {
+	var mise Mise
+	if err := db.Where("defi_id = ? AND utilisateur_id = ?", defiID, userID).First(&mise).Error; err != nil {
+		return nil, err
+	}
+	return &mise, nil
+}
+
 func trouver(liste []Portefeuille, userID uuid.UUID) *Portefeuille {
 	for i := range liste {
 		if liste[i].UtilisateurID == userID {
@@ -235,44 +246,76 @@ func ReglerEscrow(tx *gorm.DB, defiID, matchID, gagnantID, perdantID uuid.UUID, 
 	return gain, commission, nil
 }
 
+// rendreLesDeuxMises restitue en une seule transaction la mise bloquée de chacun des deux
+// joueurs d'un match, chacune MOINS la commission. Socle commun du remboursement arbitral
+// (RemboursementCroise) et du partage d'un match nul (PartagerEscrow) :
+//   - les deux portefeuilles sont verrouillés dans un ordre déterministe (ORDER BY id,
+//     comme ReglerEscrow : anti-interblocage) ;
+//   - chaque ligne `mises` passe de `bloquee` à `remboursee` par transition atomique ;
+//   - les écritures du grand livre portent `mise_id` ET `match_id` ;
+//   - tout ou rien : si une des deux mises n'est plus `bloquee`, l'erreur fait annuler la
+//     transaction de l'appelant — jamais de restitution partielle.
+//
+// Renvoie le montant net rendu à CHAQUE joueur et la commission TOTALE retenue par la
+// plateforme (somme des deux commissions).
+func rendreLesDeuxMises(tx *gorm.DB, defiID, matchID, joueur1, joueur2 uuid.UUID, taux decimal.Decimal, prefixe, motif string) (rendu, commissionTotale decimal.Decimal, err error) {
+	rendu, commissionTotale = decimal.Zero, decimal.Zero
+	joueurs := []uuid.UUID{joueur1, joueur2}
+	for _, u := range joueurs {
+		if _, err = ObtenirOuCreerPortefeuille(tx, u); err != nil {
+			return
+		}
+	}
+	var comptes []Portefeuille
+	if err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("utilisateur_id IN ?", joueurs).
+		Order("id").Find(&comptes).Error; err != nil {
+		return
+	}
+	mID := matchID
+	for _, u := range joueurs {
+		p := trouver(comptes, u)
+		if p == nil {
+			err = fmt.Errorf("portefeuille introuvable pour %s", u)
+			return
+		}
+		var mise Mise
+		if err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("defi_id = ? AND utilisateur_id = ? AND statut = ?", defiID, u, MiseBloquee).
+			First(&mise).Error; err != nil {
+			err = fmt.Errorf("mise bloquée introuvable pour le joueur %s : %w", u, err)
+			return
+		}
+		net, commission, e := rendreMise(tx, p, &mise, taux, &mID, prefixe, motif)
+		if e != nil {
+			err = e
+			return
+		}
+		rendu = net
+		commissionTotale = commissionTotale.Add(commission)
+	}
+	return rendu, commissionTotale, nil
+}
+
 // RemboursementCroise rend leur mise aux deux joueurs d'un match annulé par décision
 // arbitrale (litige → « remboursement »), chacune MOINS la commission (`taux` lu par
 // l'appelant via administration.CommissionActuelle). Le montant rendu est celui de la ligne
 // `mises` de chaque joueur (source de vérité de l'escrow), pas une valeur passée en paramètre.
-// Les deux portefeuilles sont verrouillés dans un ordre déterministe (ORDER BY id, comme
-// ReglerEscrow : anti-interblocage). Tout ou rien : si une des deux mises n'est plus
-// `bloquee`, l'erreur fait annuler la transaction de l'appelant — jamais de remboursement
-// partiel. Les transactions créées portent `match_id` et `mise_id`.
-func RemboursementCroise(tx *gorm.DB, defiID, matchID, joueur1, joueur2 uuid.UUID, taux decimal.Decimal) error {
-	joueurs := []uuid.UUID{joueur1, joueur2}
-	for _, u := range joueurs {
-		if _, err := ObtenirOuCreerPortefeuille(tx, u); err != nil {
-			return err
-		}
-	}
-	var portefeuilles []Portefeuille
-	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-		Where("utilisateur_id IN ?", joueurs).
-		Order("id").Find(&portefeuilles).Error; err != nil {
-		return err
-	}
-	mID := matchID
-	for _, u := range joueurs {
-		p := trouver(portefeuilles, u)
-		if p == nil {
-			return fmt.Errorf("portefeuille introuvable pour le remboursement croisé")
-		}
-		var mise Mise
-		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where("defi_id = ? AND utilisateur_id = ? AND statut = ?", defiID, u, MiseBloquee).
-			First(&mise).Error; err != nil {
-			return fmt.Errorf("mise bloquée introuvable pour le joueur %s : %w", u, err)
-		}
-		if _, _, err := rendreMise(tx, p, &mise, taux, &mID, "RC", "litige : match annulé"); err != nil {
-			return err
-		}
-	}
-	return nil
+// Renvoie le net crédité à chaque joueur et la commission totale retenue.
+func RemboursementCroise(tx *gorm.DB, defiID, matchID, joueur1, joueur2 uuid.UUID, taux decimal.Decimal) (rendu, commission decimal.Decimal, err error) {
+	return rendreLesDeuxMises(tx, defiID, matchID, joueur1, joueur2, taux, "RC", "litige : match annulé")
+}
+
+// PartagerEscrow solde un match nul par un partage : chaque joueur récupère
+// mise × (1 − taux) sur son solde disponible, la plateforme garde 2 × mise × taux.
+// La commission est TOUJOURS prélevée (règle produit : toute mise rendue = mise × (1 − commission)).
+// Aucun gagnant n'est désigné, les deux mises passent en `remboursee`.
+//
+// Doit être appelé dans la même transaction que la transition atomique du statut du match
+// (nul_en_attente -> termine), exactement comme ReglerEscrow. Renvoie le montant net rendu
+// à chaque joueur et la commission totale conservée par la plateforme.
+func PartagerEscrow(tx *gorm.DB, defiID, matchID, joueur1, joueur2 uuid.UUID, taux decimal.Decimal) (rendu, commission decimal.Decimal, err error) {
+	return rendreLesDeuxMises(tx, defiID, matchID, joueur1, joueur2, taux, "PT", "match nul : partage de l'escrow")
 }
 
 // Crediter ajoute un montant au solde disponible (dépôt confirmé).

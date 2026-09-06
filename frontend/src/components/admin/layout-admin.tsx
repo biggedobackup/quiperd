@@ -1,13 +1,16 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
+import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { icone } from '@/lib/icones'
 import type { Administrateur } from '@/models/utilisateur'
 import { deconnexionAdmin } from '@/services/auth'
+import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { Logo } from '@/components/partages/logo/logo'
+import { AbonnementAdmin } from '@/components/admin/temps-reel-admin'
 import { toastSucces } from '@/components/partages/toast/toast'
 
 interface Entree {
@@ -38,8 +41,14 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
   const router = useRouter()
   const titre = ENTREES.find((e) => chemin.startsWith(e.to))?.libelle ?? 'Administration'
 
+  const queryClient = useQueryClient()
+
   const seDeconnecter = async () => {
     await deconnecter()
+    // Cache vidé avant de naviguer : il contient les statistiques, les litiges, les paiements
+    // et les fiches d'utilisateurs consultées. Sans cela, la session suivante ouverte dans le
+    // même onglet les afficherait avant même de s'authentifier à nouveau.
+    queryClient.clear()
     toastSucces('Session administrateur fermée.')
     await router.invalidate()
     await navigate({ to: '/admin/connexion' })
@@ -65,6 +74,9 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
 
   return (
     <div className="flex min-h-dvh bg-craie">
+      {/* Un seul abonnement au salon `admin` pour tout l'espace : compteurs, files et toasts
+          restent vivants quelle que soit la page ouverte. Aucun rendu. */}
+      <AbonnementAdmin />
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col border-r-2 border-encre bg-nuit text-craie lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-craie/15 px-5">
           <Logo ton="clair" taille="sm" lien={false} />
@@ -82,13 +94,18 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-[232px]">
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b-2 border-encre bg-craie px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-9 items-center justify-center border-2 border-encre bg-papier lg:hidden">
+          {/* `min-w-0` + `truncate` : si la place manque (téléphone), seul le titre cède —
+              l'indicateur de direct et le lien vers le site public restent entiers. */}
+          <div className="flex min-w-0 items-center gap-3">
+            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-9 shrink-0 items-center justify-center border-2 border-encre bg-papier lg:hidden">
               <FontAwesomeIcon icon={menu ? icone.fermer : icone.menu} />
             </button>
-            <h1 className="text-h3">{titre}</h1>
+            <h1 className="min-w-0 truncate text-h3">{titre}</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Remplace tout texte du type « actualisé toutes les 60 s » : plus rien n'est
+                interrogé en boucle, le serveur pousse. Cliquable pour forcer une reconnexion. */}
+            <IndicateurDirect variante="etiquette" avecCompteur cliquable />
             <Link to="/" className="etiquette hidden items-center gap-1 border-2 border-transparent px-2 py-1 hover:border-encre sm:flex">
               Site public <FontAwesomeIcon icon={icone.suivant} />
             </Link>

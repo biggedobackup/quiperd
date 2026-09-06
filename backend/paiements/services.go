@@ -6,14 +6,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"quiperd/backend/administration"
 	"quiperd/backend/config"
 	"quiperd/backend/jobs"
 	"quiperd/backend/notifications"
 	"quiperd/backend/portefeuilles"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
-	"go.uber.org/zap"
 )
 
 func reference() string { return "PAY-" + uuid.NewString() }
@@ -52,6 +53,9 @@ func Deposer(userID uuid.UUID, montant decimal.Decimal, prestataire, nomClient, 
 	config.DB.Model(p).Update("reference_prestataire", token)
 	p.ReferencePrestataire = token
 
+	// La ligne est committée : diffusion immédiate sur le salon privé du joueur.
+	PublierStatut(p, p.Statut)
+
 	// Polling de secours : 1er contrôle à +2 min si aucun callback (skill).
 	jobs.EnfilerPaiementReverif(p.ID.String(), 1, 2*time.Minute)
 	return p, urlPaiement, nil
@@ -67,6 +71,7 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 		return nil, errors.New("montant invalide")
 	}
 	var p *Paiement
+	tampon := tempsreel.NouveauTampon()
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		frais := montant.Mul(administration.FraisRetrait(tx)).Round(2)
 		pai := &Paiement{
@@ -83,6 +88,10 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 			UtilisateurID: &userID, Action: "paiement:retrait_demande", TableCible: "paiements",
 			IdentifiantCible: &pai.ID, Nouvelle: map[string]any{"montant": montant, "frais": frais, "numero": numero},
 		})
+		AjouterStatut(tampon, pai, pai.Statut)
+		AjouterATraiter(tampon, pai)
+		portefeuilles.AjouterTransactionsReferences(tx, tampon, pai.Reference, pai.Reference+"-FRAIS")
+		portefeuilles.AjouterEtat(tx, tampon, userID)
 		p = pai
 		return nil
 	})
@@ -92,6 +101,7 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 	if err != nil {
 		return nil, err
 	}
+	tampon.Diffuser()
 	return p, nil
 }
 
@@ -99,7 +109,8 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 // paidEffectif = montant réellement payé (ligdicash: amount ; fusion: Montant+frais ;
 // validation admin: montant attendu). Refuse le crédit en cas d'écart de montant.
 func AppliquerReussiteDepot(paiementID uuid.UUID, paidEffectif decimal.Decimal, operateur string) error {
-	return config.DB.Transaction(func(tx *gorm.DB) error {
+	tampon := tempsreel.NouveauTampon()
+	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		// Idempotence : transition atomique en_attente -> reussi.
 		res := tx.Model(&Paiement{}).
 			Where("id = ? AND type = ? AND statut = ? AND traite = false", paiementID, TypeDepot, StatutEnAttente).
@@ -127,13 +138,21 @@ func AppliquerReussiteDepot(paiementID uuid.UUID, paidEffectif decimal.Decimal, 
 			return err
 		}
 		_ = notifications.Creer(tx, p.UtilisateurID, "Dépôt confirmé",
-			"Votre dépôt a été crédité sur votre portefeuille.", notifications.TypePaiementConfirme)
+			"Votre dépôt a été crédité sur votre portefeuille.", notifications.TypePaiementConfirme, tampon)
 		administration.Journaliser(tx, administration.ParamsAudit{
 			UtilisateurID: &p.UtilisateurID, Action: "paiement:depot_reussi", TableCible: "paiements",
 			IdentifiantCible: &p.ID,
 		})
+		AjouterStatut(tampon, &p, StatutReussi)
+		portefeuilles.AjouterTransactionsReferences(tx, tampon, p.Reference)
+		portefeuilles.AjouterEtat(tx, tampon, p.UtilisateurID)
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	tampon.Diffuser()
+	return nil
 }
 
 // Reverifier est appelé par le worker (polling de secours). Interroge le

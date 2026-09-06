@@ -18,12 +18,12 @@ const (
 
 // Types de transaction (table 12).
 const (
-	TxDepot        = "depot"
-	TxMiseBloquee  = "mise_bloquee"
-	TxGain         = "gain"
-	TxCommission   = "commission"
+	TxDepot         = "depot"
+	TxMiseBloquee   = "mise_bloquee"
+	TxGain          = "gain"
+	TxCommission    = "commission"
 	TxRemboursement = "remboursement"
-	TxRetrait      = "retrait"
+	TxRetrait       = "retrait"
 )
 
 // Portefeuille — solde financier d'un joueur (table 11).

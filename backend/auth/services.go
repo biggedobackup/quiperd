@@ -30,7 +30,7 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-func clePrefixeSession(jti string) string { return "session:" + jti }
+func clePrefixeSession(jti string) string     { return "session:" + jti }
 func cleSessionsUtilisateur(id string) string { return "sessions:utilisateur:" + id }
 
 // HacherMotDePasse renvoie le hash bcrypt d'un mot de passe.

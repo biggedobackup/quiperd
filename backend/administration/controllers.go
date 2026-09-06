@@ -19,7 +19,7 @@ import (
 // @Security BearerAuth
 // @Router /administration/statistiques [get]
 func Statistiques(c fiber.Ctx) error {
-	const cle = "cache:stats:admin"
+	const cle = CleCacheStats // même clé que le rafraîchissement temps réel (kpi.go)
 	ctx := context.Background()
 	if config.Redis != nil {
 		if val, err := config.Redis.Get(ctx, cle).Result(); err == nil && val != "" {
@@ -55,7 +55,10 @@ func calculerStatistiques(db *gorm.DB) statsAdmin {
 	db.Table("utilisateurs").Where("statut = ?", "actif").Count(&s.UtilisateursActifs)
 	db.Table("utilisateurs").Count(&s.UtilisateursTotal)
 	db.Table("defis").Where("statut = ?", "ouvert").Count(&s.DefisOuverts)
-	db.Table("matchs").Where("statut IN ?", []string{"en_cours", "verification"}).Count(&s.MatchsEnCours)
+	// Matchs « en cours » = tout ce qui n'est pas réglé et dont l'escrow est encore bloqué
+	// (le litige est compté à part, comme avant).
+	db.Table("matchs").Where("statut IN ?",
+		[]string{"en_cours", "preuve_requise", "nul_en_attente", "verification"}).Count(&s.MatchsEnCours)
 	db.Table("matchs").Where("statut = ?", "termine").Count(&s.MatchsTermines)
 	db.Table("litiges").Where("statut = ?", "en_cours").Count(&s.LitigesOuverts)
 
@@ -119,7 +122,7 @@ func ListerConfigurationsPubliques(c fiber.Ctx) error {
 }
 
 type entreeConfig struct {
-	Type   string          `json:"type" validate:"required,oneof=commission_defi mise_minimale mise_maximale frais_retrait"`
+	Type   string          `json:"type" validate:"required,oneof=commission_defi mise_minimale mise_maximale frais_retrait delai_confirmation_minutes delai_preuve_minutes delai_choix_nul_minutes"`
 	Valeur decimal.Decimal `json:"valeur"`
 }
 

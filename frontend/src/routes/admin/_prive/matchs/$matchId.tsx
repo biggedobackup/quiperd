@@ -6,9 +6,15 @@ import { icone } from '@/lib/icones'
 import { cles } from '@/lib/query'
 import { formatDateHeure, formatMontant } from '@/lib/format'
 import { optionsDetailMatch } from '@/lib/requetes'
+import type { DetailMatch } from '@/models/match'
 import { validerMatch } from '@/services/matchs'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { remplacerMatch } from '@/temps-reel/cache'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { VerificationPreuves } from '@/components/admin/verification-preuves'
+import { AIDE_STATUT_MATCH } from '@/components/admin/statuts-match'
+import { BandeauNouveautes, useFileTempsReel } from '@/components/admin/temps-reel-admin'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
@@ -31,6 +37,29 @@ function DetailMatchAdmin() {
   const queryClient = useQueryClient()
   const valider = useServerFn(validerMatch)
   const [confirm, setConfirm] = useState(false)
+
+  // Salon du match : les administrateurs y sont admis au même titre que les deux joueurs.
+  // Une preuve déposée pendant la lecture est annoncée (le lecteur vidéo ouvert n'est jamais
+  // remplacé sous les yeux de l'arbitre) ; la fin de match, elle, s'écrit dans le cache.
+  const file = useFileTempsReel()
+  const salonMatch = salons.match(matchId)
+  useEvenement('match.preuve_envoyee', ({ preuveId }) => file.signaler(preuveId), salonMatch)
+  useEvenement('match.termine', (m) => remplacerMatch(queryClient, m), salonMatch)
+  // Bascule en litige : la charge ne porte pas le match entier, on écrit le seul champ qui
+  // change plutôt que de redemander la fiche au serveur.
+  useEvenement(
+    'match.litige_ouvert',
+    () =>
+      queryClient.setQueryData<DetailMatch>(optionsDetailMatch(matchId, 'admin').queryKey, (ancien) =>
+        ancien ? { ...ancien, match: { ...ancien.match, statut: 'litige' } } : ancien,
+      ),
+    salonMatch,
+  )
+
+  const afficherPreuves = () => {
+    file.vider()
+    void queryClient.invalidateQueries({ queryKey: cles.matchs.preuves(matchId) })
+  }
 
   const mutation = useMutation({
     mutationFn: () => valider({ data: { id: matchId } }),
@@ -68,10 +97,11 @@ function DetailMatchAdmin() {
       <div className="space-y-6">
         <TableauScore joueur1={match.joueur1Nom} joueur2={match.joueur2Nom} score1={match.scoreJoueur1 ?? null} score2={match.scoreJoueur2 ?? null} gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null} etiquette="Score déclaré" enDirect={match.statut === 'en_cours'} sousTitre={match.statut === 'termine' ? `Réglé le ${formatDateHeure(match.dateFin)}` : undefined} />
         <section className="ticket-sm border-2 border-encre bg-papier p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-h3">Déclarations</h3>
             <BadgeStatut famille="match" valeur={match.statut} />
           </div>
+          <p className="mt-2 text-legende text-muet">{AIDE_STATUT_MATCH[match.statut]}</p>
           {data.declarations.length === 0 ? (
             <p className="mt-3 text-legende text-muet">Aucune déclaration.</p>
           ) : (
@@ -90,6 +120,7 @@ function DetailMatchAdmin() {
         </section>
         <section>
           <h3 className="mb-3 text-h3">Preuves</h3>
+          <BandeauNouveautes nombre={file.nombre} singulier="nouvelle preuve envoyée" plurielForme="nouvelles preuves envoyées" onAfficher={afficherPreuves} className="mb-3" />
           <VerificationPreuves matchId={matchId} nomDe={nomDe} />
         </section>
       </div>

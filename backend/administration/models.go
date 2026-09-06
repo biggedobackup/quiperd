@@ -9,11 +9,32 @@ import (
 )
 
 // Types de configuration financière (clé du champ `type`).
+//
+// Les trois derniers sont des DÉLAIS EN MINUTES de la machine à états du match : ils sont
+// stockés dans la même table pour que l'administrateur puisse les régler à chaud, sans
+// aucune constante en dur dans le code (règle du skill backend).
 const (
 	TypeCommissionDefi = "commission_defi"
 	TypeMiseMinimale   = "mise_minimale"
 	TypeMiseMaximale   = "mise_maximale"
 	TypeFraisRetrait   = "frais_retrait"
+
+	// TypeDelaiConfirmation — minutes laissées au second joueur pour confirmer ou
+	// contredire le score proposé. À l'expiration : victoire au joueur qui a déclaré.
+	TypeDelaiConfirmation = "delai_confirmation_minutes"
+	// TypeDelaiPreuve — minutes laissées aux deux joueurs pour déposer leur preuve après
+	// des déclarations divergentes. À l'expiration : ouverture du litige.
+	TypeDelaiPreuve = "delai_preuve_minutes"
+	// TypeDelaiChoixNul — minutes laissées à chaque joueur pour choisir rejouer ou
+	// partager après un nul. À l'expiration : partage automatique.
+	TypeDelaiChoixNul = "delai_choix_nul_minutes"
+)
+
+// Valeurs par défaut des délais (en minutes) si la configuration est absente en base.
+const (
+	DefautDelaiConfirmationMinutes = 30
+	DefautDelaiPreuveMinutes       = 120
+	DefautDelaiChoixNulMinutes     = 30
 )
 
 // ConfigurationFinanciere centralise les règles financières — jamais de valeur en dur.

@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { useState } from 'react'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useServerFn } from '@tanstack/react-start'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -9,12 +10,18 @@ import { typesNotification } from '@/lib/statuts'
 import { optionsNotifications } from '@/lib/requetes'
 import { marquerNotificationLue } from '@/services/notifications'
 import type { Notification } from '@/models/notification'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement, useResynchronisation } from '@/temps-reel/hooks'
+import { ajouterNotification } from '@/temps-reel/cache'
+import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
 import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastErreur } from '@/components/partages/toast/toast'
+
+const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/notifications')({
   head: () => ({ meta: [{ title: 'Notifications — QUI PERD' }] }),
@@ -35,10 +42,31 @@ const ICONES: Record<string, typeof icone.defi> = {
   paiement_echoue: icone.attention,
 }
 
+/**
+ * Notifications du joueur — poussées par le salon privé `utilisateur:<id>`, jamais
+ * réinterrogées en boucle. La notification entre en tête de la liste, et le compteur de la
+ * navigation (barre latérale et cloche de l'en-tête) se met à jour du même coup : il lit la
+ * même clé de cache `cles.notifications`.
+ *
+ * Aucun toast ici : le joueur regarde déjà l'écran, la ligne qui apparaît suffit.
+ */
 function PageNotifications() {
+  const { session } = routeJoueur.useRouteContext()
   const { data, isPending } = useQuery(optionsNotifications)
   const queryClient = useQueryClient()
   const marquer = useServerFn(marquerNotificationLue)
+  const [recentes, setRecentes] = useState<readonly string[]>([])
+
+  useResynchronisation(cles.notifications)
+  useEvenement(
+    'notification.nouvelle',
+    (notification) => {
+      ajouterNotification(queryClient, notification)
+      setRecentes((liste) => (liste.includes(notification.id) ? liste : [notification.id, ...liste].slice(0, 20)))
+    },
+    salons.utilisateur(session.utilisateur.id),
+  )
+
   const mutation = useMutation({
     mutationFn: (id: string) => marquer({ data: { id } }),
     onSuccess: (r) => {
@@ -59,11 +87,14 @@ function PageNotifications() {
         titre="Notifications"
         description={nonLues.length > 0 ? `${nonLues.length} non lue(s).` : 'Vous êtes à jour.'}
         actions={
-          nonLues.length > 0 && (
-            <Button variante="secondaire" onClick={() => void toutMarquer()} chargement={mutation.isPending} iconeDebut={icone.valider}>
-              Tout marquer comme lu
-            </Button>
-          )
+          <>
+            {nonLues.length > 0 && (
+              <Button variante="secondaire" onClick={() => void toutMarquer()} chargement={mutation.isPending} iconeDebut={icone.valider}>
+                Tout marquer comme lu
+              </Button>
+            )}
+            <IndicateurDirect variante="etiquette" cliquable className="self-center" />
+          </>
         }
       />
       {isPending ? (
@@ -72,7 +103,7 @@ function PageNotifications() {
         <Cascade className="divide-y-2 divide-trait border-2 border-encre bg-papier">
           {data.map((n) => (
             <ElementCascade key={n.id}>
-              <Ligne notification={n} onLire={() => mutation.mutate(n.id)} />
+              <Ligne notification={n} nouvelle={recentes.includes(n.id)} onLire={() => mutation.mutate(n.id)} />
             </ElementCascade>
           ))}
         </Cascade>
@@ -83,9 +114,9 @@ function PageNotifications() {
   )
 }
 
-function Ligne({ notification: n, onLire }: { notification: Notification; onLire: () => void }) {
+function Ligne({ notification: n, nouvelle, onLire }: { notification: Notification; nouvelle: boolean; onLire: () => void }) {
   return (
-    <div className={`flex items-start gap-4 px-4 py-4 ${n.lu ? '' : 'bg-volt-fond'}`}>
+    <div className={`flex items-start gap-4 px-4 py-4 ${nouvelle ? 'animate-apparition' : ''} ${n.lu ? '' : 'bg-volt-fond'}`}>
       <span className={`flex size-9 shrink-0 items-center justify-center border-2 ${n.lu ? 'border-trait text-muet' : 'border-encre bg-volt text-nuit'}`}>
         <FontAwesomeIcon icon={ICONES[n.type] ?? icone.notification} />
       </span>
@@ -93,12 +124,13 @@ function Ligne({ notification: n, onLire }: { notification: Notification; onLire
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p className={`text-corps ${n.lu ? '' : 'font-bold'}`}>{n.titre}</p>
           <span className="etiquette text-muet">{typesNotification[n.type] ?? n.type}</span>
+          {nouvelle && <span className="etiquette bg-volt px-1.5 text-nuit">À l’instant</span>}
         </div>
         <p className="mt-0.5 text-legende text-muet">{n.message}</p>
         <p className="chiffres mt-1 text-[11px] text-muet">{formatDateRelative(n.dateCreation)}</p>
       </div>
       {!n.lu && (
-        <button type="button" onClick={onLire} className="etiquette shrink-0 border-2 border-transparent px-2 py-1 text-encre hover:border-encre" aria-label="Marquer comme lue">
+        <button type="button" onClick={onLire} className="etiquette flex min-h-11 shrink-0 items-center border-2 border-transparent px-2 text-encre hover:border-encre" aria-label="Marquer comme lue">
           Lu
         </button>
       )}

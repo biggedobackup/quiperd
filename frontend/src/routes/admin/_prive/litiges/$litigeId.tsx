@@ -7,9 +7,13 @@ import { cles } from '@/lib/query'
 import { formatDateHeure, formatMontant } from '@/lib/format'
 import { optionsDetailMatch, optionsLitiges, optionsRegles, optionsUtilisateurs } from '@/lib/requetes'
 import { deciderLitige } from '@/services/litiges'
-import type { DecisionArbitrale } from '@/models/litige'
+import type { DecisionArbitrale, DecisionLitige, Litige } from '@/models/litige'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { remplacerMatch } from '@/temps-reel/cache'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { VerificationPreuves } from '@/components/admin/verification-preuves'
+import { BandeauNouveautes, useFileTempsReel } from '@/components/admin/temps-reel-admin'
 import { DecisionLitigeModal } from '@/components/admin/modals/decision-litige-modal'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
@@ -44,6 +48,31 @@ function DetailLitige() {
   const queryClient = useQueryClient()
   const decider = useServerFn(deciderLitige)
   const [modal, setModal] = useState(false)
+
+  // Salon du match (les administrateurs y sont admis) : une preuve déposée pendant l'examen
+  // est annoncée, et une décision rendue par un autre arbitre arrive sans rechargement.
+  const file = useFileTempsReel()
+  const salonMatch = salons.match(matchId)
+  useEvenement('match.preuve_envoyee', ({ preuveId }) => file.signaler(preuveId), salonMatch)
+  useEvenement('match.termine', (m) => remplacerMatch(queryClient, m), salonMatch)
+  useEvenement(
+    'match.litige_resolu',
+    ({ litigeId: id, decision }, enveloppe) => {
+      queryClient.setQueryData<Litige[]>(optionsLitiges('admin').queryKey, (ancien) =>
+        ancien?.map((l) =>
+          l.id === id
+            ? { ...l, statut: 'resolu', decision: decision as DecisionLitige, dateResolution: enveloppe.horodatage }
+            : l,
+        ),
+      )
+    },
+    salonMatch,
+  )
+
+  const afficherPreuves = () => {
+    file.vider()
+    void queryClient.invalidateQueries({ queryKey: cles.matchs.preuves(matchId) })
+  }
 
   const mutation = useMutation({
     mutationFn: (d: DecisionArbitrale) => decider({ data: { id: litigeId, ...d } }),
@@ -109,6 +138,7 @@ function DetailLitige() {
         </section>
         <section>
           <h3 className="mb-3 text-h3">Preuves des deux joueurs</h3>
+          <BandeauNouveautes nombre={file.nombre} singulier="nouvelle preuve envoyée" plurielForme="nouvelles preuves envoyées" onAfficher={afficherPreuves} className="mb-3" />
           <VerificationPreuves matchId={matchId} nomDe={nomDe} />
         </section>
       </div>

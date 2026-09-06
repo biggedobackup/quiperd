@@ -18,6 +18,8 @@ copies de ceux de `deploy/` (versionnés) ; seul `.env` est propre au serveur.
 Internet ──HTTPS──► Cloudflare ──tunnel──► cloudflared ──► caddy :80 ──► web :3000 ──► backend :8080
 Réseau local ──HTTP──► caddy :80 (site)  /  caddy :8080 (API : appli mobile, Swagger /api/docs)
                                                               backend ──► postgres :5432, redis :6379
+
+Temps réel : navigateur ══WSS══► Cloudflare ══► caddy :80 /api/temps-reel ══► backend :8080
 ```
 
 - Conteneurs : `postgres` (18), `redis` (7), `backend` (Go, image Alpine), `web` (TanStack Start
@@ -28,6 +30,48 @@ Réseau local ──HTTP──► caddy :80 (site)  /  caddy :8080 (API : appli 
   `X-Forwarded-Proto` transmis par Caddy : les cookies de session prennent `Secure` uniquement en HTTPS.
 - Images étiquetées par révision git (`quiperd-backend:<rev>`, `quiperd-web:<rev>`) : retour arrière
   en une commande (voir plus bas).
+
+### Le socket temps réel traverse bien la chaîne
+
+Le navigateur ouvre **un seul** socket, `wss://<origine du site>/api/temps-reel`. Il ne passe pas
+par une server function du site (un WebSocket ne se relaie pas ainsi) : Caddy route ce chemin exact
+du port 80 vers `backend:8080`, donc le socket a la **même origine que la page**. Conséquences :
+
+- rien de plus à ouvrir sur le pare-feu, et le **tunnel rapide** (qui n'expose que `caddy:80`)
+  suffit à faire fonctionner le temps réel ;
+- pas d'origine croisée, donc pas de refus par le contrôle anti-CSWSH du backend ;
+- `/api/temps-reel/ticket` n'est **pas** exposé sur le port 80 : il reste appelé côté serveur par
+  le site avec le jeton Bearer.
+
+Points de vigilance déjà traités dans `Caddyfile` — ne pas les défaire :
+
+- **aucun `read_timeout` / `write_timeout`** dans le bloc global `servers`. Caddy est sans limite
+  par défaut ; en poser un couperait les sockets en pleine partie ;
+- `flush_interval -1` sur la route du socket : aucune mise en tampon des trames ;
+- `encode gzip zstd` est déclaré **dans** les blocs `handle` des routes HTTP ordinaires, jamais sur
+  la route du socket ;
+- Caddy transmet `Upgrade` et `Connection` de lui-même dès qu'il voit une réponse 101, il n'y a pas
+  d'en-tête à recopier à la main (ce serait même une erreur en HTTP/2).
+
+Côté **Cloudflare**, les WebSockets sont acceptés sur toutes les offres, tunnel nommé comme tunnel
+rapide, sans réglage. Cloudflare ferme en revanche un socket resté **100 secondes sans trafic** :
+le backend envoie un `ping` toutes les 30 s (et ferme au bout de 60 s sans réponse), ce qui garde
+la connexion vivante. Ne pas allonger l'intervalle de ping au-delà de 60 s.
+
+Deux variables commandent tout cela, générées par `preparer-production.sh` dans `~/production/.env` :
+
+| Variable | Qui la lit | Valeur |
+| --- | --- | --- |
+| `WS_PUBLIC_URL` | le **site** (conteneur `web`) | `$SITE_URL/api/temps-reel` — l'adresse que le navigateur ouvre. Sans elle, le site donnerait au navigateur `http://backend:8080/api`, un nom interne à Docker qu'il ne sait pas résoudre. |
+| `WS_ORIGINES_AUTORISEES` | le **backend** | origines admises **en plus** de `CORS_ORIGIN`. Vide convient tant que le site n'est joint que par `SITE_URL`. |
+
+Vérification après déploiement (depuis un poste du réseau local) :
+
+```bash
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+     http://<serveur>/api/temps-reel        # attendu : HTTP/1.1 101 Switching Protocols
+```
 
 ## Première installation (dans l'ordre)
 
@@ -58,6 +102,11 @@ Deux modes, choisis automatiquement par `deployer.sh` d'après `~/production/.en
    Puis mettre dans `.env` : `SITE_URL=https://quiperd.votre-domaine`, `APP_BASE_URL` et
    `CORS_ORIGIN` identiques, les deux `*_CALLBACK_URL` en `https://api.quiperd.votre-domaine/api/…`,
    et relancer `deployer.sh`. Cloudflare fournit le certificat ; aucun port à ouvrir.
+   Le socket temps réel suit le site : `wss://quiperd.votre-domaine/api/temps-reel`, rien à
+   déclarer de plus. Si le site est joignable par plusieurs adresses (domaine **et** IP du réseau
+   local, préproduction…), ajouter les origines supplémentaires dans `WS_ORIGINES_AUTORISEES`
+   (liste séparée par des virgules) — sinon le backend refuse l'ouverture du socket depuis
+   l'adresse non déclarée, et le site retombe en « hors ligne ».
 
 Le jeton du tunnel est un secret : il ne va que dans `~/production/.env` (mode 600), jamais dans git.
 

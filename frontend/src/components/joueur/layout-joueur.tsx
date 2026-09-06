@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
@@ -10,6 +10,9 @@ import { formatMontant } from '@/lib/format'
 import { optionsNotifications, optionsPortefeuille } from '@/lib/requetes'
 import type { Utilisateur } from '@/models/utilisateur'
 import { deconnexionJoueur } from '@/services/auth'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { ajouterNotification, fusionnerSolde } from '@/temps-reel/cache'
 import { Logo } from '@/components/partages/logo/logo'
 import { Skeleton } from '@/components/partages/skeleton/skeleton'
 import { toastSucces } from '@/components/partages/toast/toast'
@@ -39,6 +42,15 @@ export function LayoutJoueur({ utilisateur, children }: { utilisateur: Utilisate
   const reduit = useReducedMotion()
   const { data: notifications } = useQuery(optionsNotifications)
   const nonLues = notifications?.filter((n) => !n.lu).length ?? 0
+
+  // Abonnement au salon privé du joueur monté UNE FOIS pour tout l'espace joueur. Le badge de
+  // notifications et le solde de la barre latérale sont visibles depuis n'importe quel écran :
+  // s'ils ne dépendaient que des abonnements des pages (portefeuille, notifications, litiges),
+  // ils resteraient figés sur les défis, les matchs, le tableau de bord ou le profil.
+  const queryClient = useQueryClient()
+  const monSalon = salons.utilisateur(utilisateur.id)
+  useEvenement('notification.nouvelle', (n) => ajouterNotification(queryClient, n), monSalon)
+  useEvenement('portefeuille.maj', (solde) => fusionnerSolde(queryClient, solde), monSalon)
 
   return (
     <div className="flex min-h-dvh bg-craie">
@@ -127,8 +139,15 @@ function Navbar({ utilisateur, nonLues }: { utilisateur: Utilisateur; nonLues: n
   const chemin = useRouterState({ select: (s) => s.location.pathname })
   const titre = ENTREES.find((e) => chemin.startsWith(e.to))?.libelle ?? 'Espace joueur'
 
+  const queryClientDeconnexion = useQueryClient()
+
   const seDeconnecter = async () => {
     await deconnecter()
+    // Le cache de requêtes est vidé AVANT toute navigation : il contient le solde, les
+    // notifications, les matchs et les litiges du joueur qui part. Sans cela, quelqu'un qui
+    // se connecte ensuite depuis le même onglet — un téléphone prêté, un cybercafé — verrait
+    // les données du précédent jusqu'au premier rechargement complet de la page.
+    queryClientDeconnexion.clear()
     toastSucces('À bientôt dans l’arène.')
     await router.invalidate()
     await navigate({ to: '/' })
@@ -143,7 +162,7 @@ function Navbar({ utilisateur, nonLues }: { utilisateur: Utilisateur; nonLues: n
       {/* `min-w-0` + `truncate` : si la place manque, seul le titre cède, jamais le logo ni les actions à droite. */}
       <h1 className="hidden min-w-0 truncate text-h3 md:block">{titre}</h1>
       <div className="flex shrink-0 items-center gap-1">
-        <Link to="/joueur/notifications" className="relative flex size-9 items-center justify-center border-2 border-transparent transition-colors hover:border-encre" aria-label={`Notifications (${nonLues} non lues)`}>
+        <Link to="/joueur/notifications" className="relative flex size-11 items-center justify-center border-2 border-transparent transition-colors hover:border-encre" aria-label={`Notifications (${nonLues} non lues)`}>
           <FontAwesomeIcon icon={icone.notification} />
           {nonLues > 0 && <span className="absolute right-1 top-1 size-2 bg-perte" aria-hidden="true" />}
         </Link>
@@ -153,7 +172,7 @@ function Navbar({ utilisateur, nonLues }: { utilisateur: Utilisateur; nonLues: n
             onClick={() => setMenu((m) => !m)}
             aria-expanded={menu}
             aria-haspopup="menu"
-            className="flex h-9 items-center gap-2 border-2 border-encre bg-papier px-2 pr-3 transition-colors hover:bg-volt hover:text-nuit"
+            className="flex h-11 items-center gap-2 border-2 border-encre bg-papier px-2 pr-3 transition-colors hover:bg-volt hover:text-nuit"
           >
             <span className="chiffres flex size-6 items-center justify-center bg-encre text-[11px] font-bold uppercase text-craie">{utilisateur.nomUtilisateur.slice(0, 2)}</span>
             <span className="hidden max-w-32 truncate text-legende font-semibold sm:inline">{utilisateur.nomUtilisateur}</span>

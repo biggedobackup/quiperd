@@ -2,8 +2,9 @@ import { Link } from '@tanstack/react-router'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { icone, iconePlateforme } from '@/lib/icones'
 import { decrireCategorie } from '@/lib/catalogue'
-import { formatDateRelative, formatMontant } from '@/lib/format'
+import { formatMontant } from '@/lib/format'
 import type { DefiListe } from '@/models/defi'
+import { CompteAReboursDefi } from '@/components/partages/defis-en-direct/animation-defis'
 import { Badge } from '@/components/partages/badge/badge'
 
 /**
@@ -29,22 +30,18 @@ export function CarteDefiPublique({ defi, connecte }: { defi: DefiListe; connect
         <p className="mt-1 flex items-center gap-1.5 text-legende text-muet">
           <FontAwesomeIcon icon={iconePlateforme(defi.plateformeNom, defi.plateformeFamille)} /> {defi.plateformeNom}
         </p>
-        <div className="mt-4 flex items-end justify-between gap-3">
+        {/* Écran étroit : le créateur passe sous la mise plutôt que de la comprimer. */}
+        <div className="mt-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-1">
           <div>
             <span className="etiquette text-muet">Mise par joueur</span>
             <p className="chiffres mt-1 text-h1 font-bold leading-none">{formatMontant(defi.montantMise, defi.devise)}</p>
           </div>
-          <div className="text-right text-legende text-muet">
-            <span className="flex items-center justify-end gap-1.5">
-              <FontAwesomeIcon icon={icone.profil} /> {defi.createurNom}
-            </span>
-            {defi.dateExpiration && (
-              <span className="mt-1 flex items-center justify-end gap-1.5">
-                <FontAwesomeIcon icon={icone.horloge} /> expire {formatDateRelative(defi.dateExpiration)}
-              </span>
-            )}
-          </div>
+          <span className="flex items-center gap-1.5 text-legende text-muet">
+            <FontAwesomeIcon icon={icone.profil} /> {defi.createurNom}
+          </span>
         </div>
+        {/* Décompte vivant : à zéro la carte quitte la liste sans attendre le serveur. */}
+        <CompteAReboursDefi defiId={defi.id} echeance={defi.dateExpiration} className="mt-2 text-legende" />
         {defi.regles && <p className="mt-3 line-clamp-2 text-legende text-encre/80">{defi.regles}</p>}
       </div>
       <div className="border-t-2 border-encre">

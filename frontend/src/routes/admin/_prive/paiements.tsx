@@ -9,6 +9,9 @@ import { libellesPrestataires } from '@/lib/statuts'
 import { optionsPaiements, optionsUtilisateur } from '@/lib/requetes'
 import { changerStatutPaiement } from '@/services/paiements'
 import type { Paiement, StatutPaiement } from '@/models/paiement'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { BandeauNouveautes, useFileTempsReel } from '@/components/admin/temps-reel-admin'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button } from '@/components/partages/button/button'
 import { Select } from '@/components/partages/select/select'
@@ -45,6 +48,26 @@ function PagePaiements() {
   const queryClient = useQueryClient()
   const changer = useServerFn(changerStatutPaiement)
   const [action, setAction] = useState<{ paiement: Paiement; statut: Cible } | null>(null)
+
+  // `admin.paiement_a_traiter` n'est poussé que pour des paiements en attente : on ne
+  // l'annonce que si les filtres courants les montreraient. Aucune insertion dans le tableau,
+  // l'administrateur affiche quand il veut (la pagination ne bouge pas sous ses doigts).
+  const file = useFileTempsReel()
+  useEvenement(
+    'admin.paiement_a_traiter',
+    ({ paiementId, type: typePaiement }) => {
+      if (statut && statut !== 'en_attente') return
+      if (type && type !== typePaiement) return
+      file.signaler(paiementId)
+    },
+    salons.admin,
+  )
+
+  const afficherNouveaux = () => {
+    file.vider()
+    void queryClient.invalidateQueries({ queryKey: cles.admin.paiementsTous })
+    if (page !== 1) void navigate({ search: (prev) => ({ ...prev, page: 1 }) })
+  }
 
   const mutation = useMutation({
     mutationFn: (a: { paiement: Paiement; statut: Cible }) => changer({ data: { id: a.paiement.id, statut: a.statut } }),
@@ -124,6 +147,7 @@ function PagePaiements() {
           onChange={(e) => navigate({ search: { type, statut: e.target.value, page: 1 } })}
         />
       </div>
+      <BandeauNouveautes nombre={file.nombre} singulier="nouveau paiement à traiter" plurielForme="nouveaux paiements à traiter" onAfficher={afficherNouveaux} className="mb-4" />
       <div className={`transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`} aria-busy={isPlaceholderData || undefined}>
         <DataTable colonnes={colonnes} lignes={data?.elements ?? []} cleLigne={(p) => p.id} chargement={isPending} legende="Paiements" vide={<EmptyState icone={icone.transfert} titre="Aucun paiement" description="Aucun paiement ne correspond à ces filtres." />} />
       </div>

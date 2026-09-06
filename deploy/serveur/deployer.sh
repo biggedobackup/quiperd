@@ -55,6 +55,13 @@ definir_env() {
 }
 definir_env QUIPERD_DEV "$DEV"
 definir_env QUIPERD_VERSION "$REVISION"
+# Temps réel : URL publique du socket, telle que le NAVIGATEUR l'ouvre. Elle suit SITE_URL
+# (Caddy route /api/temps-reel du port 80 vers le backend). Posée ici pour que les
+# installations antérieures au temps réel soient migrées sans retoucher leur .env à la main :
+# sans elle, le site donnerait au navigateur l'adresse interne « backend:8080 », injoignable.
+if [ -z "$(lire_env WS_PUBLIC_URL)" ]; then
+  definir_env WS_PUBLIC_URL "$(lire_env SITE_URL)/api/temps-reel"
+fi
 if [ -n "$(lire_env CLOUDFLARE_TUNNEL_TOKEN)" ]; then
   PROFIL=tunnel
 elif [ "$(lire_env QUIPERD_TUNNEL_RAPIDE)" = "oui" ]; then
@@ -102,6 +109,13 @@ echo "API  : $SANTE"
 CODE="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 http://127.0.0.1/)"
 [ "$CODE" = "200" ] || erreur "site : HTTP $CODE sur http://127.0.0.1/"
 echo "Site : HTTP $CODE sur http://127.0.0.1/"
+# Temps réel : le socket doit répondre 101 à travers Caddy, sur l'origine DU SITE (port 80).
+# Un 200/404 ici signifie que le reverse proxy n'a pas routé /api/temps-reel vers le backend.
+CODE_WS="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 \
+  -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Sec-WebSocket-Version: 13' \
+  -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' http://127.0.0.1/api/temps-reel || true)"
+[ "$CODE_WS" = "101" ] || erreur "temps réel : HTTP $CODE_WS sur http://127.0.0.1/api/temps-reel (attendu 101)"
+echo "Socket : HTTP 101 sur http://127.0.0.1/api/temps-reel"
 if [ "$PROFIL" = "tunnel-rapide" ]; then
   URL=""
   for _ in $(seq 1 20); do

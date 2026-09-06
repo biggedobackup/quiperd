@@ -10,19 +10,25 @@ import (
 	"quiperd/backend/auth"
 	"quiperd/backend/config"
 	"quiperd/backend/jobs"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
 
 // Types de notification.
 const (
-	TypeDefiRejoint       = "defi_rejoint"
-	TypeDefiExpire        = "defi_expire"
-	TypeMatchAValider     = "match_a_valider"
-	TypeMatchTermine      = "match_termine"
-	TypeLitigeOuvert      = "litige_ouvert"
-	TypeLitigeResolu      = "litige_resolu"
-	TypePaiementConfirme  = "paiement_confirme"
-	TypePaiementEchoue    = "paiement_echoue"
+	TypeDefiRejoint      = "defi_rejoint"
+	TypeDefiExpire       = "defi_expire"
+	TypeMatchAValider    = "match_a_valider"
+	TypeMatchTermine     = "match_termine"
+	TypeMatchScore       = "match_score"     // un adversaire a déclaré, à confirmer
+	TypeMatchDesaccord   = "match_desaccord" // déclarations divergentes, preuve exigée
+	TypeMatchNul         = "match_nul"       // nul déclaré des deux côtés, choix attendu
+	TypeMatchRejoue      = "match_rejoue"    // nouvelle manche, escrow inchangé
+	TypeMatchAbandon     = "match_abandon"   // échéance de confirmation dépassée
+	TypeLitigeOuvert     = "litige_ouvert"
+	TypeLitigeResolu     = "litige_resolu"
+	TypePaiementConfirme = "paiement_confirme"
+	TypePaiementEchoue   = "paiement_echoue"
 )
 
 // Notification (table 14).
@@ -37,14 +43,26 @@ type Notification struct {
 
 func (Notification) TableName() string { return "notifications" }
 
-// Creer enregistre une notification et enfile un push FCM (jamais bloquant).
-// Peut être appelée dans une transaction métier (tx) ou avec config.DB.
-func Creer(tx *gorm.DB, utilisateurID uuid.UUID, titre, message, typ string) error {
+// Creer enregistre une notification, enfile un push FCM (jamais bloquant) et diffuse
+// `notification.nouvelle` sur le salon privé du destinataire.
+//
+// Règle de publication : un événement ne part JAMAIS avant le commit. Quand l'appel a lieu
+// DANS une transaction métier, passez le tampon de l'appelant en dernier argument — la
+// diffusion sera faite par tampon.Diffuser() après le commit. Sans tampon (appel hors
+// transaction), la diffusion est immédiate. Le paramètre est variadique pour rester
+// compatible avec les appels existants.
+func Creer(tx *gorm.DB, utilisateurID uuid.UUID, titre, message, typ string, tampon ...*tempsreel.Tampon) error {
 	n := Notification{UtilisateurID: utilisateurID, Titre: titre, Message: message, Type: typ}
 	if err := tx.Create(&n).Error; err != nil {
 		return err
 	}
 	jobs.EnfilerPush(utilisateurID.String(), titre, message, typ)
+	salon := tempsreel.SalonUtilisateur(utilisateurID)
+	if len(tampon) > 0 && tampon[0] != nil {
+		tampon[0].Ajouter(tempsreel.EvtNotificationNouvelle, n, salon)
+	} else {
+		tempsreel.Publier(tempsreel.EvtNotificationNouvelle, n, salon)
+	}
 	return nil
 }
 

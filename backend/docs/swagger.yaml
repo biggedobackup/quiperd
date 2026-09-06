@@ -210,6 +210,14 @@ definitions:
         type: string
       devise:
         type: string
+      echeance:
+        description: |-
+          Echeance / EcheanceType portent le chrono en cours (confirmation, preuve, choix_nul).
+          Le client les lit au chargement de la page et les égrène sans appel réseau ; le
+          serveur les republie en direct via match.chrono.
+        type: string
+      echeanceType:
+        type: string
       gagnantId:
         type: string
       id:
@@ -228,6 +236,12 @@ definitions:
         type: string
       joueur2Nom:
         type: string
+      manche:
+        description: |-
+          Manche compte les rejeux d'un nul partagé : chaque « rejouer » accepté par les deux
+          joueurs incrémente la manche SANS aucun mouvement d'argent (l'escrow reste bloqué).
+          Les déclarations et les choix de nul sont datés par manche.
+        type: integer
       montantMise:
         type: number
       perdantId:
@@ -341,6 +355,13 @@ definitions:
       statut:
         type: string
       type:
+        type: string
+    type: object
+  tempsreel.ReponseTicket:
+    properties:
+      expiration:
+        type: string
+      ticket:
         type: string
     type: object
   utilisateurs.EntreeCreation:
@@ -887,7 +908,8 @@ paths:
   /matchs:
     get:
       parameters:
-      - description: en_cours | verification | litige | termine
+      - description: 'en_cours | preuve_requise | nul_en_attente | litige | termine
+          (verification : lignes historiques)'
         in: query
         name: statut
         type: string
@@ -912,7 +934,7 @@ paths:
             type: array
       security:
       - BearerAuth: []
-      summary: 'Mes matchs (tableau, ?statut=en_cours|verification|litige|termine)
+      summary: 'Mes matchs (tableau, ?statut=en_cours|preuve_requise|nul_en_attente|litige|termine)
         ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page&taille)'
       tags:
       - matchs
@@ -921,7 +943,26 @@ paths:
       responses: {}
       security:
       - BearerAuth: []
-      summary: Détail d'un match (libellés joueurs/jeu/plateforme + déclarations)
+      summary: Détail d'un match (libellés joueurs/jeu/plateforme + déclarations +
+        choix de nul)
+      tags:
+      - matchs
+  /matchs/{id}/choix-nul:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 'Après un nul déclaré des deux côtés : rejouer (si les DEUX l''acceptent,
+        aucun mouvement d''argent) ou partager (chacun mise × (1 − commission))'
+      tags:
+      - matchs
+  /matchs/{id}/confirmation:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Confirmer le score proposé par l'adversaire — le serveur inscrit la
+        déclaration miroir (aucun chiffre envoyé par le client) et règle le match
       tags:
       - matchs
   /matchs/{id}/declaration:
@@ -929,7 +970,8 @@ paths:
       responses: {}
       security:
       - BearerAuth: []
-      summary: Déclarer le score d'un match
+      summary: 'Déclarer le score d''un match (première déclaration : chrono de confirmation
+        ; seconde : règlement immédiat, nul ou désaccord)'
       tags:
       - matchs
   /matchs/{id}/litige:
@@ -960,7 +1002,8 @@ paths:
       responses: {}
       security:
       - BearerAuth: []
-      summary: Valider un match (admin) — déclenche le règlement de l'escrow
+      summary: Valider un match (admin) — règlement de l'escrow d'une ligne en vérification
+        ou d'un match en litige dont le gagnant est désigné
       tags:
       - matchs
   /notifications:
@@ -1152,6 +1195,73 @@ paths:
       summary: Vérification de disponibilité (Postgres + Redis)
       tags:
       - systeme
+  /temps-reel:
+    get:
+      description: 'Ouvre le socket unique de la plateforme : `GET /api/temps-reel?ticket=<ticket>`
+        (schéma `ws://` ou `wss://`). Le ticket vient de `POST /api/temps-reel/ticket`
+        ; sans ticket — ou avec un ticket expiré, déjà consommé ou invalide, auquel
+        cas un événement `connexion.refusee` est envoyé d''abord — la connexion est
+        acceptée en **visiteur** et limitée aux salons publics. Le serveur envoie
+        ensuite `connexion.prete`. Actions client (JSON) : `{"action":"abonner","salons":[…]}`,
+        `{"action":"desabonner","salons":[…]}`, `{"action":"presence","salon":"match:<id>","surLaPage":true}`,
+        `{"action":"ping"}`. Battement de cœur : ping serveur toutes les 30 s, fermeture
+        après 60 s sans signe de vie.'
+      parameters:
+      - description: Ticket à usage unique obtenu via POST /api/temps-reel/ticket
+        in: query
+        name: ticket
+        type: string
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "403":
+          description: origine non autorisée
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "426":
+          description: connexion WebSocket requise
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Socket temps réel (multiplexé par salons)
+      tags:
+      - temps-reel
+  /temps-reel/ticket:
+    post:
+      description: 'Échange la session Bearer contre un ticket à usage unique (32
+        octets aléatoires, base64 URL, TTL 60 s). Le navigateur ouvre ensuite `wss://<hôte>/api/temps-reel?ticket=<ticket>`
+        : le jeton JWT ne transite jamais dans l''URL. Un ticket absent, expiré ou
+        déjà consommé n''échoue pas la connexion — le socket s''ouvre en visiteur
+        (salons publics) après un événement `connexion.refusee`.'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/tempsreel.ReponseTicket'
+        "401":
+          description: authentification requise
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "503":
+          description: service temps réel indisponible
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Ticket d'ouverture du socket temps réel
+      tags:
+      - temps-reel
   /utilisateurs:
     get:
       parameters:

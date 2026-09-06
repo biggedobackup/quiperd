@@ -88,6 +88,7 @@ TanStack Router 1.170, TanStack Query 5.102, React 19.2, Vite 7, Tailwind CSS 4.
 | Notifications utilisateur | `sonner` (toasts)                                    | retour visuel de succès/erreur sur chaque action mutante — voir §4    |
 | Formatage            | `Intl.NumberFormat` / `Intl.DateTimeFormat` (locale `fr`), centralisés dans `src/lib/format.ts` | montants FCFA, dates, temps relatif — jamais de formatage ad hoc dans un composant |
 | Authentification     | Cookie `HttpOnly` posé par une server function TanStack Start | le JWT ne transite jamais côté client en JS accessible — critique sur une app qui manipule de l'argent réel |
+| Temps réel           | **API `WebSocket` native du navigateur** — aucune dépendance npm | socket unique `wss://…/api/temps-reel?ticket=…`, client dans `src/temps-reel/` (§4 bis). Interdiction d'ajouter socket.io, ws ou équivalent : le backend parle un protocole WebSocket brut et la connexion de l'utilisateur est lente |
 | Gestionnaire de paquets | **bun** (`bun install`, `bun run dev`) — `npm` accepté | `bun.lock` versionné                                                  |
 | Déploiement          | build Vite → serveur Node derrière Caddy (`reverse_proxy web:3000`) | même reverse proxy que le backend, dans le même `docker-compose.yml` — détail complet dans [`../skill deploiement/demarrage-deploiement.md`](../skill%20deploiement/demarrage-deploiement.md) |
 
@@ -174,7 +175,7 @@ frontend/
     │   ├── _public.tsx          # layout site vitrine : header + footer + transition de page
     │   ├── _public/
     │   │   ├── index.tsx        # accueil : hero, défis ouverts en direct, comment ça marche, catalogue par catégorie
-    │   │   ├── defis.tsx        # page « Défis » : GET /api/defis/ouverts (public), filtres catégorie/famille/jeu/plateforme/mise, rafraîchie toutes les 30 s
+    │   │   ├── defis.tsx        # page « Défis » : GET /api/defis/ouverts (public), filtres catégorie/famille/jeu/plateforme/mise, mise à jour EN DIRECT par le socket (aucun polling)
     │   │   ├── comment-ca-marche.tsx
     │   │   ├── jeux.tsx         # catalogue public groupé par catégorie + plateformes par famille (GET /api/jeux, /api/plateformes)
     │   │   ├── aide.tsx         # FAQ <details>/<summary> + formulaire « Nous contacter » branché sur POST /api/contact (services/contact.ts)
@@ -191,8 +192,8 @@ frontend/
     │   │   │   ├── nouveau.tsx  # création (bornes de mise et commission lues sur l'API, jamais en dur)
     │   │   │   └── $defiId.tsx  # détail, rejoindre (confirmation), annuler si créateur
     │   │   ├── matchs/
-    │   │   │   ├── index.tsx    # GET /api/matchs — mes matchs (en_cours / verification / litige / termine)
-    │   │   │   └── $matchId.tsx # déclaration score, upload preuve (progression), litige, suivi du statut
+    │   │   │   ├── index.tsx    # GET /api/matchs — mes matchs (en_cours / preuve_requise / nul_en_attente / litige / termine)
+    │   │   │   └── $matchId.tsx # déclaration, confirmation du score adverse, désaccord, choix après un nul, manches, chronos vivants, upload preuve, litige
     │   │   ├── portefeuille.tsx # solde, dépôt, retrait (frais affichés depuis l'API), historique
     │   │   ├── litiges.tsx
     │   │   ├── notifications.tsx
@@ -204,7 +205,7 @@ frontend/
     │   │       ├── tableau-de-bord.tsx  # KPIs (stat-card) + répartitions (Recharts)
     │   │       ├── utilisateurs.tsx     # CRUD complet (utilisateur-modal : création/édition, suppression logique confirmée), suspension/réactivation, liste paginée 10/page
     │   │       ├── matchs/
-    │   │       │   ├── index.tsx        # GET /api/matchs?tous=1 (filtre statut, « verification » par défaut)
+    │   │       │   ├── index.tsx        # GET /api/matchs?tous=1 (filtre statut : litige et preuve_requise en priorité d'arbitrage)
     │   │       │   └── $matchId.tsx     # déclarations, validation/rejet des preuves, règlement manuel
     │   │       ├── jeux-plateformes.tsx # catalogue : création avec catégorie/famille, changement de groupe en ligne, recherche + puces de filtre, activation/désactivation, suppression
     │   │       ├── litiges/
@@ -218,6 +219,13 @@ frontend/
     │   │   ├── preuves/$preuveId/fichier.ts
     │   │   └── matchs/$matchId/preuves.ts
     │   └── sitemap[.]xml.ts     # route serveur : sitemap des pages publiques (le `[.]` échappe le point)
+    ├── temps-reel/              # client WebSocket (§4 bis) — AUCUNE dépendance npm, API WebSocket native
+    │   ├── evenements.ts        # CONTRAT GELÉ : miroir de backend/tempsreel/evenements.go (noms, salons, charges)
+    │   ├── client.ts            # socket singleton : ticket, reconnexion (backoff 1 s → 30 s + gigue), abonnements, instantané SSR
+    │   ├── fournisseur.tsx      # <FournisseurTempsReel> — n'ouvre jamais le socket pendant le rendu serveur
+    │   ├── hooks.ts             # useSalon, useEvenement, usePresence, useResynchronisation, useChrono, useEtatTempsReel
+    │   ├── cache.ts             # application des événements au cache TanStack Query
+    │   └── indicateur-direct.tsx # pastille « en direct / reconnexion »
     ├── server/
     │   ├── http-client.ts       # fetch vers API_BASE_URL, Bearer, mapping des erreurs { erreur } → ErreurApi(statut, message, details), type Resultat<T>
     │   ├── session.ts           # SERVEUR SEUL : cookies qp_session / qp_admin, appelJoueur/appelAdmin (401 → cookie effacé + redirection)
@@ -225,8 +233,9 @@ frontend/
     │   └── gardes.ts            # gardeJoueur, gardeAdmin, gardeInvite, gardeInviteAdmin — pour `beforeLoad`, n'importe que session-fns
     ├── services/                # server functions — un fichier par module backend
     │   ├── auth.ts · utilisateurs.ts · comptes-gamers.ts · jeux.ts · plateformes.ts
-    │   ├── defis.ts · matchs.ts · preuves.ts · litiges.ts
-    │   └── portefeuilles.ts · paiements.ts · notifications.ts · administration.ts
+    │   ├── defis.ts · matchs.ts · preuves.ts · litiges.ts · contact.ts
+    │   ├── portefeuilles.ts · paiements.ts · notifications.ts · administration.ts
+    │   └── temps-reel.ts        # server function du ticket : POST /api/temps-reel/ticket (le JWT reste dans le cookie HttpOnly)
     ├── models/                  # types TypeScript — mêmes champs camelCase que le JSON backend
     │   ├── utilisateur.ts · compte-gamer.ts · jeu.ts · plateforme.ts
     │   ├── defi.ts · match.ts · resultat-declare.ts · preuve-match.ts · litige.ts
@@ -338,10 +347,20 @@ par les pages dédiées d'authentification et légales :
    avec annulation d'un défi encore ouvert ; création (`nouveau.tsx`) : bornes de mise et
    commission lues sur l'API, solde disponible affiché, erreur 422 traduite en message clair ;
    détail, bouton rejoindre avec confirmation (montant bloqué rappelé).
-4. **Match** — déclaration du score (`declaration-score-modal`), upload de preuve
-   (`multipart/form-data`, capture + vidéo, `barre-progression-upload`), suivi du statut
-   (`en_cours` → `verification` → `termine`/`litige`) avec `badge-statut` visuellement distinct
-   par état ; les deux joueurs sont nommés (`joueur1Nom`/`joueur2Nom` renvoyés par l'API).
+4. **Match** — l'écran suit la machine à états du backend (`demarrage-backend.md` §5.3), en
+   direct sur le salon `match:<id>` : déclaration du score (`declaration-score-modal`) ; quand
+   l'adversaire a déclaré, deux actions claires — **« Confirmer 1-3 »**
+   (`POST /matchs/:id/confirmation`, sans corps : le score confirmé est celui du serveur) ou
+   « Proposer un autre score » ; en cas de désaccord (`preuve_requise`), upload de preuve
+   (`multipart/form-data`, capture + vidéo, `barre-progression-upload`) avec le compte à rebours
+   de dépôt ; en cas de nul des deux côtés (`nul_en_attente`), le choix **rejouer / partager**
+   (`POST /matchs/:id/choix-nul`) en rappelant la conséquence financière (rejouer = aucun
+   mouvement d'argent ; partager = mise moins la commission) et le choix déjà exprimé par
+   l'adversaire ; le numéro de **manche** et l'historique des manches précédentes ; le compte à
+   rebours de l'échéance en cours (`match.echeance` + `useChrono`, jamais de requête) ; la
+   présence de l'adversaire. `badge-statut` visuellement distinct pour chacun des statuts
+   (`en_cours`, `preuve_requise`, `nul_en_attente`, `litige`, `termine`) ; les deux joueurs sont
+   nommés (`joueur1Nom`/`joueur2Nom` renvoyés par l'API).
 5. **Portefeuille** — solde disponible/bloqué, dépôt (`depot-modal`) et retrait
    (`retrait-modal`, **frais de retrait calculés par le backend et affichés avant confirmation**)
    via LigdiCash/MoneyFusion (redirection vers la page de paiement hébergée quand l'API renvoie
@@ -452,6 +471,54 @@ par les pages dédiées d'authentification et légales :
   (§1), jamais un chemin statique public ni une URL du backend dans le HTML.
 - CORS strict côté backend : seul le domaine de ce frontend est autorisé ; le navigateur ne
   parle qu'à l'origine du frontend.
+
+---
+
+## 4 bis. Temps réel — « aucun polling »
+
+> **Règle non négociable : le serveur pousse, le client n'interroge jamais en boucle.**
+
+Interdits dans tout le frontend, sans exception :
+
+- `refetchInterval` (ou `refetchIntervalInBackground`) sur un `useQuery` ;
+- un `setInterval` / `setTimeout` récursif dont le but est de rappeler l'API ;
+- un texte du type « liste actualisée toutes les 30 secondes » : il documenterait un défaut.
+
+Deux exceptions, et seulement celles-là :
+
+1. **un `invalidateQueries` à la (re)connexion du socket** (`useResynchronisation`), pour
+   rattraper ce qui a changé pendant une coupure ;
+2. **un compte à rebours purement client** (`useChrono`), calculé à partir d'une date fournie
+   par le serveur (`match.echeance`) — il n'émet aucune requête.
+
+### Le client `src/temps-reel/`
+
+- **Un seul socket pour toute l'application**, singleton (`client.ts`), multiplexé par salons.
+  Un composant ne crée jamais sa propre connexion : il s'abonne (`useSalon`, `useEvenement`)
+  et se désabonne au démontage.
+- **Le socket ne s'ouvre JAMAIS pendant le rendu serveur.** Pas de `WebSocket` au niveau module,
+  pas d'ouverture dans le corps d'un composant : uniquement dans un `useEffect` du
+  `FournisseurTempsReel`. Une ouverture au SSR fait planter le rendu (l'API `WebSocket` n'existe
+  pas dans Node) ou fuit une connexion par requête. Le rendu serveur utilise un instantané neutre
+  (`instantaneServeur()`), et l'état affiché est « hors ligne » tant que l'hydratation n'a pas eu lieu.
+- **Authentification par ticket, jamais le JWT.** Le jeton vit dans un cookie `HttpOnly` que le
+  JS ne lit pas, et un `WebSocket` ne peut pas porter d'en-tête `Authorization` : une server
+  function (`services/temps-reel.ts`) appelle `POST /api/temps-reel/ticket` et le navigateur
+  ouvre `wss://…/api/temps-reel?ticket=…`. Le ticket est **à usage unique** : à chaque
+  reconnexion, on en redemande un ; ne jamais le mettre en cache ni le réutiliser.
+- **Reconnexion** : backoff exponentiel 1 s → 30 s avec gigue, puis resynchronisation. L'état
+  (`connecte` / `connexion` / `hors_ligne`) est affiché par `indicateur-direct.tsx` — l'utilisateur
+  doit toujours savoir si ce qu'il regarde est vivant.
+- **Contrat gelé** : `src/temps-reel/evenements.ts` est le miroir exact de
+  `backend/tempsreel/evenements.go`. On peut y ajouter un événement (documenté des deux côtés),
+  jamais renommer ni changer la forme d'un existant d'un seul côté.
+- **Hydratation** : un compte à rebours rend un texte **neutre et stable au premier rendu**
+  (« — », ou l'échéance formatée), puis se met à égrener après le montage. Rendre « 4 min 12 s »
+  côté serveur produit un HTML différent de celui du client une seconde plus tard : React
+  signale une erreur d'hydratation et remonte tout l'arbre.
+- Les événements d'argent (`portefeuille.maj`, `transaction.creee`, `paiement.statut`) arrivent
+  **uniquement** sur le salon privé de l'utilisateur : ne jamais afficher un solde reçu d'un
+  salon public, et ne jamais recalculer un montant côté client (règle §4).
 
 ---
 

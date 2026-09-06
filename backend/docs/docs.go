@@ -663,11 +663,11 @@ const docTemplate = `{
                 "tags": [
                     "matchs"
                 ],
-                "summary": "Mes matchs (tableau, ?statut=en_cours|verification|litige|termine) ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page\u0026taille)",
+                "summary": "Mes matchs (tableau, ?statut=en_cours|preuve_requise|nul_en_attente|litige|termine) ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page\u0026taille)",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "en_cours | verification | litige | termine",
+                        "description": "en_cours | preuve_requise | nul_en_attente | litige | termine (verification : lignes historiques)",
                         "name": "statut",
                         "in": "query"
                     },
@@ -713,7 +713,35 @@ const docTemplate = `{
                 "tags": [
                     "matchs"
                 ],
-                "summary": "Détail d'un match (libellés joueurs/jeu/plateforme + déclarations)",
+                "summary": "Détail d'un match (libellés joueurs/jeu/plateforme + déclarations + choix de nul)",
+                "responses": {}
+            }
+        },
+        "/matchs/{id}/choix-nul": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "matchs"
+                ],
+                "summary": "Après un nul déclaré des deux côtés : rejouer (si les DEUX l'acceptent, aucun mouvement d'argent) ou partager (chacun mise × (1 − commission))",
+                "responses": {}
+            }
+        },
+        "/matchs/{id}/confirmation": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "matchs"
+                ],
+                "summary": "Confirmer le score proposé par l'adversaire — le serveur inscrit la déclaration miroir (aucun chiffre envoyé par le client) et règle le match",
                 "responses": {}
             }
         },
@@ -727,7 +755,7 @@ const docTemplate = `{
                 "tags": [
                     "matchs"
                 ],
-                "summary": "Déclarer le score d'un match",
+                "summary": "Déclarer le score d'un match (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)",
                 "responses": {}
             }
         },
@@ -781,7 +809,7 @@ const docTemplate = `{
                 "tags": [
                     "matchs"
                 ],
-                "summary": "Valider un match (admin) — déclenche le règlement de l'escrow",
+                "summary": "Valider un match (admin) — règlement de l'escrow d'une ligne en vérification ou d'un match en litige dont le gagnant est désigné",
                 "responses": {}
             }
         },
@@ -1095,6 +1123,92 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/temps-reel": {
+            "get": {
+                "description": "Ouvre le socket unique de la plateforme : ` + "`" + `GET /api/temps-reel?ticket=\u003cticket\u003e` + "`" + ` (schéma ` + "`" + `ws://` + "`" + ` ou ` + "`" + `wss://` + "`" + `). Le ticket vient de ` + "`" + `POST /api/temps-reel/ticket` + "`" + ` ; sans ticket — ou avec un ticket expiré, déjà consommé ou invalide, auquel cas un événement ` + "`" + `connexion.refusee` + "`" + ` est envoyé d'abord — la connexion est acceptée en **visiteur** et limitée aux salons publics. Le serveur envoie ensuite ` + "`" + `connexion.prete` + "`" + `. Actions client (JSON) : ` + "`" + `{\"action\":\"abonner\",\"salons\":[…]}` + "`" + `, ` + "`" + `{\"action\":\"desabonner\",\"salons\":[…]}` + "`" + `, ` + "`" + `{\"action\":\"presence\",\"salon\":\"match:\u003cid\u003e\",\"surLaPage\":true}` + "`" + `, ` + "`" + `{\"action\":\"ping\"}` + "`" + `. Battement de cœur : ping serveur toutes les 30 s, fermeture après 60 s sans signe de vie.",
+                "tags": [
+                    "temps-reel"
+                ],
+                "summary": "Socket temps réel (multiplexé par salons)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Ticket à usage unique obtenu via POST /api/temps-reel/ticket",
+                        "name": "ticket",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "403": {
+                        "description": "origine non autorisée",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "426": {
+                        "description": "connexion WebSocket requise",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/temps-reel/ticket": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Échange la session Bearer contre un ticket à usage unique (32 octets aléatoires, base64 URL, TTL 60 s). Le navigateur ouvre ensuite ` + "`" + `wss://\u003chôte\u003e/api/temps-reel?ticket=\u003cticket\u003e` + "`" + ` : le jeton JWT ne transite jamais dans l'URL. Un ticket absent, expiré ou déjà consommé n'échoue pas la connexion — le socket s'ouvre en visiteur (salons publics) après un événement ` + "`" + `connexion.refusee` + "`" + `.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "temps-reel"
+                ],
+                "summary": "Ticket d'ouverture du socket temps réel",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/tempsreel.ReponseTicket"
+                        }
+                    },
+                    "401": {
+                        "description": "authentification requise",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "service temps réel indisponible",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }
@@ -1620,6 +1734,13 @@ const docTemplate = `{
                 "devise": {
                     "type": "string"
                 },
+                "echeance": {
+                    "description": "Echeance / EcheanceType portent le chrono en cours (confirmation, preuve, choix_nul).\nLe client les lit au chargement de la page et les égrène sans appel réseau ; le\nserveur les republie en direct via match.chrono.",
+                    "type": "string"
+                },
+                "echeanceType": {
+                    "type": "string"
+                },
                 "gagnantId": {
                     "type": "string"
                 },
@@ -1641,6 +1762,10 @@ const docTemplate = `{
                 },
                 "joueur2Nom": {
                     "type": "string"
+                },
+                "manche": {
+                    "description": "Manche compte les rejeux d'un nul partagé : chaque « rejouer » accepté par les deux\njoueurs incrémente la manche SANS aucun mouvement d'argent (l'escrow reste bloqué).\nLes déclarations et les choix de nul sont datés par manche.",
+                    "type": "integer"
                 },
                 "montantMise": {
                     "type": "number"
@@ -1813,6 +1938,17 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "tempsreel.ReponseTicket": {
+            "type": "object",
+            "properties": {
+                "expiration": {
+                    "type": "string"
+                },
+                "ticket": {
                     "type": "string"
                 }
             }

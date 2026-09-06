@@ -1,19 +1,20 @@
 import { createFileRoute, getRouteApi, useNavigate, type SearchSchemaInput } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { icone } from '@/lib/icones'
 import { CATEGORIES_JEU, estCategorie, estFamille, optionsFamilles, optionsJeuxGroupees, optionsPlateformesGroupees } from '@/lib/catalogue'
 import { optionsDefisOuverts, optionsJeux, optionsPlateformes } from '@/lib/requetes'
 import type { FiltresDefisPublics } from '@/models/defi'
+import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { Conteneur } from '@/components/public/sections'
 import { CarteDefiPublique } from '@/components/public/carte-defi-publique'
+import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
+import { ElementAnime, ListeAnimee } from '@/components/partages/defis-en-direct/animation-defis'
 import { Puce } from '@/components/partages/puce/puce'
 import { Select } from '@/components/partages/select/select'
 import { Input } from '@/components/partages/input/input'
-import { Badge } from '@/components/partages/badge/badge'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
-import { Apparition, Cascade, ElementCascade } from '@/components/partages/animation/animation'
+import { Apparition } from '@/components/partages/animation/animation'
 
 const routeParent = getRouteApi('/_public')
 
@@ -52,8 +53,11 @@ function PageDefisPublics() {
   const navigate = useNavigate({ from: Route.fullPath })
   const { data: jeux } = useSuspenseQuery(optionsJeux())
   const { data: plateformes } = useSuspenseQuery(optionsPlateformes())
-  // Rafraîchi toutes les 30 s : la page reste « en direct » sans rechargement.
-  const { data: defis } = useSuspenseQuery({ ...optionsDefisOuverts(filtres), refetchInterval: 30_000 })
+  const { data: defis } = useSuspenseQuery(optionsDefisOuverts(filtres))
+
+  // Le serveur pousse : un défi créé apparaît en tête, un défi rejoint, annulé ou expiré
+  // s'efface. Le visiteur n'a pas de compte, seul le salon public est demandé.
+  useDefisEnDirect()
 
   const changer = (patch: Partial<FiltresDefisPublics>) => navigate({ search: (prev) => ({ ...prev, ...patch }) })
   const filtreActif = Boolean(filtres.categorie || filtres.famille || filtres.jeu || filtres.plateforme || filtres.miseMax)
@@ -65,11 +69,10 @@ function PageDefisPublics() {
       <Apparition>
         <section className="border-b-2 border-encre bg-nuit text-craie">
           <Conteneur className="py-5 md:py-7">
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <span className="etiquette text-craie">Arène publique</span>
-              <Badge variante="neutre" actif className="border-encre bg-papier text-nuit">
-                En direct
-              </Badge>
+              {/* État réel du fil, pas une étiquette décorative : il annonce aussi le nombre de joueurs connectés. */}
+              <IndicateurDirect variante="etiquette" avecCompteur cliquable />
             </div>
             <h1 className="mt-1 max-w-3xl text-h3 text-craie sm:text-h2">Défis en attente d’adversaire.</h1>
             <p className="mt-2 max-w-xl text-legende text-craie/80">
@@ -181,16 +184,16 @@ function PageDefisPublics() {
               }
             />
           ) : (
-            <Cascade className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {defis.map((d) => (
-                <ElementCascade key={d.id}>
+            <ListeAnimee className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {defis.map((d, i) => (
+                <ElementAnime key={d.id} index={i}>
                   <CarteDefiPublique defi={d} connecte={connecte} />
-                </ElementCascade>
+                </ElementAnime>
               ))}
-            </Cascade>
+            </ListeAnimee>
           )}
-          <p className="mt-8 flex items-center gap-2 text-legende text-muet">
-            <FontAwesomeIcon icon={icone.rafraichir} /> Liste actualisée automatiquement toutes les 30 secondes.
+          <p className="mt-8 flex flex-wrap items-center gap-2 text-legende text-muet">
+            <IndicateurDirect cliquable /> Les défis arrivent et disparaissent d’eux-mêmes : rien à rafraîchir.
           </p>
         </Conteneur>
       </section>

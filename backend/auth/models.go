@@ -49,13 +49,13 @@ func (Administrateur) TableName() string { return "administrateurs" }
 // cette table sert au suivi appareil et au push FCM.
 type SessionUtilisateur struct {
 	utils.ModeleBase
-	UtilisateurID       uuid.UUID  `gorm:"type:uuid;index" json:"utilisateurId"`
-	JetonHash           string     `gorm:"type:text" json:"-"`
-	JetonFCM            string     `gorm:"type:text" json:"jetonFcm"`
-	Appareil            string     `gorm:"type:varchar(255)" json:"appareil"`
-	AdresseIP           *string    `gorm:"type:inet" json:"adresseIp,omitempty"`
-	DateExpiration      time.Time  `json:"dateExpiration"`
-	DerniereUtilisation time.Time  `gorm:"autoUpdateTime" json:"derniereUtilisation"`
+	UtilisateurID       uuid.UUID `gorm:"type:uuid;index" json:"utilisateurId"`
+	JetonHash           string    `gorm:"type:text" json:"-"`
+	JetonFCM            string    `gorm:"type:text" json:"jetonFcm"`
+	Appareil            string    `gorm:"type:varchar(255)" json:"appareil"`
+	AdresseIP           *string   `gorm:"type:inet" json:"adresseIp,omitempty"`
+	DateExpiration      time.Time `json:"dateExpiration"`
+	DerniereUtilisation time.Time `gorm:"autoUpdateTime" json:"derniereUtilisation"`
 }
 
 func (SessionUtilisateur) TableName() string { return "sessions_utilisateurs" }

@@ -3,6 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
 import appCss from '@/styles/app.css?url'
 import { ToastProvider } from '@/components/partages/toast/toast'
+import { FournisseurTempsReel } from '@/temps-reel/fournisseur'
 import { obtenirSiteUrl } from '@/server/session-fns'
 
 // Importé pour son effet de bord : config.autoAddCss = false (voir lib/icones.ts).
@@ -39,11 +40,13 @@ export const Route = createRootRouteWithContext<ContexteRouteur>()({
 })
 
 function RootComponent() {
+  // Un seul socket temps réel pour toute l'application (site public, joueur, admin).
+  // Le provider n'ouvre rien au rendu serveur : la connexion démarre dans un effet.
   return (
-    <>
+    <FournisseurTempsReel>
       <Outlet />
       <ToastProvider />
-    </>
+    </FournisseurTempsReel>
   )
 }
 

@@ -41,8 +41,11 @@ export function Logo({ ton = 'encre', taille = 'md', variante = 'complet', lien 
     </span>
   )
   if (!lien) return contenu
+  // `min-h-11` : la zone cliquable fait au moins 44 px de haut même quand le logotype dessiné
+  // est plus petit (24 px en taille `sm`). Le rendu ne bouge pas — le contenu reste centré —
+  // mais le doigt trouve la cible du premier coup sur téléphone.
   return (
-    <Link to="/" aria-label="QUI PERD — accueil" className="inline-flex">
+    <Link to="/" aria-label="QUI PERD — accueil" className="inline-flex min-h-11 items-center">
       {contenu}
     </Link>
   )

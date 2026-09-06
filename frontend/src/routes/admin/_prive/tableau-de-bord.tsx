@@ -2,12 +2,13 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { icone } from '@/lib/icones'
-import { versNombre } from '@/lib/format'
+import { formatDateRelative, versNombre } from '@/lib/format'
 import { optionsStatistiques } from '@/lib/requetes'
 import { optionsMessagesContact } from '@/services/contact'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { StatCard } from '@/components/partages/stat-card/stat-card'
 import { GraphiqueRepartition } from '@/components/admin/graphique-repartition'
+import { useJournalAdmin, type EvenementAdmin, type GenreEvenementAdmin } from '@/components/admin/temps-reel-admin'
 import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 
 export const Route = createFileRoute('/admin/_prive/tableau-de-bord')({
@@ -22,14 +23,21 @@ export const Route = createFileRoute('/admin/_prive/tableau-de-bord')({
   component: TableauDeBordAdmin,
 })
 
+/**
+ * Aucun `refetchInterval` : les compteurs sont poussés par le serveur (`admin.kpi`, fusionné
+ * dans le cache par `AbonnementAdmin`, monté une seule fois dans la coquille admin). La seule
+ * invalidation restante est la resynchronisation d'après coupure du socket.
+ */
 function TableauDeBordAdmin() {
-  const { data: s } = useSuspenseQuery({ ...optionsStatistiques, refetchInterval: 60_000 })
+  const { data: s } = useSuspenseQuery(optionsStatistiques)
   // Messages « nouveau » : seul le `total` de la première page sert de compteur à traiter.
-  const messages = useQuery({ ...optionsMessagesContact(1, 'nouveau'), refetchInterval: 60_000 })
+  const messages = useQuery(optionsMessagesContact(1, 'nouveau'))
   const messagesATraiter = messages.data?.total ?? 0
+  const journal = useJournalAdmin()
+
   return (
     <>
-      <EnTetePage surtitre="Vue d’ensemble" titre="Tableau de bord" description="Chiffres agrégés par le backend (cache 60 s). Les montants sont en FCFA." />
+      <EnTetePage surtitre="Vue d’ensemble" titre="Tableau de bord" description="Compteurs agrégés par le backend et poussés en direct : rien n’est réinterrogé en boucle. Les montants sont en FCFA." />
       <Cascade className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <ElementCascade className="h-full"><StatCard libelle="Défis ouverts" valeur={s.defisOuverts} icone={icone.defi} accent /></ElementCascade>
         <ElementCascade className="h-full"><StatCard libelle="Matchs en cours" valeur={s.matchsEnCours} icone={icone.match} /></ElementCascade>
@@ -80,15 +88,58 @@ function TableauDeBordAdmin() {
           ]}
         />
       </div>
+      <JournalDirect entrees={journal} />
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Raccourci to="/admin/litiges" icone={icone.arbitrage} titre="Arbitrer les litiges" texte="Preuves, déclarations, décision." />
-        <Raccourci to="/admin/matchs" icone={icone.preuve} titre="Vérifier les preuves" texte="Matchs en vérification à régler." />
+        <Raccourci to="/admin/matchs" icone={icone.preuve} titre="Vérifier les preuves" texte="Preuves requises et matchs à régler." />
         <Raccourci to="/admin/paiements" icone={icone.transfert} titre="Suivre les paiements" texte="Dépôts et retraits en attente." />
       </div>
       <p className="mt-6 text-[12px] text-muet">
         {s.utilisateursTotal} comptes joueurs dont {s.utilisateursActifs} actifs.
       </p>
     </>
+  )
+}
+
+const DESTINATION: Record<GenreEvenementAdmin, { to: string; icone: typeof icone.defi }> = {
+  litige: { to: '/admin/litiges', icone: icone.litige },
+  paiement: { to: '/admin/paiements', icone: icone.transfert },
+  preuve: { to: '/admin/matchs', icone: icone.preuve },
+}
+
+/**
+ * Ce qui est arrivé depuis l'ouverture de l'onglet, poussé par le salon `admin`. Le bloc
+ * n'existe que s'il y a quelque chose à montrer : un tableau de bord vide ne s'encombre pas
+ * d'un cadre « aucune activité ».
+ */
+function JournalDirect({ entrees }: { entrees: readonly EvenementAdmin[] }) {
+  if (entrees.length === 0) return null
+  return (
+    <section className="mt-6 border-2 border-encre bg-papier">
+      <div className="flex items-center gap-2 border-b-2 border-encre bg-gris px-4 py-2.5">
+        <span className="inline-block size-2 animate-pulsation bg-volt" aria-hidden="true" />
+        <h3 className="etiquette">Activité en direct</h3>
+      </div>
+      <ul className="divide-y divide-trait">
+        {entrees.map((e) => {
+          const destination = DESTINATION[e.genre]
+          return (
+            <li key={e.cle} className="animate-apparition">
+              <Link to={destination.to} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-volt-fond">
+                <span className="flex size-8 shrink-0 items-center justify-center border-2 border-encre bg-volt text-nuit">
+                  <FontAwesomeIcon icon={destination.icone} />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-legende font-bold">{e.libelle}</span>
+                  <span className="block truncate text-legende text-muet">{e.detail}</span>
+                </span>
+                <span className="chiffres shrink-0 text-[11px] text-muet">{formatDateRelative(e.horodatage)}</span>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 

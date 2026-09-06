@@ -3,17 +3,27 @@ import { createFileRoute, getRouteApi, useNavigate } from '@tanstack/react-route
 import { useMutation, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { useServerFn } from '@tanstack/react-start'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { icone, iconePlateforme } from '@/lib/icones'
 import { cles } from '@/lib/query'
-import { formatDateHeure, formatDateRelative, formatMontant, formatPourcentage, versNombre } from '@/lib/format'
+import { formatDateHeure, formatMontant, formatPourcentage, versNombre } from '@/lib/format'
 import { optionsDetailDefi, optionsPortefeuille, optionsRegles } from '@/lib/requetes'
 import { annulerDefi, rejoindreDefi } from '@/services/defis'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
+import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
+import { CompteAReboursDefi } from '@/components/partages/defis-en-direct/animation-defis'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { TableauScore } from '@/components/partages/tableau-score/tableau-score'
+import { Apparition } from '@/components/partages/animation/animation'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
+
+/** Ce qui met fin au défi pendant qu'on le regarde — sert de bandeau et d'action suivante. */
+type Denouement = { genre: 'rejoint'; matchId: string } | { genre: 'annule' } | { genre: 'expire' }
 
 const routeJoueur = getRouteApi('/joueur')
 
@@ -50,6 +60,39 @@ function DetailDefi() {
   const annuler = useServerFn(annulerDefi)
   const [confirmRejoindre, setConfirmRejoindre] = useState(false)
   const [confirmAnnuler, setConfirmAnnuler] = useState(false)
+  const [denouement, setDenouement] = useState<Denouement | null>(null)
+
+  // Salon public (le défi peut être rejoint par n'importe qui) + salon personnel.
+  const ecoutes = [salons.defisPublics, salons.utilisateur(moi.id)]
+  useDefisEnDirect({ utilisateurId: moi.id })
+
+  // Le cache est déjà tenu à jour par `useDefisEnDirect` (le bouton « Rejoindre » disparaît de
+  // lui-même) ; ici on retient seulement ce qui vient de se passer sous les yeux du joueur.
+  useEvenement(
+    'defi.rejoint',
+    (charge) => {
+      if (charge.defiId === defiId) setDenouement({ genre: 'rejoint', matchId: charge.matchId })
+    },
+    ecoutes,
+  )
+  useEvenement(
+    'defi.annule',
+    (charge) => {
+      if (charge.defiId === defiId) setDenouement({ genre: 'annule' })
+    },
+    ecoutes,
+  )
+  useEvenement(
+    'defi.expire',
+    (charge) => {
+      if (charge.defiId === defiId) setDenouement({ genre: 'expire' })
+    },
+    ecoutes,
+  )
+
+  // Identifiant du match : celui de la fiche, ou celui annoncé à l'instant par le hub.
+  const matchId = match?.id ?? (denouement?.genre === 'rejoint' ? denouement.matchId : undefined)
+  const ouvert = defi.statut === 'ouvert'
 
   const invalider = () => {
     void queryClient.invalidateQueries({ queryKey: cles.defis.tous })
@@ -98,15 +141,15 @@ function DetailDefi() {
             <LienBouton to="/joueur/defis" variante="fantome" iconeDebut={icone.precedent}>
               Retour
             </LienBouton>
-            {match ? (
-              <LienBouton to="/joueur/matchs/$matchId" params={{ matchId: match.id }} variante="volt" iconeDebut={icone.match}>
+            {matchId ? (
+              <LienBouton to="/joueur/matchs/$matchId" params={{ matchId }} variante="volt" iconeDebut={icone.match}>
                 Voir le match
               </LienBouton>
-            ) : defi.statut === 'ouvert' && mien ? (
+            ) : ouvert && mien ? (
               <Button variante="danger" onClick={() => setConfirmAnnuler(true)} iconeDebut={icone.interdire}>
                 Annuler le défi
               </Button>
-            ) : defi.statut === 'ouvert' ? (
+            ) : ouvert ? (
               <Button variante="volt" onClick={() => setConfirmRejoindre(true)} iconeDebut={icone.poigneeDeMain}>
                 Rejoindre pour {formatMontant(mise)}
               </Button>
@@ -114,6 +157,8 @@ function DetailDefi() {
           </>
         }
       />
+
+      {denouement && <BandeauDenouement denouement={denouement} mien={mien} />}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
@@ -125,11 +170,14 @@ function DetailDefi() {
             gagnant={match?.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null}
             etiquette={`${defi.jeuNom} · ${defi.plateformeNom}`}
             enDirect={match?.statut === 'en_cours'}
-            sousTitre={match ? undefined : defi.statut === 'ouvert' ? 'Défi ouvert — un adversaire peut rejoindre' : undefined}
+            sousTitre={match ? undefined : ouvert ? 'Défi ouvert — un adversaire peut rejoindre' : undefined}
           />
           <dl className="grid gap-px border-2 border-encre bg-encre sm:grid-cols-2">
             <Info libelle="Statut">
-              <BadgeStatut famille="defi" valeur={defi.statut} />
+              <span className="flex flex-wrap items-center gap-2">
+                <BadgeStatut famille="defi" valeur={defi.statut} />
+                <IndicateurDirect cliquable />
+              </span>
             </Info>
             <Info libelle="Plateforme">
               <span className="flex items-center gap-2">
@@ -138,7 +186,21 @@ function DetailDefi() {
             </Info>
             <Info libelle="Créé">{formatDateHeure(defi.dateCreation)}</Info>
             <Info libelle="Expiration">
-              {defi.dateExpiration ? `${formatDateHeure(defi.dateExpiration)} (${formatDateRelative(defi.dateExpiration)})` : '—'}
+              {defi.dateExpiration ? (
+                <span className="flex flex-wrap items-center gap-x-2">
+                  <span>{formatDateHeure(defi.dateExpiration)}</span>
+                  {ouvert && (
+                    <CompteAReboursDefi
+                      defiId={defiId}
+                      echeance={defi.dateExpiration}
+                      libelle="dans"
+                      surExpiration={() => setDenouement({ genre: 'expire' })}
+                    />
+                  )}
+                </span>
+              ) : (
+                '—'
+              )}
             </Info>
             <Info libelle="Règles du match" large>
               {defi.regles ? <p className="whitespace-pre-line">{defi.regles}</p> : <span className="text-muet">Aucune règle particulière : conditions par défaut du jeu.</span>}
@@ -157,7 +219,7 @@ function DetailDefi() {
             <span className="etiquette text-craie/60">Gain estimé du vainqueur</span>
             <p className="chiffres mt-1 text-h1 font-bold text-volt">{formatMontant(gainEstime)}</p>
           </div>
-          {!mien && defi.statut === 'ouvert' && (
+          {!mien && ouvert && (
             <p className={`mt-4 flex items-start gap-2 text-legende ${mise > disponible ? 'text-perte' : 'text-craie/70'}`}>
               <FontAwesomeIcon icon={mise > disponible ? icone.attention : icone.info} className="mt-0.5" />
               {mise > disponible ? `Solde disponible insuffisant (${formatMontant(disponible)}).` : `Votre solde disponible : ${formatMontant(disponible)}.`}
@@ -166,8 +228,9 @@ function DetailDefi() {
         </aside>
       </div>
 
+      {/* Le défi peut cesser d'être ouvert pendant que la fenêtre est affichée : elle se referme. */}
       <ConfirmModal
-        ouvert={confirmRejoindre}
+        ouvert={confirmRejoindre && ouvert}
         onFermer={() => setConfirmRejoindre(false)}
         onConfirmer={() => mutRejoindre.mutate()}
         titre="Rejoindre ce défi ?"
@@ -182,7 +245,7 @@ function DetailDefi() {
         <p className="text-legende text-muet">Si les déclarations concordent et que les preuves sont validées, le gagnant reçoit {formatMontant(gainEstime)} (estimation).</p>
       </ConfirmModal>
       <ConfirmModal
-        ouvert={confirmAnnuler}
+        ouvert={confirmAnnuler && ouvert}
         onFermer={() => setConfirmAnnuler(false)}
         onConfirmer={() => mutAnnuler.mutate()}
         titre="Annuler ce défi ?"
@@ -194,6 +257,70 @@ function DetailDefi() {
         <p>Le défi sera retiré et votre mise de <strong className="chiffres">{formatMontant(mise)}</strong> remboursée, moins la commission de la plateforme.</p>
       </ConfirmModal>
     </>
+  )
+}
+
+/**
+ * Le défi vient de changer d'état sous les yeux du joueur : on le dit tout de suite et on propose
+ * l'action suivante, plutôt que de laisser un bouton « Rejoindre » qui échouerait.
+ */
+function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien: boolean }) {
+  const contenu: { icone: IconDefinition; cadre: string; titre: string; texte: string; action: ReactNode } =
+    denouement.genre === 'rejoint'
+      ? {
+          icone: icone.poigneeDeMain,
+          cadre: 'border-encre bg-volt-fond',
+          titre: mien ? 'Un adversaire vient de rejoindre votre défi' : 'Ce défi vient d’être rejoint',
+          texte: mien
+            ? 'Les deux mises sont bloquées : le match peut commencer.'
+            : 'Un autre joueur a été plus rapide. Votre solde n’a pas bougé.',
+          action: mien ? (
+            <LienBouton to="/joueur/matchs/$matchId" params={{ matchId: denouement.matchId }} variante="volt" iconeDebut={icone.match}>
+              Voir le match
+            </LienBouton>
+          ) : (
+            <LienBouton to="/joueur/defis" variante="secondaire" iconeDebut={icone.precedent}>
+              Voir les autres défis
+            </LienBouton>
+          ),
+        }
+      : denouement.genre === 'annule'
+        ? {
+            icone: icone.interdire,
+            cadre: 'border-encre bg-gris',
+            titre: 'Ce défi vient d’être annulé',
+            texte: mien ? 'Votre mise vous a été rendue, moins la commission.' : 'Son créateur l’a retiré de l’arène.',
+            action: (
+              <LienBouton to="/joueur/defis" variante="secondaire" iconeDebut={icone.precedent}>
+                Retour aux défis
+              </LienBouton>
+            ),
+          }
+        : {
+            icone: icone.horloge,
+            cadre: 'border-alerte bg-alerte-fond',
+            titre: 'Ce défi vient d’expirer',
+            texte: mien ? 'Aucun adversaire ne l’a rejoint : votre mise vous est rendue, moins la commission.' : 'Personne ne l’a rejoint à temps.',
+            action: (
+              <LienBouton to="/joueur/defis" variante="secondaire" iconeDebut={icone.precedent}>
+                Retour aux défis
+              </LienBouton>
+            ),
+          }
+
+  return (
+    <Apparition className="mb-6">
+      <div role="status" aria-live="polite" className={`flex flex-col gap-3 border-2 p-4 sm:flex-row sm:items-center sm:justify-between ${contenu.cadre}`}>
+        <div className="flex items-start gap-3">
+          <FontAwesomeIcon icon={contenu.icone} className="mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="font-bold leading-tight">{contenu.titre}</p>
+            <p className="mt-0.5 text-legende text-muet">{contenu.texte}</p>
+          </div>
+        </div>
+        <div className="shrink-0">{contenu.action}</div>
+      </div>
+    </Apparition>
   )
 }
 

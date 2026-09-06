@@ -15,6 +15,7 @@ import (
 	"quiperd/backend/auth"
 	"quiperd/backend/config"
 	"quiperd/backend/matchs"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
 
@@ -41,6 +42,27 @@ type PreuveMatch struct {
 
 func (PreuveMatch) TableName() string { return "preuves_matchs" }
 
+// ChargePreuveEnvoyee — match.preuve_envoyee (salon du match).
+type ChargePreuveEnvoyee struct {
+	MatchID       uuid.UUID `json:"matchId"`
+	UtilisateurID uuid.UUID `json:"utilisateurId"`
+	PreuveID      uuid.UUID `json:"preuveId"`
+	Type          string    `json:"type"`
+}
+
+// ChargePreuveAVerifier — admin.preuve_a_verifier (salon admin).
+type ChargePreuveAVerifier struct {
+	PreuveID uuid.UUID `json:"preuveId"`
+	MatchID  uuid.UUID `json:"matchId"`
+}
+
+// aDeposePreuve indique si un joueur a déposé au moins une preuve sur ce match.
+func aDeposePreuve(tx *gorm.DB, matchID, userID uuid.UUID) bool {
+	var n int64
+	tx.Model(&PreuveMatch{}).Where("match_id = ? AND utilisateur_id = ?", matchID, userID).Count(&n)
+	return n > 0
+}
+
 // Televerser godoc
 // @Summary Envoyer une preuve de match (multipart → disque local)
 // @Tags preuves
@@ -59,6 +81,12 @@ func Televerser(c fiber.Ctx) error {
 	}
 	if !m.EstParticipant(userID) {
 		return utils.Erreur(c, fiber.StatusForbidden, "ce match ne vous concerne pas")
+	}
+	// Une preuve ne sert qu'à trancher un match encore ouvert. En accepter sur un match déjà
+	// réglé remplirait le stockage de fichiers que personne n'examinera jamais, et laisserait
+	// croire au joueur qu'il peut encore contester une issue définitive.
+	if m.Statut == matchs.StatutTermine {
+		return utils.Erreur(c, fiber.StatusConflict, "ce match est terminé, aucune preuve ne peut plus être ajoutée")
 	}
 
 	typePreuve := c.FormValue("type")
@@ -96,9 +124,39 @@ func Televerser(c fiber.Ctx) error {
 		MatchID: matchID, UtilisateurID: userID, Type: typePreuve,
 		UrlFichier: chemin, EmpreinteFichier: empreinte, Statut: StatutEnAttente,
 	}
-	if err := config.DB.Create(&p).Error; err != nil {
+	tampon := tempsreel.NouveauTampon()
+	err = config.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&p).Error; err != nil {
+			return err
+		}
+		tampon.Ajouter(tempsreel.EvtMatchPreuveEnvoyee, ChargePreuveEnvoyee{
+			MatchID: matchID, UtilisateurID: userID, PreuveID: p.ID, Type: typePreuve,
+		}, tempsreel.SalonMatch(matchID))
+		tampon.Ajouter(tempsreel.EvtAdminPreuveAVerifier, ChargePreuveAVerifier{
+			PreuveID: p.ID, MatchID: matchID,
+		}, tempsreel.SalonAdmin)
+
+		// Machine à états : après un désaccord, le litige n'est ouvert qu'une fois les DEUX
+		// preuves déposées (ou à l'expiration de l'échéance, côté worker). Verrou de la
+		// ligne match d'abord, comme partout ailleurs (anti-interblocage).
+		courant, err := matchs.ChargerVerrouille(tx, matchID)
+		if err != nil {
+			return err
+		}
+		if courant.Statut == matchs.StatutPreuveRequise &&
+			aDeposePreuve(tx, matchID, courant.Joueur1ID) && aDeposePreuve(tx, matchID, courant.Joueur2ID) {
+			if _, err := matchs.PasserEnLitige(tx, tampon, matchID,
+				"Déclarations divergentes : les deux preuves ont été déposées"); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		_ = os.Remove(utils.CheminAbsoluPreuve(config.Cfg.StockagePreuvesDir, chemin))
 		return utils.Erreur(c, fiber.StatusInternalServerError, "enregistrement impossible")
 	}
+	tampon.Diffuser()
 	return utils.OK(c, p, fiber.StatusCreated)
 }
 
@@ -203,6 +261,10 @@ func Verifier(c fiber.Ctx) error {
 	return utils.OK(c, fiber.Map{"statut": in.Statut})
 }
 
+// tenterValidationAuto règle un match resté en `verification` dès que les deux preuves sont
+// validées. Ce chemin ne concerne plus le parcours joueur courant (deux déclarations
+// concordantes règlent le match immédiatement, sans preuve ni arbitre) : il ne sert qu'aux
+// lignes historiques encore en `verification`.
 func tenterValidationAuto(matchID, arbitre uuid.UUID) {
 	m, err := matchs.Charger(config.DB, matchID)
 	if err != nil || m.Statut != matchs.StatutVerification {

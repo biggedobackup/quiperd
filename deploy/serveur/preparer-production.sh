@@ -58,6 +58,10 @@ QUIPERD_TUNNEL_RAPIDE=oui
 # --- Site web ---
 # Origine publique du site. Avec un tunnel nommé : https://votre-domaine
 SITE_URL=$SITE_URL
+# URL publique du socket temps réel, telle que le NAVIGATEUR l'ouvre. Elle suit SITE_URL :
+# Caddy route /api/temps-reel du port 80 vers le backend, donc même origine que les pages.
+# Le site convertit http:// en ws:// et https:// en wss:// tout seul.
+WS_PUBLIC_URL=$SITE_URL/api/temps-reel
 
 # --- Backend ---
 APP_ENV=production
@@ -66,6 +70,15 @@ APP_PORT=8080
 # Origine publique du site (pages de retour des paiements : /portefeuille?paiement=…)
 APP_BASE_URL=$SITE_URL
 CORS_ORIGIN=$SITE_URL
+
+# Temps réel (WebSocket) : origines supplémentaires autorisées à ouvrir
+# wss://…/api/temps-reel, séparées par des virgules. CORS_ORIGIN est déjà admise, et
+# le socket passe par la MÊME origine que le site (Caddy route /api/temps-reel vers le
+# backend sur le port 80) : cette liste ne sert donc que si le site est aussi joint par
+# une autre adresse (nom de domaine + IP du réseau local, préproduction…).
+WS_ORIGINES_AUTORISEES=
+# Durée de vie du ticket d'ouverture de socket, en secondes (usage unique).
+WS_TICKET_TTL_SECONDES=60
 
 # PostgreSQL (conteneur « postgres », base créée au premier démarrage avec ces valeurs)
 DB_HOST=postgres

@@ -1,16 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createFileRoute, getRouteApi, type SearchSchemaInput } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query'
 import { useServerFn } from '@tanstack/react-start'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { icone } from '@/lib/icones'
 import { cles } from '@/lib/query'
-import { formatDateHeure, formatMontantSigne, formatReference, versNombre } from '@/lib/format'
+import { formatDateHeure, formatMontant, formatMontantSigne, formatReference, versNombre } from '@/lib/format'
 import { typesTransaction } from '@/lib/statuts'
 import { TAILLE_PAGE, optionsPortefeuille, optionsRegles, optionsTransactions } from '@/lib/requetes'
 import { deposer, retirer } from '@/services/paiements'
-import type { DemandeDepot, DemandeRetrait } from '@/models/paiement'
+import type { DemandeDepot, DemandeRetrait, Paiement } from '@/models/paiement'
 import type { TransactionPortefeuille } from '@/models/transaction-portefeuille'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement, useResynchronisation } from '@/temps-reel/hooks'
+import { ajouterNotification, ajouterTransaction, fusionnerSolde } from '@/temps-reel/cache'
+import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { DepotModal } from '@/components/joueur/modals/depot-modal'
 import { RetraitModal } from '@/components/joueur/modals/retrait-modal'
@@ -41,11 +45,62 @@ export const Route = createFileRoute('/joueur/portefeuille')({
   component: PagePortefeuille,
 })
 
+/** Dépôt ou retrait dont l'écran suit l'aboutissement en direct (`paiement.statut`). */
+interface PaiementSuivi {
+  id: string
+  type: string
+  montant: string
+  devise: string
+  statut: string
+}
+
+/** Ce que le joueur doit comprendre, en une phrase, pour chaque issue d'un paiement. */
+function aidePaiement(p: PaiementSuivi): string {
+  if (p.statut === 'en_attente') {
+    return p.type === 'depot'
+      ? 'Validez la demande sur votre téléphone : le solde se met à jour ici tout seul.'
+      : 'Transfert en cours de traitement vers votre numéro Mobile Money.'
+  }
+  if (p.statut === 'reussi') {
+    return p.type === 'depot' ? 'Montant crédité sur votre solde disponible.' : 'Transfert envoyé vers votre numéro Mobile Money.'
+  }
+  if (p.statut === 'echoue') {
+    return p.type === 'depot'
+      ? 'Rien n’a été débité. Vérifiez votre solde Mobile Money, puis réessayez.'
+      : 'Montant et frais ont été recrédités sur votre solde disponible.'
+  }
+  if (p.statut === 'rembourse') return 'Le dépôt a été remboursé : le montant a été repris sur votre solde.'
+  return ''
+}
+
+/** `true` pendant 2,4 s après un changement de valeur — sert à signaler un solde qui vient de bouger. */
+function useEclair(valeur: string): boolean {
+  const [actif, setActif] = useState(false)
+  const precedent = useRef(valeur)
+  useEffect(() => {
+    if (precedent.current === valeur) return
+    precedent.current = valeur
+    setActif(true)
+    const minuterie = window.setTimeout(() => setActif(false), 2400)
+    return () => window.clearTimeout(minuterie)
+  }, [valeur])
+  return actif
+}
+
+/**
+ * Portefeuille du joueur — entièrement poussé par le serveur : aucun `refetchInterval`.
+ *
+ * Trois événements du salon privé `utilisateur:<id>` :
+ *   - `portefeuille.maj`  : les deux soldes, réanimés par `CompteurAnime` ;
+ *   - `transaction.creee` : la ligne entre en tête de la page 1 sans décaler la pagination ;
+ *   - `paiement.statut`   : le dépôt Mobile Money passe de « en attente » à « réussi » sous
+ *     les yeux du joueur, au lieu de le laisser recharger la page sans savoir.
+ */
 function PagePortefeuille() {
   const { page, paiement } = Route.useSearch()
   const navigate = Route.useNavigate()
   const { session } = routeJoueur.useRouteContext()
-  const { data: portefeuille } = useSuspenseQuery({ ...optionsPortefeuille, refetchInterval: 20_000 })
+  const { data: portefeuille } = useSuspenseQuery(optionsPortefeuille)
   const { data: regles } = useSuspenseQuery(optionsRegles)
   const transactions = useQuery(optionsTransactions(page))
   const queryClient = useQueryClient()
@@ -53,6 +108,78 @@ function PagePortefeuille() {
   const retrait = useServerFn(retirer)
   const [modalDepot, setModalDepot] = useState(false)
   const [modalRetrait, setModalRetrait] = useState(false)
+
+  const salonMoi = salons.utilisateur(session.utilisateur.id)
+  const [suivis, setSuivis] = useState<readonly PaiementSuivi[]>([])
+  /** Identifiants des mouvements arrivés en direct : mis en avant dans le tableau. */
+  const [recents, setRecents] = useState<readonly string[]>([])
+  /** Mouvements reçus alors que le joueur lit une page ancienne de l'historique. */
+  const [horsPage, setHorsPage] = useState(0)
+
+  const eclairDisponible = useEclair(portefeuille.soldeDisponible)
+  const eclairBloque = useEclair(portefeuille.soldeBloque)
+
+  // Changer de page repart d'un historique propre (les repères « nouveau » ne valent que
+  // pour la page qu'on regardait).
+  useEffect(() => {
+    setRecents([])
+    setHorsPage(0)
+  }, [page])
+
+  const suivre = (p: PaiementSuivi) =>
+    setSuivis((liste) => {
+      const index = liste.findIndex((s) => s.id === p.id)
+      if (index < 0) return [p, ...liste].slice(0, 4)
+      const copie = [...liste]
+      copie[index] = { ...copie[index], ...p }
+      return copie
+    })
+
+  // Seule invalidation autorisée : une par (re)connexion du socket (rattrapage de coupure).
+  useResynchronisation(cles.portefeuille.tous)
+
+  useEvenement('portefeuille.maj', (solde) => fusionnerSolde(queryClient, solde), salonMoi)
+
+  useEvenement(
+    'transaction.creee',
+    (transaction) => {
+      ajouterTransaction(queryClient, transaction)
+      if (page === 1) setRecents((liste) => (liste.includes(transaction.id) ? liste : [transaction.id, ...liste].slice(0, 12)))
+      else setHorsPage((n) => n + 1)
+    },
+    salonMoi,
+  )
+
+  useEvenement(
+    'paiement.statut',
+    ({ paiementId, type, statut, montant, devise }) => {
+      suivre({ id: paiementId, type, statut, montant, devise })
+      const somme = formatMontant(montant, devise)
+      if (statut === 'reussi') {
+        toastSucces(type === 'depot' ? 'Dépôt confirmé' : 'Retrait envoyé', type === 'depot' ? `${somme} crédités sur votre solde disponible.` : `${somme} transférés vers votre numéro Mobile Money.`)
+      } else if (statut === 'echoue') {
+        toastErreur(
+          type === 'depot' ? 'Dépôt échoué' : 'Retrait échoué',
+          type === 'depot' ? 'Aucun montant n’a été débité. Vérifiez votre solde Mobile Money, puis réessayez.' : 'Montant et frais ont été recrédités sur votre solde disponible.',
+        )
+      } else if (statut === 'rembourse') {
+        toastInfo('Dépôt remboursé', `${somme} ont été repris sur votre solde disponible.`)
+      }
+      // Le bandeau « retour du prestataire » n'a plus lieu d'être : l'issue est connue.
+      if (paiement && statut !== 'en_attente') void navigate({ search: { page, paiement: undefined } })
+    },
+    salonMoi,
+  )
+
+  // Le compteur de la navigation lit la même clé de cache : il se met à jour tout seul.
+  useEvenement(
+    'notification.nouvelle',
+    (notification) => {
+      ajouterNotification(queryClient, notification)
+      toastInfo(notification.titre, notification.message)
+    },
+    salonMoi,
+  )
 
   const invalider = () => void queryClient.invalidateQueries({ queryKey: cles.portefeuille.tous })
 
@@ -70,6 +197,7 @@ function PagePortefeuille() {
         return
       }
       toastInfo('Dépôt enregistré', r.donnees.message ?? 'En attente de confirmation du prestataire.')
+      suivreLePaiement(r.donnees.paiement)
       invalider()
     },
   })
@@ -84,9 +212,15 @@ function PagePortefeuille() {
         return
       }
       toastSucces('Retrait demandé', `${formatMontantSigne(r.donnees.montant, 'neutre')} + ${formatMontantSigne(r.donnees.frais, 'neutre')} de frais débités. Traitement en cours.`)
+      suivreLePaiement(r.donnees)
       invalider()
     },
   })
+
+  function suivreLePaiement(p: Paiement | undefined) {
+    if (!p?.id) return
+    suivre({ id: p.id, type: p.type, montant: p.montant, devise: p.devise, statut: p.statut })
+  }
 
   const colonnes: Colonne<TransactionPortefeuille>[] = [
     {
@@ -94,7 +228,10 @@ function PagePortefeuille() {
       entete: 'Mouvement',
       rendu: (t) => (
         <div>
-          <p className="font-semibold">{typesTransaction[t.type]?.libelle ?? t.type}</p>
+          <p className="flex flex-wrap items-center gap-2 font-semibold">
+            {typesTransaction[t.type]?.libelle ?? t.type}
+            {recents.includes(t.id) && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Nouveau</span>}
+          </p>
           <p className="max-w-xs truncate text-[12px] text-muet">{t.description}</p>
         </div>
       ),
@@ -122,6 +259,8 @@ function PagePortefeuille() {
         titre="Portefeuille"
         description="Le solde bloqué correspond à vos mises engagées ; seul le solde disponible peut être misé ou retiré."
         actions={
+          // L'indicateur passe en dernier : sur un écran étroit, les deux boutons d'action
+          // restent sur la même ligne et c'est lui qui va à la ligne.
           <>
             <Button variante="secondaire" onClick={() => setModalRetrait(true)} iconeDebut={icone.retrait}>
               Retirer
@@ -129,6 +268,7 @@ function PagePortefeuille() {
             <Button variante="volt" onClick={() => setModalDepot(true)} iconeDebut={icone.depot}>
               Déposer
             </Button>
+            <IndicateurDirect variante="etiquette" cliquable className="self-center" />
           </>
         }
       />
@@ -136,31 +276,75 @@ function PagePortefeuille() {
       {paiement && (
         <p className="mb-6 flex items-start gap-2 border-2 border-info bg-info-fond p-3 text-legende text-info">
           <FontAwesomeIcon icon={icone.info} className="mt-0.5" />
-          {paiement === 'annule' ? 'Paiement annulé : aucun montant n’a été crédité.' : 'Retour du prestataire : votre solde sera mis à jour dès confirmation du paiement.'}
+          {paiement === 'annule' ? 'Paiement annulé : aucun montant n’a été crédité.' : 'Retour du prestataire : votre solde se mettra à jour ici même, sans recharger la page.'}
           <button type="button" className="ml-auto underline" onClick={() => navigate({ search: { page, paiement: undefined } })}>
             Fermer
           </button>
         </p>
       )}
 
+      {suivis.length > 0 && (
+        <section aria-label="Paiements en cours" className="mb-6 space-y-3">
+          {suivis.map((p) => (
+            <article key={p.id} className="animate-apparition flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-encre bg-papier px-4 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center border-2 border-encre bg-volt-fond">
+                <FontAwesomeIcon icon={p.type === 'depot' ? icone.depot : icone.retrait} />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-legende font-bold">
+                  {p.type === 'depot' ? 'Dépôt' : 'Retrait'} de <span className="chiffres">{formatMontant(p.montant, p.devise)}</span>
+                </span>
+                <span className="block text-legende text-muet">{aidePaiement(p)}</span>
+              </span>
+              <BadgeStatut famille="paiement" valeur={p.statut} className="ml-auto" />
+              <button
+                type="button"
+                onClick={() => setSuivis((liste) => liste.filter((s) => s.id !== p.id))}
+                aria-label="Masquer ce suivi de paiement"
+                className="etiquette flex min-h-11 items-center border-2 border-transparent px-2 text-muet hover:border-encre hover:text-encre sm:min-h-9"
+              >
+                Masquer
+              </button>
+            </article>
+          ))}
+        </section>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="ticket border-2 border-encre bg-nuit p-6 text-craie">
-          <span className="etiquette text-craie/60">Disponible</span>
+        <div className={`ticket border-2 bg-nuit p-6 text-craie transition-colors ${eclairDisponible ? 'border-volt' : 'border-encre'}`}>
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="etiquette text-craie/60">Disponible</span>
+            {eclairDisponible && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Mis à jour</span>}
+          </span>
           <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} className="mt-2 block text-display-sm font-bold text-volt" />
           <p className="mt-2 text-legende text-craie/60">Misable et retirable.</p>
         </div>
-        <div className="ticket border-2 border-encre bg-papier p-6">
-          <span className="etiquette text-muet">Bloqué en séquestre</span>
+        <div className={`ticket border-2 bg-papier p-6 transition-colors ${eclairBloque ? 'border-volt' : 'border-encre'}`}>
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="etiquette text-muet">Bloqué en séquestre</span>
+            {eclairBloque && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Mis à jour</span>}
+          </span>
           <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} className="mt-2 block text-display-sm font-bold" />
           <p className="mt-2 text-legende text-muet">Vos mises engagées sur des défis ou matchs en cours.</p>
         </div>
       </div>
 
       <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-h3">Historique</h3>
           <span className="text-legende text-muet">{TAILLE_PAGE} mouvements par page</span>
         </div>
+        {horsPage > 0 && (
+          <p role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 border-2 border-encre bg-volt-fond px-4 py-3 text-legende">
+            <span className="inline-block size-2 shrink-0 animate-pulsation bg-volt" aria-hidden="true" />
+            <span className="font-semibold">
+              <span className="chiffres">{horsPage}</span> {horsPage > 1 ? 'nouveaux mouvements' : 'nouveau mouvement'} sur votre compte
+            </span>
+            <Button variante="secondaire" taille="sm" className="ml-auto min-h-11 sm:min-h-0" onClick={() => navigate({ search: { page: 1, paiement } })}>
+              Voir la page 1
+            </Button>
+          </p>
+        )}
         <DataTable
           colonnes={colonnes}
           lignes={transactions.data ?? []}

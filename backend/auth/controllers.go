@@ -8,10 +8,10 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"quiperd/backend/administration"
 	"quiperd/backend/config"
 	"quiperd/backend/utils"
-	"go.uber.org/zap"
 )
 
 // Inscription godoc
@@ -188,7 +188,7 @@ func MotDePasseOublie(c fiber.Ctx) error {
 }
 
 type entreeReinit struct {
-	Token         string `json:"token" validate:"required"`
+	Token             string `json:"token" validate:"required"`
 	NouveauMotDePasse string `json:"nouveauMotDePasse" validate:"required,min=6"`
 }
 

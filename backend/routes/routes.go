@@ -19,6 +19,7 @@ import (
 	"quiperd/backend/plateformes"
 	"quiperd/backend/portefeuilles"
 	"quiperd/backend/preuves"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utilisateurs"
 )
 
@@ -49,6 +50,8 @@ func Enregistrer(app *fiber.App) {
 	notifications.Enregistrer(api)
 	administration.Enregistrer(api, auth.Connecte(), auth.AdminSeul())
 	contact.Enregistrer(api)
+	// Temps réel : le socket est public (visiteur autorisé), le ticket exige la session.
+	tempsreel.Enregistrer(api, auth.Connecte())
 }
 
 // Sante godoc

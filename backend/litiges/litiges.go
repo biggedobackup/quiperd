@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"quiperd/backend/administration"
@@ -16,6 +17,7 @@ import (
 	"quiperd/backend/matchs"
 	"quiperd/backend/notifications"
 	"quiperd/backend/portefeuilles"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
 
@@ -45,10 +47,29 @@ func (Litige) TableName() string { return "litiges" }
 // DelaiRelanceArbitre est le délai après lequel l'arbitre est rappelé (tâche Asynq litige:relance).
 const DelaiRelanceArbitre = 24 * time.Hour
 
-// Brancher installe le hook d'ouverture automatique de litige côté matchs
-// (déclarations divergentes) — appelé au démarrage depuis main.
+// ChargeLitige — match.litige_ouvert (salon du match) et admin.litige_ouvert (salon admin).
+type ChargeLitige struct {
+	LitigeID uuid.UUID `json:"litigeId"`
+	MatchID  uuid.UUID `json:"matchId"`
+	Motif    string    `json:"motif"`
+}
+
+// ChargeLitigeResolu — match.litige_resolu.
+type ChargeLitigeResolu struct {
+	LitigeID uuid.UUID `json:"litigeId"`
+	MatchID  uuid.UUID `json:"matchId"`
+	Decision string    `json:"decision"`
+}
+
+// Brancher installe TOUS les points d'extension inter-modules du package matchs — appelé
+// une seule fois au démarrage (main). Le package matchs n'importe ainsi ni litiges ni
+// notifications : pas de cycle, et les événements temps réel passent par le tampon de
+// l'appelant, donc ne partent jamais avant le commit.
 func Brancher() {
-	matchs.OuvrirLitigeAuto = func(tx *gorm.DB, matchID uuid.UUID, motif string) {
+	// Ouverture automatique du litige. Le match est DÉJÀ passé en statut `litige` par une
+	// transition atomique côté matchs (dépôt des deux preuves ou expiration de l'échéance
+	// de preuve) : un désaccord n'ouvre plus le litige immédiatement.
+	matchs.OuvrirLitigeAuto = func(tx *gorm.DB, tampon *tempsreel.Tampon, matchID uuid.UUID, motif string) {
 		var n int64
 		tx.Model(&Litige{}).Where("match_id = ? AND statut = ?", matchID, StatutEnCours).Count(&n)
 		if n > 0 {
@@ -60,14 +81,60 @@ func Brancher() {
 		}
 		var m matchs.MatchDefi
 		if err := tx.First(&m, "id = ?", matchID).Error; err == nil {
-			for _, j := range []uuid.UUID{m.Joueur1ID, m.Joueur2ID} {
+			for _, j := range m.Joueurs() {
 				_ = notifications.Creer(tx, j, "Litige ouvert",
-					"Vos déclarations de score divergent : un litige a été ouvert, un arbitre va trancher.",
-					notifications.TypeLitigeOuvert)
+					"Un litige a été ouvert sur votre match : un arbitre va examiner les preuves et trancher.",
+					notifications.TypeLitigeOuvert, tampon)
 			}
 		}
+		publierOuverture(tampon, litige)
 		jobs.EnfilerLitigeRelance(litige.ID.String(), DelaiRelanceArbitre)
 	}
+
+	// Notification de fin de match, version tampon (remplace matchs.NotifierReglement).
+	matchs.NotifierFinMatch = func(tx *gorm.DB, tampon *tempsreel.Tampon, gagnantID, perdantID uuid.UUID, gain decimal.Decimal) {
+		_ = notifications.Creer(tx, gagnantID, "Match terminé",
+			"Félicitations, vous avez gagné le match. Votre gain a été crédité.",
+			notifications.TypeMatchTermine, tampon)
+		_ = notifications.Creer(tx, perdantID, "Match terminé",
+			"Le match est terminé. Consultez le détail dans l'application.",
+			notifications.TypeMatchTermine, tampon)
+	}
+
+	// Notification libre aux joueurs d'un match (score proposé, désaccord, nul, rejoue, abandon).
+	matchs.NotifierJoueurs = func(tx *gorm.DB, tampon *tempsreel.Tampon, joueurs []uuid.UUID, titre, message, typ string) {
+		for _, j := range joueurs {
+			_ = notifications.Creer(tx, j, titre, message, typ, tampon)
+		}
+	}
+
+	// Clôture du litige quand le match est réglé par une autre voie (validation admin).
+	matchs.CloturerLitigeAuto = func(tx *gorm.DB, tampon *tempsreel.Tampon, matchID uuid.UUID, arbitreID *uuid.UUID, decision string) {
+		var litige Litige
+		if err := tx.Where("match_id = ? AND statut = ?", matchID, StatutEnCours).
+			Order("date_creation DESC").First(&litige).Error; err != nil {
+			return
+		}
+		maintenant := time.Now().UTC()
+		if err := tx.Model(&Litige{}).Where("id = ? AND statut = ?", litige.ID, StatutEnCours).
+			Updates(map[string]any{
+				"statut": StatutResolu, "decision": decision,
+				"arbitre_id": arbitreID, "date_resolution": maintenant,
+			}).Error; err != nil {
+			return
+		}
+		tampon.Ajouter(tempsreel.EvtMatchLitigeResolu, ChargeLitigeResolu{
+			LitigeID: litige.ID, MatchID: matchID, Decision: decision,
+		}, tempsreel.SalonMatch(matchID))
+	}
+}
+
+// publierOuverture met en tampon l'ouverture d'un litige : sur le salon du match pour les
+// deux joueurs, sur le salon admin pour l'équipe d'arbitrage.
+func publierOuverture(tampon *tempsreel.Tampon, l Litige) {
+	charge := ChargeLitige{LitigeID: l.ID, MatchID: l.MatchID, Motif: l.Motif}
+	tampon.Ajouter(tempsreel.EvtMatchLitigeOuvert, charge, tempsreel.SalonMatch(l.MatchID))
+	tampon.Ajouter(tempsreel.EvtAdminLitigeOuvert, charge, tempsreel.SalonAdmin)
 }
 
 // RelancerSiEnCours est appelé par le worker (tâche litige:relance) : si le litige
@@ -89,6 +156,9 @@ func RelancerSiEnCours(litigeID uuid.UUID) error {
 		utils.Log.Warn("litige toujours en attente d'arbitrage",
 			zap.String("litigeId", l.ID.String()), zap.String("matchId", l.MatchID.String()))
 	}
+	// Rappel en direct à l'équipe d'arbitrage (hors transaction : diffusion immédiate).
+	tempsreel.Publier(tempsreel.EvtAdminLitigeOuvert,
+		ChargeLitige{LitigeID: l.ID, MatchID: l.MatchID, Motif: l.Motif}, tempsreel.SalonAdmin)
 	return nil
 }
 
@@ -126,17 +196,19 @@ func Ouvrir(c fiber.Ctx) error {
 	if m.Statut == matchs.StatutLitige {
 		return utils.Erreur(c, fiber.StatusConflict, "un litige est déjà ouvert sur ce match")
 	}
-	adversaire := m.Joueur1ID
-	if userID == m.Joueur1ID {
-		adversaire = m.Joueur2ID
-	}
+	adversaire := m.Adversaire(userID)
 
 	var litige Litige
+	tampon := tempsreel.NouveauTampon()
 	err = config.DB.Transaction(func(tx *gorm.DB) error {
-		// Transition atomique vers "litige" : deux ouvertures simultanées ne créent qu'un litige.
+		// Transition atomique vers "litige" : deux ouvertures simultanées ne créent qu'un
+		// litige. Tous les statuts « en jeu » y mènent, y compris les nouveaux.
 		res := tx.Model(&matchs.MatchDefi{}).
-			Where("id = ? AND statut IN ?", matchID, []string{matchs.StatutEnCours, matchs.StatutVerification}).
-			Update("statut", matchs.StatutLitige)
+			Where("id = ? AND statut IN ?", matchID, []string{
+				matchs.StatutEnCours, matchs.StatutPreuveRequise,
+				matchs.StatutNulEnAttente, matchs.StatutVerification,
+			}).
+			Updates(map[string]any{"statut": matchs.StatutLitige, "echeance": nil, "echeance_type": ""})
 		if res.Error != nil {
 			return res.Error
 		}
@@ -149,11 +221,12 @@ func Ouvrir(c fiber.Ctx) error {
 		}
 		_ = notifications.Creer(tx, adversaire, "Litige ouvert",
 			"Votre adversaire a ouvert un litige sur votre match. Un arbitre va trancher.",
-			notifications.TypeLitigeOuvert)
+			notifications.TypeLitigeOuvert, tampon)
 		administration.Journaliser(tx, administration.ParamsAudit{
 			UtilisateurID: &userID, Action: "litige:ouverture", TableCible: "litiges",
 			IdentifiantCible: &litige.ID, Nouvelle: map[string]any{"motif": in.Motif}, AdresseIP: c.IP(),
 		})
+		publierOuverture(tampon, litige)
 		return nil
 	})
 	if errors.Is(err, errDejaEnLitige) {
@@ -162,6 +235,7 @@ func Ouvrir(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "ouverture du litige impossible")
 	}
+	tampon.Diffuser()
 	jobs.EnfilerLitigeRelance(litige.ID.String(), DelaiRelanceArbitre)
 	return utils.OK(c, litige, fiber.StatusCreated)
 }
@@ -246,18 +320,16 @@ func Decider(c fiber.Ctx) error {
 		if err != nil || (gagnantID != m.Joueur1ID && gagnantID != m.Joueur2ID) {
 			return utils.Erreur(c, fiber.StatusBadRequest, "gagnant invalide")
 		}
-		perdantID = m.Joueur1ID
-		if gagnantID == m.Joueur1ID {
-			perdantID = m.Joueur2ID
-		}
+		perdantID = m.Adversaire(gagnantID)
 	}
 
 	maintenant := time.Now().UTC()
+	tampon := tempsreel.NouveauTampon()
 	err = config.DB.Transaction(func(tx *gorm.DB) error {
 		// Transition atomique litige -> termine (empêche double règlement).
 		res := tx.Model(&matchs.MatchDefi{}).
 			Where("id = ? AND statut = ?", m.ID, matchs.StatutLitige).
-			Update("statut", matchs.StatutTermine)
+			Updates(map[string]any{"statut": matchs.StatutTermine, "echeance": nil, "echeance_type": ""})
 		if res.Error != nil {
 			return res.Error
 		}
@@ -268,13 +340,16 @@ func Decider(c fiber.Ctx) error {
 		// La commission est prélevée dans les deux cas : sur le total réglé au gagnant, ou
 		// sur chaque mise rendue (règle produit : toute mise rendue = mise × (1 − commission)).
 		taux := administration.CommissionActuelle(tx)
+		gain, commission := decimal.Zero, decimal.Zero
 		if in.Decision == DecisionRemboursement {
-			if err := portefeuilles.RemboursementCroise(tx, m.DefiID, m.ID, m.Joueur1ID, m.Joueur2ID, taux); err != nil {
+			_, commission, err = portefeuilles.RemboursementCroise(tx, m.DefiID, m.ID, m.Joueur1ID, m.Joueur2ID, taux)
+			if err != nil {
 				return err
 			}
 			tx.Model(&matchs.MatchDefi{}).Where("id = ?", m.ID).Update("date_fin", maintenant)
 		} else {
-			if _, _, err := portefeuilles.ReglerEscrow(tx, m.DefiID, m.ID, gagnantID, perdantID, m.MontantMise, taux); err != nil {
+			gain, commission, err = portefeuilles.ReglerEscrow(tx, m.DefiID, m.ID, gagnantID, perdantID, m.MontantMise, taux)
+			if err != nil {
 				return err
 			}
 			tx.Model(&matchs.MatchDefi{}).Where("id = ?", m.ID).Updates(map[string]any{
@@ -299,8 +374,13 @@ func Decider(c fiber.Ctx) error {
 		if in.Decision == DecisionRemboursement {
 			message = "La décision arbitrale a été rendue : match annulé, chaque joueur récupère sa mise moins la commission de la plateforme."
 		}
-		_ = notifications.Creer(tx, m.Joueur1ID, "Litige résolu", message, notifications.TypeLitigeResolu)
-		_ = notifications.Creer(tx, m.Joueur2ID, "Litige résolu", message, notifications.TypeLitigeResolu)
+		_ = notifications.Creer(tx, m.Joueur1ID, "Litige résolu", message, notifications.TypeLitigeResolu, tampon)
+		_ = notifications.Creer(tx, m.Joueur2ID, "Litige résolu", message, notifications.TypeLitigeResolu, tampon)
+
+		tampon.Ajouter(tempsreel.EvtMatchLitigeResolu, ChargeLitigeResolu{
+			LitigeID: id, MatchID: m.ID, Decision: in.Decision,
+		}, tempsreel.SalonMatch(m.ID))
+		matchs.PublierFinDeMatch(tx, tampon, m, gain, commission)
 		return nil
 	})
 
@@ -310,6 +390,7 @@ func Decider(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "décision impossible")
 	}
+	tampon.Diffuser()
 	return utils.OK(c, fiber.Map{"statut": StatutResolu, "decision": in.Decision})
 }
 

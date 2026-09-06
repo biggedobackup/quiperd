@@ -18,8 +18,15 @@ const DEFIS: Record<string, DescriptionStatut> = {
   expire: { libelle: 'Expiré', variante: 'neutre' },
 }
 
+/**
+ * Statuts de match. `verification` ne fait plus partie du parcours joueur (deux déclarations
+ * concordantes règlent le match immédiatement) mais reste décrit ici : des lignes historiques
+ * y sont encore et l'administration peut toujours les régler à la main.
+ */
 const MATCHS: Record<string, DescriptionStatut> = {
   en_cours: { libelle: 'En cours', variante: 'info', actif: true },
+  preuve_requise: { libelle: 'Preuve exigée', variante: 'alerte', actif: true },
+  nul_en_attente: { libelle: 'Match nul', variante: 'alerte', actif: true },
   verification: { libelle: 'Vérification', variante: 'alerte', actif: true },
   litige: { libelle: 'Litige', variante: 'perte', actif: true },
   termine: { libelle: 'Terminé', variante: 'gain' },
@@ -108,6 +115,12 @@ export const typesNotification: Record<string, string> = {
   defi_rejoint: 'Défi accepté',
   defi_expire: 'Défi expiré',
   match_a_valider: 'Match à valider',
+  // Nouveau parcours de fin de match (confirmation, désaccord, nul, rejeu, abandon).
+  match_score: 'Score à confirmer',
+  match_desaccord: 'Déclarations divergentes',
+  match_nul: 'Match nul',
+  match_rejoue: 'Nouvelle manche',
+  match_abandon: 'Délai de confirmation écoulé',
   match_termine: 'Match terminé',
   litige_ouvert: 'Litige ouvert',
   litige_resolu: 'Litige résolu',

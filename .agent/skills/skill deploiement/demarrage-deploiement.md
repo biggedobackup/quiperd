@@ -133,6 +133,56 @@ ports 80/443 sont ouverts. Après déploiement, vérifier qu'aucun avertissement
 n'apparaît dans un navigateur et qu'aucune négociation TLS 1.0/1.1 n'est possible (désactivées
 par défaut dans Caddy — ne jamais les réactiver).
 
+### 3 bis. Le WebSocket derrière Caddy et le tunnel Cloudflare
+
+Le temps réel (`demarrage-backend.md` §5 bis) ajoute une contrainte d'infrastructure : le
+navigateur **ne peut pas** faire passer un WebSocket par une server function TanStack, il joint
+le backend directement. Quatre points, tous vérifiés en production, **à ne pas défaire** :
+
+1. **`/api/temps-reel` est servi depuis l'origine DU SITE**, en plus de celle de l'API. Le
+   socket a alors la même origine que la page : aucune requête inter-site, donc aucun risque de
+   détournement (CSWSH) et aucune origine supplémentaire à déclarer. Seuls les chemins **exacts**
+   `/api/temps-reel` et `/api/temps-reel/` sont routés — les matchers de chemin Caddy sont exacts
+   sans joker, donc `/api/temps-reel/ticket` n'est **pas** exposé sur l'origine du site : il est
+   appelé côté serveur par le site, avec le jeton Bearer.
+2. **`flush_interval -1`** sur la route du socket : sans lui, Caddy met les trames en tampon et
+   le « direct » arrive par paquets. Et **`encode` reste dans les blocs `handle` des routes HTTP
+   ordinaires** — jamais sur la route du socket : une trame WebSocket n'a rien à faire dans un
+   flux compressé. Caddy relaie `Upgrade` / `Connection` de lui-même : ne pas les recopier.
+3. **Aucun `read_timeout` / `write_timeout` dans le bloc global `servers`.** Caddy est sans
+   limite par défaut ; en poser un couperait les sockets en pleine partie.
+4. **Ping de 30 s côté backend obligatoire** : Cloudflare ferme un WebSocket inactif au bout de
+   **100 s**. Le battement de cœur du serveur (ping 30 s / fermeture après 60 s sans pong) est ce
+   qui garde le tunnel ouvert ; le baisser ou le retirer produit des déconnexions inexpliquées
+   toutes les ~100 s, visibles seulement en production.
+
+```caddyfile
+{
+    servers { trusted_proxies static private_ranges }   # aucun read_timeout / write_timeout
+}
+
+quiperd.com {
+    @socket path /api/temps-reel /api/temps-reel/
+    handle @socket {
+        reverse_proxy backend:8080 { flush_interval -1 }
+    }
+    handle {
+        encode gzip zstd
+        reverse_proxy web:3000
+    }
+}
+```
+
+**Variables d'environnement du temps réel :**
+
+| Variable | Qui la lit | Valeur |
+| :--- | :--- | :--- |
+| `WS_PUBLIC_URL` | le **site** (conteneur `web`) | `$SITE_URL/api/temps-reel` — l'adresse que le **navigateur** ouvre. Sans elle, le site donnerait au navigateur `http://backend:8080/api`, un nom interne à Docker qu'il ne sait pas résoudre : le socket ne s'ouvre jamais et l'application retombe silencieusement sur un état figé. Le site convertit `http://` en `ws://` et `https://` en `wss://` tout seul |
+| `WS_ORIGINES_AUTORISEES` | le **backend** | origines admises **en plus** de `CORS_ORIGIN`. Vide convient tant que le site n'est joint que par `SITE_URL`. Ne jamais la remplacer par un `CheckOrigin` permissif |
+
+Le script de déploiement pose `WS_PUBLIC_URL` d'après `SITE_URL` si elle est absente, pour
+migrer une installation antérieure au temps réel sans retoucher son `.env` à la main.
+
 ---
 
 ## 4. Variables d'environnement de production
@@ -244,6 +294,14 @@ volumes:
   depuis une machine externe (`nc -zv <ip> 5432`, doit échouer).
 - `https://api.quiperd.com/preuves/...` (chemin statique direct) renvoie `404` — seule la route
   backend protégée sert les fichiers de preuve.
+- **Temps réel** (§3 bis) : ouvrir le site, vérifier que l'indicateur passe à « en direct »,
+  qu'une action faite dans un second navigateur (créer un défi, déclarer un score) apparaît
+  **sans rechargement**, et laisser la page ouverte **plus de 3 minutes** pour confirmer que le
+  socket survit à la coupure Cloudflare des 100 s. Vérifier aussi qu'un événement produit par le
+  **worker Asynq** (expiration d'un défi, échéance d'un match) atteint bien le navigateur :
+  c'est ce qui prouve que la diffusion Redis Pub/Sub inter-process fonctionne en production.
+  `https://quiperd.com/api/temps-reel/ticket` doit répondre `404` (le ticket n'est pas exposé
+  sur l'origine du site).
 - Envoi d'un paiement de test (sandbox si disponible) et vérification que le prestataire atteint
   bien `https://api.quiperd.com/api/paiements/callback-ligdicash` (ou `-fusion`) — ces routes ne
   peuvent pas être testées en local (voir `api_paiement_skill_ligdicash.md` §"Dev local sans
@@ -265,8 +323,14 @@ volumes:
 - Rotation des logs Docker (`max-size`/`max-file`, voir l'exemple `docker-compose.yml` §5) pour
   éviter de saturer le disque.
 - Alerte (email ou Slack) sur : échec de sauvegarde, conteneur qui redémarre en boucle, jobs
-  Asynq en échec répété (`paiement:reverification`, `defi:expiration`), certificat Caddy qui ne
+  Asynq en échec répété (`paiement:reverification`, `defi:expiration`, `match:echeance` — une
+  échéance de match qui n'est pas traitée bloque de l'argent en escrow), certificat Caddy qui ne
   se renouvelle pas.
+- **Un seul worker Asynq par file Redis.** Deux versions du binaire vivantes en même temps (un
+  ancien conteneur non arrêté, un binaire lancé à la main pendant un test) font consommer les
+  tâches par un process qui n'a pas le handler correspondant : Asynq les met en échec avec un
+  backoff silencieux et l'échéance « ne part jamais ». Après un déploiement, vérifier
+  `docker compose ps` : un seul conteneur `backend`/`worker` en cours d'exécution.
 
 ---
 

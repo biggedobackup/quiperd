@@ -15,8 +15,35 @@ import (
 	"quiperd/backend/matchs"
 	"quiperd/backend/notifications"
 	"quiperd/backend/portefeuilles"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
+
+// ChargeDefiRejoint — defi.rejoint : le défi quitte la liste ouverte, un match démarre.
+type ChargeDefiRejoint struct {
+	DefiID  uuid.UUID `json:"defiId"`
+	MatchID uuid.UUID `json:"matchId"`
+}
+
+// ChargeDefiID — defi.annule et defi.expire : le défi quitte simplement la liste ouverte.
+type ChargeDefiID struct {
+	DefiID uuid.UUID `json:"defiId"`
+}
+
+// chargerLigne relit un défi sous sa forme de liste (libellés joints compris), telle que la
+// renvoie GET /api/defis/ouverts : c'est la charge exacte de l'événement defi.cree, pour que
+// le client puisse insérer la ligne sans aucun appel réseau.
+func chargerLigne(db *gorm.DB, id uuid.UUID) (*DefiListe, error) {
+	var ligne DefiListe
+	res := requeteDefis(db).Where("d.id = ?", id).Limit(1).Scan(&ligne)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	return &ligne, nil
+}
 
 type entreeDefi struct {
 	JeuID        string          `json:"jeuId" validate:"required,uuid"`
@@ -149,6 +176,7 @@ func Creer(c fiber.Ctx) error {
 	expiration := time.Now().UTC().Add(time.Duration(dureeHeures) * time.Hour)
 
 	var defi Defi
+	tampon := tempsreel.NouveauTampon()
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		defi = Defi{
 			CreateurID: userID, JeuID: jeuID, PlateformeID: platID,
@@ -158,13 +186,20 @@ func Creer(c fiber.Ctx) error {
 		if err := tx.Create(&defi).Error; err != nil {
 			return err
 		}
-		if _, err := portefeuilles.BloquerMise(tx, userID, defi.ID, in.MontantMise, "XOF"); err != nil {
+		mise, err := portefeuilles.BloquerMise(tx, userID, defi.ID, in.MontantMise, "XOF")
+		if err != nil {
 			return err
 		}
 		administration.Journaliser(tx, administration.ParamsAudit{
 			UtilisateurID: &userID, Action: "defi:creation", TableCible: "defis",
 			IdentifiantCible: &defi.ID, Nouvelle: defi, AdresseIP: c.IP(),
 		})
+		// Le défi apparaît en direct dans « Défis ouverts », y compris chez son créateur :
+		// la charge est la ligne complète de GET /api/defis/ouverts (libellés joints).
+		if ligne, e := chargerLigne(tx, defi.ID); e == nil {
+			tampon.Ajouter(tempsreel.EvtDefiCree, ligne, tempsreel.SalonDefisPublics)
+		}
+		portefeuilles.AjouterMiseEtEtat(tx, tampon, mise.ID, userID)
 		return nil
 	})
 	if errors.Is(err, portefeuilles.ErrSoldeInsuffisant) {
@@ -173,6 +208,7 @@ func Creer(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "création du défi impossible")
 	}
+	tampon.Diffuser()
 
 	jobs.EnfilerDefiExpiration(defi.ID.String(), time.Until(expiration))
 	return utils.OK(c, defi, fiber.StatusCreated)
@@ -213,6 +249,7 @@ func Rejoindre(c fiber.Ctx) error {
 	userID := auth.UtilisateurIDDe(c)
 
 	var match *matchs.MatchDefi
+	tampon := tempsreel.NouveauTampon()
 	err = config.DB.Transaction(func(tx *gorm.DB) error {
 		var defi Defi
 		if err := tx.First(&defi, "id = ?", id).Error; err != nil {
@@ -233,7 +270,8 @@ func Rejoindre(c fiber.Ctx) error {
 		if res.RowsAffected == 0 {
 			return errIndisponible
 		}
-		if _, err := portefeuilles.BloquerMise(tx, userID, defi.ID, defi.MontantMise, defi.Devise); err != nil {
+		mise, err := portefeuilles.BloquerMise(tx, userID, defi.ID, defi.MontantMise, defi.Devise)
+		if err != nil {
 			return err
 		}
 		m, err := matchs.CreerMatch(tx, defi.ID, defi.CreateurID, userID, defi.MontantMise, defi.Devise)
@@ -242,11 +280,20 @@ func Rejoindre(c fiber.Ctx) error {
 		}
 		match = m
 		_ = notifications.Creer(tx, defi.CreateurID, "Défi accepté",
-			"Un joueur a rejoint votre défi. Le match peut commencer.", notifications.TypeDefiRejoint)
+			"Un joueur a rejoint votre défi. Le match peut commencer.", notifications.TypeDefiRejoint, tampon)
 		administration.Journaliser(tx, administration.ParamsAudit{
 			UtilisateurID: &userID, Action: "defi:rejoindre", TableCible: "defis",
 			IdentifiantCible: &defi.ID, Nouvelle: fiber.Map{"matchId": m.ID}, AdresseIP: c.IP(),
 		})
+
+		// Le défi sort de la liste publique ; le match arrive chez les deux joueurs.
+		tampon.Ajouter(tempsreel.EvtDefiRejoint, ChargeDefiRejoint{DefiID: defi.ID, MatchID: m.ID},
+			tempsreel.SalonDefisPublics)
+		if enrichi, e := matchs.ChargerEnrichi(tx, m.ID); e == nil {
+			tampon.Ajouter(tempsreel.EvtMatchCree, enrichi,
+				tempsreel.SalonUtilisateur(defi.CreateurID), tempsreel.SalonUtilisateur(userID))
+		}
+		portefeuilles.AjouterMiseEtEtat(tx, tampon, mise.ID, userID, defi.CreateurID)
 		return nil
 	})
 
@@ -262,6 +309,7 @@ func Rejoindre(c fiber.Ctx) error {
 	case err != nil:
 		return utils.Erreur(c, fiber.StatusInternalServerError, "impossible de rejoindre le défi")
 	}
+	tampon.Diffuser()
 	return utils.OK(c, match, fiber.StatusCreated)
 }
 
@@ -277,6 +325,7 @@ func Annuler(c fiber.Ctx) error {
 	}
 	userID := auth.UtilisateurIDDe(c)
 
+	tampon := tempsreel.NouveauTampon()
 	err = config.DB.Transaction(func(tx *gorm.DB) error {
 		// Transition atomique ouvert -> annule : seul l'appel qui la réussit rend la mise
 		// (un double clic ou une expiration concurrente obtient RowsAffected = 0 → 409).
@@ -300,6 +349,11 @@ func Annuler(c fiber.Ctx) error {
 			IdentifiantCible: &id, AdresseIP: c.IP(),
 			Nouvelle: fiber.Map{"statut": StatutAnnule, "rendu": rendu, "commission": commission, "taux": taux},
 		})
+		tampon.Ajouter(tempsreel.EvtDefiAnnule, ChargeDefiID{DefiID: id}, tempsreel.SalonDefisPublics)
+		if mise, e := portefeuilles.MiseDuDefi(tx, id, userID); e == nil {
+			portefeuilles.AjouterTransactionsMise(tx, tampon, mise.ID)
+		}
+		portefeuilles.AjouterEtat(tx, tampon, userID)
 		return nil
 	})
 	if errors.Is(err, errIndisponible) {
@@ -308,6 +362,7 @@ func Annuler(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "annulation impossible")
 	}
+	tampon.Diffuser()
 	return c.SendStatus(fiber.StatusNoContent)
 }
 

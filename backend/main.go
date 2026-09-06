@@ -10,6 +10,11 @@
 package main
 
 import (
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
@@ -18,6 +23,7 @@ import (
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 
+	"quiperd/backend/administration"
 	"quiperd/backend/config"
 	"quiperd/backend/jobs"
 	"quiperd/backend/litiges"
@@ -25,6 +31,7 @@ import (
 	"quiperd/backend/migrations"
 	"quiperd/backend/notifications"
 	"quiperd/backend/routes"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 	"quiperd/backend/worker"
 )
@@ -58,6 +65,17 @@ func main() {
 	// Worker Asynq (goroutine).
 	worker.Demarrer(cfg)
 
+	// Socle temps réel : file de publication, abonnement au canal Redis Pub/Sub
+	// `qp:temps-reel` et compteur de joueurs en ligne. À démarrer AVANT les routes :
+	// dès qu'un socket peut s'ouvrir, le hub doit être en état de diffuser.
+	tempsreel.Demarrer()
+	defer tempsreel.Arreter()
+
+	// Tableau de bord administrateur vivant : plutôt que d'appeler le recalcul depuis une
+	// dizaine de contrôleurs, on écoute le flux temps réel et on ne réagit qu'aux événements
+	// qui déplacent réellement un compteur (administration décide lesquels).
+	tempsreel.SurEvenement = administration.KpiSiConcerne
+
 	app := fiber.New(fiber.Config{
 		AppName:      "QUI PERD API",
 		BodyLimit:    int(cfg.UploadMaxOctets) + 1024*1024,
@@ -75,9 +93,27 @@ func main() {
 
 	routes.Enregistrer(app)
 
+	// Arrêt propre : on ferme d'abord les sockets temps réel (trame de fermeture
+	// envoyée à chaque client, empreinte du compteur retirée de Redis), puis le
+	// serveur HTTP. Sans cela, les clients reconnectent sur un socle déjà mort.
+	go arretPropre(app)
+
 	utils.Log.Info("QUI PERD API démarrée sur " + cfg.AppHost + ":" + cfg.AppPort)
 	if err := app.Listen(cfg.AppHost + ":" + cfg.AppPort); err != nil {
 		utils.Log.Fatal("démarrage du serveur impossible: " + err.Error())
+	}
+}
+
+// arretPropre attend SIGINT/SIGTERM (docker stop, Ctrl+C) et démonte la pile.
+func arretPropre(app *fiber.App) {
+	signaux := make(chan os.Signal, 1)
+	signal.Notify(signaux, os.Interrupt, syscall.SIGTERM)
+	<-signaux
+
+	utils.Log.Info("arrêt demandé : fermeture des connexions temps réel")
+	tempsreel.Arreter()
+	if err := app.ShutdownWithTimeout(10 * time.Second); err != nil {
+		utils.Log.Warn("arrêt du serveur HTTP: " + err.Error())
 	}
 }
 

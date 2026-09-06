@@ -126,7 +126,7 @@ func SupprimerLogiquement(db *gorm.DB, adminID, id uuid.UUID, ip string) error {
 		}
 		if err := tx.Model(&matchs.MatchDefi{}).
 			Where("(joueur_1_id = ? OR joueur_2_id = ?) AND statut IN ?", id, id,
-				[]string{matchs.StatutEnCours, matchs.StatutVerification, matchs.StatutLitige}).
+				matchs.StatutsActifs()).
 			Count(&n).Error; err != nil {
 			return err
 		}

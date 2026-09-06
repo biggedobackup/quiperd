@@ -4,7 +4,12 @@
 #
 #   visiteur ──HTTPS──► Cloudflare ──tunnel──► cloudflared ──► caddy:80 ──► web:3000 ──► backend:8080
 #   réseau local ──HTTP──► caddy :80 (site) / :8080 (API, appli mobile, Swagger)
+#   temps réel ──WSS──► caddy:80 /api/temps-reel ──► backend:8080 (même origine que le site)
 #   backend ──► postgres:5432, redis:6379 (réseau interne Docker uniquement)
+#
+# Redis n'est pas qu'un cache : il porte les tickets d'ouverture de socket, le canal Pub/Sub
+# `qp:temps-reel` (l'API et le worker Asynq y publient les événements) et le compteur de joueurs
+# en ligne. Le supprimer ou le vider en production coupe le temps réel, pas seulement les sessions.
 name: quiperd
 
 x-journal: &journal
@@ -75,6 +80,11 @@ services:
     # Le site ne reçoit que ce dont il a besoin : aucun secret du backend.
     environment:
       API_BASE_URL: http://backend:8080/api
+      # URL PUBLIQUE du socket temps réel, telle que le NAVIGATEUR doit l'ouvrir.
+      # Indispensable : API_BASE_URL pointe sur le nom interne du conteneur (backend:8080),
+      # que le navigateur ne sait pas résoudre. Caddy route ce chemin depuis le port 80,
+      # donc le socket a la même origine que les pages du site.
+      WS_PUBLIC_URL: ${WS_PUBLIC_URL:-}
       SITE_URL: ${SITE_URL}
       NODE_ENV: production
       HOST: 0.0.0.0

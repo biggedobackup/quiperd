@@ -11,6 +11,7 @@ import (
 	"quiperd/backend/auth"
 	"quiperd/backend/config"
 	"quiperd/backend/portefeuilles"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
 
@@ -160,7 +161,9 @@ func ChangerStatut(c fiber.Ctx) error {
 		return utils.OK(c, fiber.Map{"statut": StatutReussi})
 	}
 
+	tampon := tempsreel.NouveauTampon()
 	err = config.DB.Transaction(func(tx *gorm.DB) error {
+		references := []string{p.Reference, p.Reference + "-FRAIS"}
 		switch {
 		case in.Statut == StatutReussi && p.Type == TypeRetrait && p.Statut == StatutEnAttente:
 			// Retrait effectué → les mouvements (retrait + frais) deviennent définitifs.
@@ -172,11 +175,13 @@ func ChangerStatut(c fiber.Ctx) error {
 			if err := portefeuilles.AnnulerRetrait(tx, p.UtilisateurID, p.Reference, p.Montant.Add(p.Frais)); err != nil {
 				return err
 			}
+			references = append(references, p.Reference+"-REFUND")
 		case in.Statut == StatutRembourse && p.Type == TypeDepot && p.Statut == StatutReussi:
 			// Remboursement d'un dépôt déjà crédité → débit inverse.
 			if err := portefeuilles.Debiter(tx, p.UtilisateurID, p.Montant, p.Reference+"-REVERSE", "Remboursement de dépôt"); err != nil {
 				return err
 			}
+			references = append(references, p.Reference+"-REVERSE")
 		}
 		if err := tx.Model(&Paiement{}).Where("id = ?", id).Update("statut", in.Statut).Error; err != nil {
 			return err
@@ -185,11 +190,15 @@ func ChangerStatut(c fiber.Ctx) error {
 			AdministrateurID: &adminID, Action: "paiement:statut_" + in.Statut, TableCible: "paiements",
 			IdentifiantCible: &id,
 		})
+		AjouterStatut(tampon, &p, in.Statut)
+		portefeuilles.AjouterTransactionsReferences(tx, tampon, references...)
+		portefeuilles.AjouterEtat(tx, tampon, p.UtilisateurID)
 		return nil
 	})
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "mise à jour impossible")
 	}
+	tampon.Diffuser()
 	return utils.OK(c, fiber.Map{"statut": in.Statut})
 }
 

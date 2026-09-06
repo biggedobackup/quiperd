@@ -5,17 +5,19 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"quiperd/backend/auth"
 	"quiperd/backend/config"
+	"quiperd/backend/tempsreel"
 	"quiperd/backend/utils"
 )
 
 // Lister godoc
-// @Summary Mes matchs (tableau, ?statut=en_cours|verification|litige|termine) ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page&taille)
+// @Summary Mes matchs (tableau, ?statut=en_cours|preuve_requise|nul_en_attente|litige|termine) ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page&taille)
 // @Tags matchs
 // @Security BearerAuth
-// @Param statut query string false "en_cours | verification | litige | termine"
+// @Param statut query string false "en_cours | preuve_requise | nul_en_attente | litige | termine (verification : lignes historiques)"
 // @Param tous query int false "Admin : 1 = tous les matchs, réponse paginée"
 // @Param page query int false "Admin (?tous=1) : page, défaut 1"
 // @Param taille query int false "Admin (?tous=1) : éléments par page, 1..100, défaut 10"
@@ -40,7 +42,7 @@ func Lister(c fiber.Ctx) error {
 }
 
 // Detail godoc
-// @Summary Détail d'un match (libellés joueurs/jeu/plateforme + déclarations)
+// @Summary Détail d'un match (libellés joueurs/jeu/plateforme + déclarations + choix de nul)
 // @Tags matchs
 // @Security BearerAuth
 // @Router /matchs/{id} [get]
@@ -57,9 +59,13 @@ func Detail(c fiber.Ctx) error {
 	if !auth.EstAdmin(c) && !m.EstParticipant(userID) {
 		return utils.Erreur(c, fiber.StatusForbidden, "ce match ne vous concerne pas")
 	}
-	declarations := []ResultatDeclare{}
-	config.DB.Where("match_id = ?", id).Order("date_declaration ASC").Find(&declarations)
-	return utils.OK(c, fiber.Map{"match": m, "declarations": declarations})
+	// Toutes les manches sont renvoyées (chaque ligne porte sa `manche`) : le client
+	// filtre sur match.manche pour l'état courant et garde l'historique des rejeux.
+	decls := []ResultatDeclare{}
+	config.DB.Where("match_id = ?", id).Order("manche ASC, date_declaration ASC").Find(&decls)
+	choix := []ChoixNul{}
+	config.DB.Where("match_id = ?", id).Order("manche ASC, date_choix ASC").Find(&choix)
+	return utils.OK(c, fiber.Map{"match": m, "declarations": decls, "choixNuls": choix})
 }
 
 type entreeDeclaration struct {
@@ -69,7 +75,7 @@ type entreeDeclaration struct {
 }
 
 // Declarer godoc
-// @Summary Déclarer le score d'un match
+// @Summary Déclarer le score d'un match (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)
 // @Tags matchs
 // @Security BearerAuth
 // @Router /matchs/{id}/declaration [post]
@@ -86,36 +92,109 @@ func Declarer(c fiber.Ctx) error {
 	if d := utils.Valider(in); d != nil {
 		return utils.ErreurValidation(c, "validation échouée", d)
 	}
+	return executerSurMatch(c, id, func(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) error {
+		return EnregistrerDeclaration(tx, tampon, m, userID, in.ScorePour, in.ScoreContre, in.Commentaire)
+	})
+}
 
-	err = config.DB.Transaction(func(tx *gorm.DB) error {
-		var m MatchDefi
-		if err := tx.First(&m, "id = ?", id).Error; err != nil {
+// Confirmer godoc
+// @Summary Confirmer le score proposé par l'adversaire — le serveur inscrit la déclaration miroir (aucun chiffre envoyé par le client) et règle le match
+// @Tags matchs
+// @Security BearerAuth
+// @Router /matchs/{id}/confirmation [post]
+func Confirmer(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "identifiant invalide")
+	}
+	userID := auth.UtilisateurIDDe(c)
+	return executerSurMatch(c, id, func(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) error {
+		return ConfirmerScore(tx, tampon, m, userID)
+	})
+}
+
+type entreeChoixNul struct {
+	Choix string `json:"choix" validate:"required,oneof=rejouer partager"`
+}
+
+// ChoisirApresNul godoc
+// @Summary Après un nul déclaré des deux côtés : rejouer (si les DEUX l'acceptent, aucun mouvement d'argent) ou partager (chacun mise × (1 − commission))
+// @Tags matchs
+// @Security BearerAuth
+// @Router /matchs/{id}/choix-nul [post]
+func ChoisirApresNul(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "identifiant invalide")
+	}
+	userID := auth.UtilisateurIDDe(c)
+	var in entreeChoixNul
+	if err := c.Bind().Body(&in); err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
+	}
+	if d := utils.Valider(in); d != nil {
+		return utils.ErreurValidation(c, "validation échouée", d)
+	}
+	return executerSurMatch(c, id, func(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) error {
+		return EnregistrerChoixNul(tx, tampon, m, userID, in.Choix)
+	})
+}
+
+// refusMetier énumère les REFUS de la machine à états : ils décrivent un état du match
+// incompatible avec l'action demandée, sont sans gravité et se lisent tels quels par le
+// joueur (409). Toute erreur absente de cette liste est un incident serveur, jamais un
+// conflit — c'est ce qui distingue « vous avez déjà déclaré » d'une panne de base.
+var refusMetier = []error{
+	ErrPasEnCours, ErrDejaDeclare, ErrRienAConfirmer,
+	ErrPasEnNul, ErrDejaChoisi, ErrEtatIncoherent,
+}
+
+func estRefusMetier(err error) bool {
+	for _, refus := range refusMetier {
+		if errors.Is(err, refus) {
+			return true
+		}
+	}
+	return false
+}
+
+// executerSurMatch applique une action de la machine à états : verrou de la ligne match,
+// action dans une transaction, diffusion temps réel APRÈS le commit (jamais avant), puis
+// renvoi de l'état à jour du match.
+func executerSurMatch(c fiber.Ctx, id uuid.UUID, action func(*gorm.DB, *tempsreel.Tampon, *MatchDefi) error) error {
+	tampon := tempsreel.NouveauTampon()
+	err := config.DB.Transaction(func(tx *gorm.DB) error {
+		m, err := ChargerVerrouille(tx, id)
+		if err != nil {
 			return err
 		}
-		if !m.EstParticipant(userID) {
-			return errFORBIDDEN
-		}
-		if e := EnregistrerDeclaration(tx, &m, userID, in.ScorePour, in.ScoreContre, in.Commentaire); e != nil {
-			return e
-		}
-		return nil
+		return action(tx, tampon, m)
 	})
-	if err == errFORBIDDEN {
-		return utils.Erreur(c, fiber.StatusForbidden, "ce match ne vous concerne pas")
+	switch {
+	case errors.Is(err, gorm.ErrRecordNotFound):
+		return utils.Erreur(c, fiber.StatusNotFound, "match introuvable")
+	case errors.Is(err, ErrNonParticipant):
+		return utils.Erreur(c, fiber.StatusForbidden, ErrNonParticipant.Error())
+	case estRefusMetier(err):
+		return utils.Erreur(c, fiber.StatusConflict, err.Error())
+	case err != nil:
+		// Panne base, contrainte violée, incohérence interne : c'est un défaut du serveur.
+		// La renvoyer en 409 ferait croire au joueur qu'il lui suffit de recharger, et
+		// masquerait l'incident dans les journaux comme dans les recettes.
+		utils.Log.Error("action sur match impossible",
+			zap.String("matchId", id.String()), zap.Error(err))
+		return utils.Erreur(c, fiber.StatusInternalServerError, "action impossible sur ce match")
 	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
+	tampon.Diffuser()
+	m, err := Charger(config.DB, id)
+	if err != nil {
 		return utils.Erreur(c, fiber.StatusNotFound, "match introuvable")
 	}
-	if err != nil {
-		return utils.Erreur(c, fiber.StatusConflict, err.Error())
-	}
-	// Relire l'état à jour du match.
-	m, _ := Charger(config.DB, id)
 	return utils.OK(c, m)
 }
 
 // Valider godoc
-// @Summary Valider un match (admin) — déclenche le règlement de l'escrow
+// @Summary Valider un match (admin) — règlement de l'escrow d'une ligne en vérification ou d'un match en litige dont le gagnant est désigné
 // @Tags matchs
 // @Security BearerAuth
 // @Router /matchs/{id}/validation [post]
@@ -135,17 +214,13 @@ func Valider(c fiber.Ctx) error {
 	return utils.OK(c, m)
 }
 
-var errFORBIDDEN = fiberError("interdit")
-
-type fiberError string
-
-func (e fiberError) Error() string { return string(e) }
-
 // Enregistrer monte les routes des matchs.
 func Enregistrer(api fiber.Router) {
 	grp := api.Group("/matchs", auth.Connecte())
 	grp.Get("/", Lister)
 	grp.Get("/:id", Detail)
 	grp.Post("/:id/declaration", Declarer)
+	grp.Post("/:id/confirmation", Confirmer)
+	grp.Post("/:id/choix-nul", ChoisirApresNul)
 	grp.Post("/:id/validation", auth.AdminSeul(), Valider)
 }

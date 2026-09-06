@@ -6,6 +6,8 @@ import { Ticker } from '@/components/public/ticker'
 import { BandeAppel, Conteneur, EnTeteSection, SectionCommentCaMarche, SectionSecurite } from '@/components/public/sections'
 import { SectionJeux } from '@/components/public/section-jeux'
 import { SectionDefisOuverts } from '@/components/public/section-defis-ouverts'
+// Abonnement au salon public : la section « Défis en attente » et le compteur du hero vivent.
+import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
 import { FaqAccordion, questionsFrequentes } from '@/components/public/faq-accordion'
 import { LienBouton } from '@/components/partages/button/button'
 import { icone } from '@/lib/icones'
@@ -39,8 +41,11 @@ function Accueil() {
   const { data: regles } = useSuspenseQuery(optionsRegles)
   const { data: jeux } = useSuspenseQuery(optionsJeux())
   const { data: plateformes } = useSuspenseQuery(optionsPlateformes())
-  const { data: defisOuverts } = useSuspenseQuery({ ...optionsDefisOuverts(), refetchInterval: 30_000 })
+  const { data: defisOuverts } = useSuspenseQuery(optionsDefisOuverts())
   const questions = questionsFrequentes(regles).slice(0, 4)
+
+  // Section « Défis en attente » vivante : création, retrait et compteur du hero en direct.
+  useDefisEnDirect()
 
   return (
     <>

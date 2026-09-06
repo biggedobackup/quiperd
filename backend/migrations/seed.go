@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"quiperd/backend/administration"
 	"quiperd/backend/auth"
 	"quiperd/backend/config"
 	"quiperd/backend/jeux"
 	"quiperd/backend/plateformes"
-	"go.uber.org/zap"
 )
 
 // jeuSeed décrit une entrée du catalogue initial : les 50 jeux compétitifs les plus joués,
@@ -143,6 +143,11 @@ func Semer(log *zap.Logger) error {
 		{administration.TypeMiseMinimale, "500"},
 		{administration.TypeMiseMaximale, "100000"},
 		{administration.TypeFraisRetrait, "0.01"},
+		// Délais de la machine à états du match, en minutes (réglables depuis
+		// l'administration — aucune constante en dur dans le code métier).
+		{administration.TypeDelaiConfirmation, "30"},
+		{administration.TypeDelaiPreuve, "120"},
+		{administration.TypeDelaiChoixNul, "30"},
 	}
 	for _, cfg := range configs {
 		var n int64

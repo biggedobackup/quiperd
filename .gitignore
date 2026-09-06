@@ -17,6 +17,8 @@ GoogleService-Info.plist
 backend/quiperd-backend
 backend/quiperd-backend.exe
 backend/*.exe
+# Go laisse un `.exe~` quand l'ancien binaire est encore verrouillé par le processus en cours.
+backend/*.exe~
 backend/public/preuves/
 backend/tests/tmp/
 backend/tmp/

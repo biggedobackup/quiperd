@@ -6,6 +6,7 @@ package jobs
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -14,10 +15,14 @@ import (
 
 // Noms des tâches asynchrones.
 const (
-	TypeDefiExpiration        = "defi:expiration"
-	TypePaiementReverif       = "paiement:reverification"
-	TypeNotificationPush      = "notification:push"
-	TypeLitigeRelance         = "litige:relance"
+	TypeDefiExpiration   = "defi:expiration"
+	TypePaiementReverif  = "paiement:reverification"
+	TypeNotificationPush = "notification:push"
+	TypeLitigeRelance    = "litige:relance"
+	// TypeMatchEcheance déclenche l'expiration d'un chrono de match : confirmation du
+	// score (victoire au déclarant), dépôt des preuves (ouverture du litige) ou choix
+	// après un nul (partage automatique). Le handler est idempotent.
+	TypeMatchEcheance = "match:echeance"
 )
 
 // Client est le client Asynq global (nil si Redis indisponible → enfilage ignoré).
@@ -58,6 +63,14 @@ type ChargeLitigeRelance struct {
 	LitigeID string `json:"litigeId"`
 }
 
+// ChargeMatchEcheance identifie un chrono précis : un match, un type d'échéance et une
+// manche. La manche évite qu'un chrono de la manche 1 vienne trancher la manche 2.
+type ChargeMatchEcheance struct {
+	MatchID string `json:"matchId"`
+	Type    string `json:"type"`
+	Manche  int    `json:"manche"`
+}
+
 // --- Enfilage ---
 
 // EnfilerDefiExpiration programme l'expiration d'un défi non rejoint.
@@ -83,6 +96,17 @@ func EnfilerPush(utilisateurID, titre, message, typ string) {
 func EnfilerLitigeRelance(litigeID string, dans time.Duration) {
 	enfiler(TypeLitigeRelance, ChargeLitigeRelance{LitigeID: litigeID},
 		asynq.ProcessIn(dans), asynq.TaskID("litige-relance:"+litigeID), asynq.MaxRetry(2))
+}
+
+// EnfilerMatchEcheance programme l'expiration d'un chrono de match. L'identifiant de tâche
+// (match, type, manche) rend l'enfilage idempotent : reposer deux fois la même échéance ne
+// crée qu'une tâche. Le handler revérifie le statut avant d'agir.
+func EnfilerMatchEcheance(matchID, typ string, manche int, dans time.Duration) {
+	enfiler(TypeMatchEcheance,
+		ChargeMatchEcheance{MatchID: matchID, Type: typ, Manche: manche},
+		asynq.ProcessIn(dans),
+		asynq.TaskID(fmt.Sprintf("match-ech:%s:%s:%d", matchID, typ, manche)),
+		asynq.MaxRetry(3))
 }
 
 func enfiler(typ string, charge any, opts ...asynq.Option) {

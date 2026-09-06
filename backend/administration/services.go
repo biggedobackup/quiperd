@@ -81,3 +81,29 @@ func FraisRetrait(tx *gorm.DB) decimal.Decimal {
 	}
 	return decimal.Zero
 }
+
+// delai lit un délai configuré (en minutes) et le convertit en durée. Repli sur la valeur
+// par défaut si la clé est absente, illisible ou non strictement positive : un délai nul
+// ferait expirer le chrono immédiatement, ce qui volerait un match à un joueur.
+func delai(tx *gorm.DB, typ string, defautMinutes int) time.Duration {
+	minutes := decimal.NewFromInt(int64(defautMinutes))
+	if v, ok := ConfigValeur(tx, typ); ok && v.GreaterThan(decimal.Zero) {
+		minutes = v
+	}
+	return time.Duration(minutes.Mul(decimal.NewFromInt(60)).IntPart()) * time.Second
+}
+
+// DelaiConfirmation — temps laissé au second joueur pour confirmer ou contredire le score.
+func DelaiConfirmation(tx *gorm.DB) time.Duration {
+	return delai(tx, TypeDelaiConfirmation, DefautDelaiConfirmationMinutes)
+}
+
+// DelaiPreuve — temps laissé aux deux joueurs pour déposer leur preuve après un désaccord.
+func DelaiPreuve(tx *gorm.DB) time.Duration {
+	return delai(tx, TypeDelaiPreuve, DefautDelaiPreuveMinutes)
+}
+
+// DelaiChoixNul — temps laissé à chaque joueur pour choisir rejouer ou partager.
+func DelaiChoixNul(tx *gorm.DB) time.Duration {
+	return delai(tx, TypeDelaiChoixNul, DefautDelaiChoixNulMinutes)
+}

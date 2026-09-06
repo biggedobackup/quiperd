@@ -39,13 +39,27 @@ Vous mettrez en place une équipe d'agents composée de :
 - **Vérification = tout le module** : `go build ./...` **et** `go vet ./...` doivent passer
   (paquet `docs/` inclus). Un `go build .` qui réussit ne prouve rien : le paquet `docs/`
   généré par `swag` ne compile pas si `swaggo/swag` n'est pas dans `go.mod`.
-- **Recette obligatoire** : le script `backend/tests/parcours-api.ps1` (parcours HTTP complet,
-  ~410 vérifications en 18 sections (dont CRUD utilisateurs admin, pagination et messages de contact) : auth, CRUD de chaque module, escrow, litiges, retraits,
-  webhooks, administration, scénarios concurrents et invariants comptables en base) doit passer
-  à **100 %** avant de déclarer le backend terminé. Toute nouvelle route y ajoute ses cas
-  (succès + 400/401/403/404/409/422). Leçon retenue : un backend « testé route par route » a
-  livré un moteur de match inutilisable (2ᵉ déclaration toujours en erreur SQL, `GET /litiges`
-  en 500) parce que personne n'avait déroulé le parcours complet défi → match → règlement.
+- **Recettes obligatoires** — les deux passent à **100 %** avant de déclarer le backend terminé :
+  - `backend/tests/parcours-api.ps1` (parcours HTTP complet, ~520 vérifications en 20 sections :
+    auth, CRUD de chaque module, escrow, **machine à états du match** — accord immédiat,
+    confirmation, désaccord → `preuve_requise` → litige, nul avec rejeu/partage et manches, les
+    trois échéances tranchées par le worker —, preuves, litiges, retraits, webhooks,
+    administration, contact, scénarios concurrents et invariants comptables en base) ;
+  - `backend/tests/parcours-temps-reel.ps1` (recette WebSocket : ticket à usage unique, salons
+    et cloisonnement, événements reçus dans l'ordre, reconnexion, compteur en ligne, diffusion
+    depuis le worker via Redis Pub/Sub).
+
+  Toute nouvelle route y ajoute ses cas (succès + 400/401/403/404/409/422) ; tout nouvel
+  événement temps réel ajoute les siens dans la recette WebSocket. Leçon retenue : un backend
+  « testé route par route » a livré un moteur de match inutilisable (2ᵉ déclaration toujours en
+  erreur SQL, `GET /litiges` en 500) parce que personne n'avait déroulé le parcours complet
+  défi → match → règlement.
+- **Ne jamais affaiblir un test pour le faire passer.** Un `Check` qui accepte « statut A *ou*
+  statut B » pour éviter de trancher ne teste plus rien. Si le code paraît faux, on corrige le
+  code (ou on remonte l'écart), jamais l'assertion. Deux pièges d'outillage vérifiés sur cette
+  recette : `psql -At` rend un booléen `('...')::text` en `true`/`false` (jamais `t`/`f`), et
+  un champ Go marqué `omitempty` est **absent** du JSON, donc testé avec `-not $x` ou
+  `$null -eq $x`, pas avec une comparaison à `''`.
 - Client de test sous Windows : cibler `http://127.0.0.1:8080`, pas `localhost` (résolution
   `::1` tentée d'abord, ~2 s de délai par requête alors que le serveur répond en < 2 ms).
 - En cas d'**erreur**, l'agent principal en sera informé.
@@ -83,7 +97,8 @@ GORM + PostgreSQL + Redis + Asynq)**.
 | Base de données             | PostgreSQL 18                              | base `qui_perd`                                        |
 | ORM                         | GORM + driver postgres                     | modèles, AutoMigrate, transactions (essentiel pour l'escrow) |
 | Cache / Sessions            | Redis (`redis/go-redis/v9`)                | sessions JWT (liste blanche `jti`), cache classements/statistiques admin |
-| Jobs asynchrones            | Asynq (`hibiken/asynq`)                    | worker + planificateur : expiration des défis, relance vérification paiement, purge, notifications push |
+| Jobs asynchrones            | Asynq (`hibiken/asynq`)                    | worker + planificateur : expiration des défis, **échéances de match** (`match:echeance` : confirmation, preuve, choix après un nul), relance vérification paiement, purge, notifications push |
+| Temps réel                  | `fasthttp/websocket` + Redis Pub/Sub       | socket unique `GET /api/temps-reel` multiplexé par salons, ticket Redis à usage unique, diffusion inter-instances sur le canal `qp:temps-reel` (§5 bis) — **aucune autre dépendance WebSocket** |
 | Stockage fichiers           | Disque local du serveur                    | dossier `public/preuves/`, stockage des preuves de match (captures + vidéos) via `utils/stockage.go` |
 | Authentification            | `golang-jwt/jwt/v5` + bcrypt               | Bearer JWT HS256, `jti` validé dans Redis               |
 | Documentation API           | `swaggo/swag`                              | annotations `godoc` sur **chaque** handler (y compris jeux, plateformes, comptes-gamers, notifications), `swag init -g main.go -o docs` relancé à chaque route ajoutée, paquet `docs/` importé par `routes/` et JSON servi via `swag.ReadDoc()` (jamais lu depuis un fichier relatif au répertoire courant), UI sur `/api/docs` |
@@ -172,8 +187,9 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
    peut aussi changer `email`, `statut`, `motDePasse` ; un joueur qui envoie l'un de ces champs
    sur son propre profil reçoit 403), statut, **suppression logique** et mise à jour du
    profil par son propriétaire. Suppression logique (`DELETE /api/utilisateurs/:id`) : refusée
-   en 409 (message explicite) si `solde_bloque > 0`, s'il reste un défi `ouvert` ou un match
-   `en_cours` / `verification` / `litige` ; sinon 204 — `statut = supprime`, e-mail
+   en 409 (message explicite) si `solde_bloque > 0`, s'il reste un défi `ouvert` ou un match dans un
+   statut actif (`matchs.StatutsActifs()` : `en_cours`, `preuve_requise`, `nul_en_attente`,
+   `verification`, `litige`) ; sinon 204 — `statut = supprime`, e-mail
    `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 premiers caractères de l'id>`,
    téléphone et photo vidés, sessions révoquées, audit `utilisateur:suppression` (ancien
    pseudo/e-mail en `ancienne_valeur`). La ligne reste en base (historique des matchs, grand
@@ -195,16 +211,22 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
 6. **defis/** — création, liste connectée (filtres jeu/plateforme/catégorie/famille/mise),
    **liste publique des défis ouverts** (`GET /api/defis/ouverts`, sans jeton, pour la page
    « Défis » du site vitrine), annulation d'un défi ouvert (mise rendue moins la commission).
-7. **matchs/** — créé quand un deuxième joueur rejoint un défi ; déclaration des scores
-   (`resultats_declares`), validation, détermination gagnant/perdant.
-8. **preuves/** — upload des preuves (`preuves_matchs`) sur le disque du serveur, vérification/rejet.
-9. **litiges/** — ouverture, instruction et décision arbitrale (`litiges`) quand les
-   déclarations ou les preuves ne concordent pas. Ouverture manuelle = transition atomique du
-   match (`en_cours`/`verification` → `litige`), 409 si le match est déjà en litige ou terminé
-   (un seul litige `en_cours` par match) ; ouverture automatique (déclarations divergentes)
-   via le hook branché par `litiges.Brancher()`. Dans les deux cas : notification
-   `litige_ouvert` (à l'adversaire, ou aux deux joueurs si automatique) et tâche Asynq
-   `litige:relance` enfilée (24 h, `TaskID litige-relance:<id>`).
+7. **matchs/** — créé quand un deuxième joueur rejoint un défi ; porte **toute la machine à
+   états** (§5.3) : déclaration (`resultats_declares`, une par joueur **et par manche**),
+   confirmation du score par l'adversaire, désaccord, nul (choix `rejouer` / `partager`,
+   table `choix_nuls`, manches), échéances (`echeances.go` : `PoserEcheance`,
+   `AnnoncerChrono`, `TraiterEcheance` appelé par le worker) et validation administrative.
+8. **preuves/** — upload des preuves (`preuves_matchs`) sur le disque du serveur,
+   vérification/rejet. Sur un match en `preuve_requise`, le dépôt qui complète la paire
+   (une preuve par joueur) déclenche `matchs.PasserEnLitige` dans la même transaction.
+9. **litiges/** — ouverture, instruction et décision arbitrale (`litiges`). Ouverture manuelle =
+   transition atomique du match (`en_cours` / `preuve_requise` / `nul_en_attente` /
+   `verification` → `litige`), 409 si le match est déjà en litige ou terminé (un seul litige
+   `en_cours` par match) ; ouverture automatique **après** le passage en `litige` (deux preuves
+   déposées ou échéance de preuve expirée) via le hook `matchs.OuvrirLitigeAuto` branché par
+   `litiges.Brancher()` — un désaccord n'ouvre plus de litige immédiat. Dans les deux cas :
+   notification `litige_ouvert` (à l'adversaire, ou aux deux joueurs si automatique) et tâche
+   Asynq `litige:relance` enfilée (24 h, `TaskID litige-relance:<id>`).
 10. **portefeuilles/** — solde disponible/bloqué par utilisateur, historique des mouvements
     (`transactions_portefeuilles`).
 11. **paiements/** — dépôts et retraits via LigdiCash/MoneyFusion (voir compétences dédiées),
@@ -214,13 +236,20 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
     `mise_maximale` → création de défi, `frais_retrait` → retrait).
 12. **notifications/** — notifications utilisateur poussées en push via FCM. Types et
     événements déclencheurs (tous obligatoires) : `defi_rejoint` (créateur, au rejoindre),
-    `defi_expire` (créateur, job `defi:expiration`), `match_termine` (les deux joueurs, au
-    règlement), `litige_ouvert` (adversaire ou les deux joueurs, à l'ouverture),
-    `litige_resolu` (les deux joueurs, à la décision), `paiement_confirme` (dépôt crédité).
-    Un type ne sert jamais pour un autre événement (pas de `match_termine` pour une
-    expiration de défi).
+    `defi_expire` (créateur, job `defi:expiration`), `match_score` (l'adversaire du déclarant,
+    « score à confirmer »), `match_desaccord` (les deux, déclarations divergentes),
+    `match_nul` (les deux, choix attendu), `match_rejoue` (les deux, nouvelle manche),
+    `match_abandon` (les deux, échéance de confirmation dépassée), `match_termine` (les deux
+    joueurs, au règlement — partage compris), `litige_ouvert` (adversaire ou les deux joueurs,
+    à l'ouverture), `litige_resolu` (les deux joueurs, à la décision), `paiement_confirme`
+    (dépôt crédité). Un type ne sert jamais pour un autre événement (pas de `match_termine`
+    pour une expiration de défi). Toute notification créée dans une transaction est passée au
+    `*tempsreel.Tampon` de l'appelant (§5 bis) : elle n'est diffusée qu'après le commit.
 13. **administration/** — statistiques globales, gestion des litiges, `configurations_financieres`
-    (commission, mise minimale/maximale, frais de retrait), `journaux_audit`.
+    (commission, mise minimale/maximale, frais de retrait **et les trois délais de la machine à
+    états**, lus par `DelaiConfirmation` / `DelaiPreuve` / `DelaiChoixNul` — repli sur la valeur
+    par défaut si la clé est absente ou non strictement positive : un délai nul ferait expirer
+    le chrono immédiatement et volerait un match à un joueur), `journaux_audit`.
 14. **contact/** — messages du formulaire de contact du site public (`messages_contact`,
     table 19) : envoi public (`auth.Optionnel()` — le message est rattaché au joueur si un
     jeton joueur valide accompagne la requête) protégé par un anti-spam Redis (5 messages par
@@ -228,6 +257,9 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
     traitement (statut `nouveau` / `lu` / `traite` + `noteAdmin`) et suppression réservés à
     l'admin ; changement de statut et suppression journalisés (`contact:statut_<statut>`,
     `contact:suppression`). Aucune notification ni e-mail n'est envoyé par ce module.
+15. **tempsreel/** — transport WebSocket de la plateforme (§5 bis) : hub, salons, ticket Redis à
+    usage unique, diffusion Redis Pub/Sub, compteur de joueurs en ligne. **Aucune règle métier**,
+    aucun import de module métier.
 
 ---
 
@@ -260,7 +292,16 @@ backend/
 ├── jobs/
 │   └── client.go            # client Asynq : noms des tâches, charges utiles, fonctions d'enfilage (aucun import métier)
 ├── worker/
-│   └── worker.go            # serveur Asynq : handlers defi:expiration, paiement:reverification, notification:push, litige:relance
+│   └── worker.go            # serveur Asynq : handlers defi:expiration, paiement:reverification, notification:push, litige:relance, match:echeance
+├── tempsreel/               # couche WebSocket (§5 bis) — n'importe que config et utils
+│   ├── evenements.go        # CONTRAT GELÉ : noms d'événements, salons, charges utiles (miroir de frontend/src/temps-reel/evenements.ts)
+│   ├── hub.go               # registre des connexions et des salons, boucle du compteur
+│   ├── socket.go            # upgrade, battement de cœur (ping 30 s / pong 60 s), actions client
+│   ├── ticket.go            # ticket Redis à usage unique (ws:ticket:<valeur>, GETDEL)
+│   ├── autorisation.go      # qui a droit à quel salon
+│   ├── diffusion.go         # Publier, Tampon (diffusion APRÈS commit), Redis Pub/Sub inter-instances
+│   ├── compteur.go          # joueurs en ligne, agrégé entre instances
+│   └── routes.go            # GET /api/temps-reel, POST /api/temps-reel/ticket
 ├── auth/                    # models.go, services.go, controllers.go, permissions.go, routes.go — sessions_utilisateurs inclus
 ├── utilisateurs/            # idem
 ├── comptes_gamers/          # idem
@@ -278,7 +319,9 @@ backend/
 ├── routes/
 │   └── routes.go
 ├── tests/
-│   └── parcours-api.ps1     # recette HTTP complète (voir « Processus de développement ») — tests/tmp/ ignoré par git
+│   ├── parcours-api.ps1           # recette HTTP complète (voir « Processus de développement ») — tests/tmp/ ignoré par git
+│   ├── parcours-temps-reel.ps1    # recette WebSocket (ticket, salons, événements, reconnexion)
+│   └── outils/                    # client WebSocket PowerShell partagé par la recette temps réel
 └── docs/                    # généré par `swag init` (docs.go, swagger.json, swagger.yaml) — ne jamais éditer à la main
 ```
 
@@ -298,7 +341,14 @@ backend/
 - les modules métier n'importent que `jobs/` (enfilage) ; les handlers Asynq vivent dans
   `worker/`, qui importe les modules — c'est ce qui évite le cycle module ↔ handler. Les
   dépendances croisées entre modules (matchs → litiges, matchs → notifications) passent par
-  des hooks branchés au démarrage (`litiges.Brancher()`, `matchs.NotifierReglement`) ;
+  des hooks branchés au démarrage (`litiges.Brancher()`, `matchs.NotifierFinMatch`,
+  `matchs.NotifierJoueurs`, `matchs.OuvrirLitigeAuto`, `matchs.CloturerLitigeAuto`) ;
+- **`tempsreel/` suit exactement la même discipline que `jobs/`** : il n'importe que `config`
+  et `utils`, les modules métier importent `tempsreel` — jamais l'inverse. Il ne contient
+  aucune règle métier, seulement le transport. Le contrat (`tempsreel/evenements.go` et son
+  miroir `frontend/src/temps-reel/evenements.ts`) est **gelé** : on peut y ajouter un
+  événement documenté des deux côtés, jamais renommer ni changer la forme d'un existant sans
+  répercuter le changement dans les deux fichiers ;
 - **les noms de colonnes de l'annexe §7 font foi** : GORM dérive `joueur1_id` de `Joueur1ID`
   et `score_joueur1` de `ScoreJoueur1`, alors que l'annexe impose `joueur_1_id` et
   `score_joueur_1`. Tout champ dont le nom généré diffère de l'annexe porte un tag
@@ -330,7 +380,7 @@ backend/
 | POST | `/api/utilisateurs` | Admin | Création `{ nomUtilisateur, email, motDePasse, telephone?, pays?, statut? }` (mêmes règles que l'inscription, portefeuille créé, aucune session) → 201 l'utilisateur (jamais le hash) ; 409 pseudo ou e-mail déjà pris ; audit `utilisateur:creation` |
 | GET | `/api/utilisateurs/:id` | Admin | Détail : l'utilisateur à plat + `portefeuille: { soldeDisponible, soldeBloque }` (zéros si le portefeuille n'existe pas encore) ; un compte supprimé répond 200 avec `statut = supprime` |
 | PATCH | `/api/utilisateurs/:id` | Connecté† | `{ nomUtilisateur?, telephone?, photoProfil?, pays? }` pour le propriétaire ; l'admin peut aussi envoyer `email?`, `statut?` (`actif|suspendu|en_attente`, suspension = sessions révoquées), `motDePasse?` (nouveau hash bcrypt + sessions révoquées) → 200 l'utilisateur ; 409 unicité pseudo/e-mail ou compte `supprime` ; audit `utilisateur:modification` |
-| DELETE | `/api/utilisateurs/:id` | Admin | Suppression **logique** → 204 (statut `supprime`, e-mail `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 car.>`, téléphone/photo vidés, sessions révoquées, audit `utilisateur:suppression`) ; 409 `{ erreur }` explicite si solde bloqué > 0, défi `ouvert` ou match `en_cours|verification|litige`, ou déjà supprimé ; 404 introuvable |
+| DELETE | `/api/utilisateurs/:id` | Admin | Suppression **logique** → 204 (statut `supprime`, e-mail `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 car.>`, téléphone/photo vidés, sessions révoquées, audit `utilisateur:suppression`) ; 409 `{ erreur }` explicite si solde bloqué > 0, défi `ouvert` ou match dans un statut actif (`en_cours|preuve_requise|nul_en_attente|verification|litige`), ou déjà supprimé ; 404 introuvable |
 | PATCH | `/api/utilisateurs/:id/statut` | Admin | Actif / suspendu (409 sur un compte `supprime`, 404 introuvable) |
 | GET/POST | `/api/comptes-gamers` | Connecté | Mes identifiants de joueur par jeu/plateforme |
 | PATCH/DELETE | `/api/comptes-gamers/:id` | Connecté | Modification / suppression |
@@ -344,11 +394,15 @@ backend/
 | GET | `/api/defis/:id` | Connecté | Détail enrichi (`createurNom`, `jeuNom`, `plateformeNom`) + `match` enrichi s'il existe |
 | POST | `/api/defis/:id/rejoindre` | Connecté | Rejoindre — bloque la mise, crée le `match` |
 | DELETE | `/api/defis/:id` | Connecté | Annulation (si encore ouvert) — rend la mise moins la commission |
-| GET | `/api/matchs` | Connecté | Mes matchs en tableau (`?statut=en_cours|verification|litige|termine`) ; admin `?tous=1` → **page** `{ elements, total, page, taille, pages }` de tous les matchs (`?page&taille`, même filtre `statut`) — chaque match porte `joueur1Nom`, `joueur2Nom`, `jeuNom`, `plateformeNom` |
-| GET | `/api/matchs/:id` | Connecté | Détail du match enrichi (mêmes libellés) + `declarations` |
-| POST | `/api/matchs/:id/declaration` | Connecté | Déclaration du score par un joueur |
-| POST | `/api/matchs/:id/preuves` | Connecté | Upload preuve (multipart → disque local) |
-| POST | `/api/matchs/:id/validation` | Système/Admin | Valide le match, déclenche le règlement de l'escrow |
+| GET | `/api/matchs` | Connecté | Mes matchs en tableau (`?statut=en_cours|preuve_requise|nul_en_attente|litige|termine`, `verification` pour les lignes héritées) ; admin `?tous=1` → **page** `{ elements, total, page, taille, pages }` de tous les matchs (`?page&taille`, même filtre `statut`) — chaque match porte `joueur1Nom`, `joueur2Nom`, `jeuNom`, `plateformeNom` |
+| GET | `/api/matchs/:id` | Connecté | Détail du match enrichi (mêmes libellés) + `declarations` (**toutes** les manches, chaque ligne portant sa `manche`) + `choixNuls` |
+| POST | `/api/matchs/:id/declaration` | Connecté | Déclaration du score par un joueur (§5) — 409 si le match n'est pas `en_cours` ou si ce joueur a déjà déclaré cette manche |
+| POST | `/api/matchs/:id/confirmation` | Connecté | **Sans corps.** Le second joueur confirme le score proposé : le serveur écrit lui-même la déclaration miroir (le client n'envoie aucun chiffre, il ne peut donc pas falsifier ce qu'il confirme) → règlement immédiat, ou `nul_en_attente` si le score proposé était une égalité. 409 si rien n'est en attente ou si c'est sa propre déclaration |
+| POST | `/api/matchs/:id/choix-nul` | Connecté | `{ choix: "rejouer" \| "partager" }` après un nul déclaré des deux côtés. 400 valeur inconnue, 409 hors `nul_en_attente` ou choix déjà exprimé pour la manche |
+| POST | `/api/matchs/:id/preuves` | Connecté | Upload preuve (multipart → disque local) ; en `preuve_requise`, le dépôt de la **seconde** preuve (une par joueur) ouvre le litige |
+| POST | `/api/matchs/:id/validation` | Système/Admin | Filet de sécurité de l'arbitrage : règle une ligne héritée en `verification` ou un match en `litige` dont le gagnant est déjà désigné. 409 si le gagnant n'est pas déterminé ; idempotent (renvoie l'état actuel sans rejouer le paiement) |
+| GET | `/api/temps-reel` | Public | **WebSocket** unique de la plateforme (`?ticket=`). Sans ticket : connexion acceptée en visiteur, salons publics seulement. Voir §5 bis |
+| POST | `/api/temps-reel/ticket` | Connecté | Échange la session contre un ticket Redis à **usage unique** (TTL court) pour ouvrir le socket |
 | POST | `/api/matchs/:id/litige` | Connecté | Ouverture d'un litige |
 | GET | `/api/litiges` | Connecté* | Mes litiges en tableau ; admin `?tous=1` → **page** de tous les litiges (`?page&taille`, `?statut=en_cours|resolu`) |
 | PATCH | `/api/litiges/:id` | Admin | Décision arbitrale → règlement au gagnant ou remboursement croisé (chaque mise moins la commission) |
@@ -361,9 +415,9 @@ backend/
 | POST | `/api/paiements/callback-ligdicash` · `/callback-fusion` | Public (webhook) | Notifications des prestataires — routes distinctes par prestataire (les deux étant actifs simultanément), à la différence de l'exemple à un seul prestataire de la compétence LigdiCash |
 | GET | `/api/notifications` | Connecté | Mes notifications |
 | POST | `/api/notifications/:id/lue` | Connecté | Marquage lu |
-| GET | `/api/configurations-financieres` | Public | Règles financières actives (`commission_defi`, `mise_minimale`, `mise_maximale`, `frais_retrait`) — lues par le site public et la création de défi, jamais codées en dur côté client |
+| GET | `/api/configurations-financieres` | Public | Règles actives — 7 lignes : `commission_defi`, `mise_minimale`, `mise_maximale`, `frais_retrait`, plus les **délais de la machine à états** en minutes `delai_confirmation_minutes` (30), `delai_preuve_minutes` (120), `delai_choix_nul_minutes` (30). Lues par le site public et la création de défi, jamais codées en dur côté client |
 | GET | `/api/administration/statistiques` | Admin | KPIs (cache Redis 60 s) |
-| GET/PATCH | `/api/administration/configurations-financieres` | Admin | Commission, mises min/max, frais |
+| GET/PATCH | `/api/administration/configurations-financieres` | Admin | Commission, mises min/max, frais **et les trois délais** (réglables à chaud, historisation de l'ancienne valeur) |
 | GET | `/api/administration/journaux-audit` | Admin | Journal d'audit **paginé** (`?page&taille`, `?action=` filtre exact) → `{ elements, total, page, taille, pages }`, plus récents d'abord |
 | POST | `/api/contact` | Public | Formulaire de contact `{ nom, email, sujet, message }` → 201 le message créé (`statut = nouveau`, `utilisateurId` renseigné si un jeton joueur valide accompagne la requête via `auth.Optionnel()`) ; 400 + `details` ; anti-spam 5 messages/heure/IP (Redis `contact:ip:<ip>`, TTL 1 h) → 429 `Trop de messages envoyés, réessayez dans une heure.` |
 | GET | `/api/contact` | Admin | Messages paginés `?page=1&taille=10&statut=` (`nouveau` / `lu` / `traite`) → enveloppe `{ elements, total, page, taille, pages }` (`utils.Pagination` + `utils.NouvellePage`), tri `date_creation DESC` ; statut inconnu → 400 |
@@ -393,18 +447,54 @@ pays) ; un administrateur peut modifier n'importe quel profil, y compris `email`
 2. **Rejoindre un défi** (`POST /api/defis/:id/rejoindre`) : même opération pour le second
    joueur, dans une transaction qui crée aussi le `match` (`statut = en_cours`) et fait passer
    le `defi` à `statut = complet`. Un défi déjà rejoint ou expiré est refusé (`409`).
-3. **Déclarations** (`resultats_declares`) : chaque joueur déclare une fois par match (contrainte
-   d'unicité `match_id + utilisateur_id`). À la seconde déclaration, les scores du match
-   (`score_joueur_1`, `score_joueur_2`) sont renseignés et : si les deux déclarations désignent
-   le même gagnant, le match passe en `verification` (`gagnant_id`/`perdant_id` posés) puis est
-   validé automatiquement dès que chaque joueur a une preuve `validee` ; sinon (désaccord ou
-   match nul), il passe en `litige` (litige créé automatiquement). Un match qui n'est plus
-   `en_cours` refuse toute déclaration (409).
-4. **Validation du match** (`POST /api/matchs/:id/validation`) : transition atomique
-   `UPDATE matchs SET statut = 'termine' WHERE id = ? AND statut = 'verification'` — si
-   `RowsAffected == 0`, le match est déjà réglé, on renvoie l'état actuel sans rejouer le
-   paiement (même principe d'idempotence que documenté dans la compétence LigdiCash pour les
-   callbacks). Si la transition réussit, dans la même transaction :
+3. **Machine à états du match** — *règle produit validée, elle a changé : ne pas revenir à
+   l'ancienne.* Les déclarations (`resultats_declares`) sont uniques par
+   `match_id + utilisateur_id + **manche**`.
+
+   ```text
+   en_cours ──(1re déclaration)──► en_cours + échéance « confirmation »
+      ├─ 2e déclaration concordante OU POST /confirmation ─► termine  (règlement IMMÉDIAT)
+      ├─ déclarations divergentes ───────────────────────► preuve_requise + échéance « preuve »
+      ├─ nul déclaré des DEUX côtés ─────────────────────► nul_en_attente + échéance « choix_nul »
+      └─ échéance « confirmation » expirée ──────────────► termine (le score déclaré fait foi)
+   preuve_requise ──(les 2 preuves déposées OU échéance expirée)──► litige ──(arbitrage)──► termine
+   nul_en_attente ──(rejouer × 2)──► en_cours, manche + 1, AUCUN mouvement d'argent
+   nul_en_attente ──(choix opposés OU échéance expirée)──► termine (partage)
+   ```
+
+   - **Deux déclarations concordantes = match terminé sur-le-champ**, escrow réglé, **sans
+     preuve ni arbitre, quel que soit le montant**. `verification` ne fait plus partie du
+     parcours joueur : le statut reste défini pour les lignes héritées et pour
+     `POST /matchs/:id/validation` (qui accepte `verification` **ou** `litige`).
+   - Un désaccord n'ouvre **plus** de litige immédiat : le match passe en `preuve_requise`, les
+     deux joueurs déposent une preuve, et le litige n'est ouvert qu'au dépôt de la seconde
+     preuve ou à l'expiration de l'échéance (`matchs.PasserEnLitige`, transition atomique : les
+     deux chemins concurrents n'ouvrent qu'un seul litige).
+   - **Rejouer = zéro écriture au grand livre** : l'escrow reste `bloquee`, scores et
+     `gagnant_id` repassent à NULL, `manche += 1`, les déclarations des manches précédentes sont
+     conservées (le client filtre sur `match.manche`).
+   - **Partage** : chacun récupère `mise × (1 − taux)` (`portefeuilles.PartagerEscrow`), la
+     plateforme garde `2 × mise × taux`. La commission est **toujours** prélevée.
+   - **Échéances** : `matchs.PoserEcheance` écrit `echeance` + `echeance_type` et enfile la tâche
+     Asynq `match:echeance` (identifiant `match-ech:<matchId>:<type>:<manche>` → enfilage
+     idempotent). Les durées viennent **toujours** de `configurations_financieres`
+     (`delai_confirmation_minutes`, `delai_preuve_minutes`, `delai_choix_nul_minutes`) via
+     `administration.DelaiConfirmation/DelaiPreuve/DelaiChoixNul` — **aucune constante en dur**.
+     Le handler `matchs.TraiterEcheance` reverrouille la ligne, revérifie statut + manche + type
+     + date, et ne fait rien si le chrono a été remplacé : rejouer la tâche est sans effet.
+   - **Ordre de verrous unique dans toute l'application : la ligne `matchs`
+     (`ChargerVerrouille`, `SELECT … FOR UPDATE`) PUIS les portefeuilles** (`ORDER BY id`).
+     Tout chemin qui fait avancer la machine (déclaration, confirmation, choix de nul,
+     expiration d'un chrono, dépôt de preuve) verrouille le match **avant** de lire les
+     déclarations : sans ce verrou, deux joueurs qui déclarent en même temps liraient chacun
+     « une seule déclaration » et le match resterait bloqué.
+   - Chaque transition d'argent passe par `matchs.transition(...)` (`UPDATE … WHERE statut IN ?
+     AND manche = ?`, `RowsAffected == 1`) : seul l'appel qui a réellement changé l'état paie.
+4. **Validation administrative** (`POST /api/matchs/:id/validation`) : transition atomique
+   `UPDATE matchs SET statut = 'termine' WHERE id = ? AND statut IN ('verification','litige')` —
+   si `RowsAffected == 0`, le match est déjà réglé (ou pas validable), on renvoie l'état actuel
+   sans rejouer le paiement (même principe d'idempotence que documenté dans la compétence
+   LigdiCash pour les callbacks). Si la transition réussit, dans la même transaction :
    - lire `configurations_financieres.commission_defi` ;
    - `total = 2 × montant_mise`, `commission = total × taux`, `gain = total − commission` ;
    - `mise` du gagnant → `statut = gagnee` ; `mise` du perdant → `statut = perdue` ;
@@ -424,8 +514,8 @@ pays) ; un administrateur peut modifier n'importe quel profil, y compris `email`
    (`portefeuilles.RemboursementCroise(tx, defiID, matchID, joueur1, joueur2, taux)` :
    **chaque mise rendue moins la commission**, portefeuilles verrouillés par `ORDER BY id`,
    transactions liées à `match_id` et `mise_id`) — toujours dans une transaction unique,
-   jamais un règlement partiel. Un match nul déclaré n'est pas un remboursement automatique :
-   il ouvre un litige et c'est l'arbitre qui décide.
+   jamais un règlement partiel. Un match nul déclaré des deux côtés n'ouvre **pas** de litige :
+   il passe en `nul_en_attente` et les joueurs choisissent rejouer ou partager (point 3).
 
 > **Règle transversale — toute mise rendue = mise × (1 − commission).** Décision produit :
 > la plateforme prélève `commission_defi` **chaque fois qu'elle rend une mise** (annulation
@@ -469,7 +559,96 @@ retrait, les commissions portant `match_id` ou `mise_id` étant informatives) ; 
 = 0 et aucune `mise` encore `bloquee` quand tous les défis sont réglés/annulés/expirés ; au
 plus une transaction `gain` par match ; chaque mise `remboursee` porte exactement une
 transaction `commission` valide et une seule transaction `remboursement` ; références de
-transactions uniques ; aucun solde négatif.
+transactions uniques ; aucun solde négatif. Elle vérifie aussi les invariants de la machine à
+états : tout match terminé est daté et **sans chrono résiduel** (`echeance IS NULL`,
+`echeance_type = ''`), `manche >= 1`, un match a une transaction `gain` **si et seulement si**
+il a un `gagnant_id` (un partage ou un remboursement croisé n'en a aucune), et aucun double
+choix de nul pour un même joueur et une même manche.
+
+---
+
+## 5 bis. Couche Temps Réel (WebSocket) — architecture et pièges vérifiés
+
+> **Le serveur pousse, le client n'interroge jamais.** Un état qui change en base et que
+> l'utilisateur doit voir produit un événement ; il n'existe aucun `refetchInterval` ni aucune
+> boucle de rafraîchissement côté client (règle miroir dans la compétence web).
+
+**Architecture.** Un seul socket par client (`GET /api/temps-reel`), multiplexé par **salons** :
+`public:defis` (visiteurs compris), `utilisateur:<id>` (données d'argent — jamais sur un salon
+public), `match:<id>` (les deux joueurs + les administrateurs), `admin`. Le paquet `tempsreel`
+expose exactement trois choses au métier :
+
+```go
+func Publier(evenement string, charge any, salons ...string) // diffusion immédiate, HORS transaction
+func NouveauTampon() *Tampon                                 // accumulation pendant une transaction
+func JoueursEnLigne() int
+```
+
+**Règle absolue : un événement ne part jamais avant le commit.** Publier depuis l'intérieur
+d'une transaction ferait voir au client un état que la base peut encore annuler (et l'inverse :
+un client qui recharge sur l'événement lit la valeur d'avant). Motif imposé partout :
+
+```go
+tampon := tempsreel.NouveauTampon()
+err := config.DB.Transaction(func(tx *gorm.DB) error {
+    …
+    tampon.Ajouter(tempsreel.EvtMatchTermine, charge, tempsreel.SalonMatch(m.ID))
+    return nil
+})
+if err != nil { return … }   // rien n'est diffusé
+tampon.Diffuser()            // après le commit, et seulement après
+```
+
+Les hooks inter-modules (`matchs.NotifierJoueurs`, `matchs.OuvrirLitigeAuto`, …) reçoivent donc
+le `*Tampon` de l'appelant : les notifications créées dans la transaction partent avec elle.
+
+**Diffusion inter-process : Redis Pub/Sub obligatoire** (canal `qp:temps-reel`). Sans lui, un
+événement produit par le **worker Asynq** (expiration d'un défi, échéance d'un match) n'atteint
+jamais les sockets tenus par le process API. Chaque instance s'abonne au canal et redistribue à
+ses connexions locales.
+
+**Authentification par ticket.** Le JWT vit dans un cookie HttpOnly que le navigateur ne lit
+jamais, et on ne peut pas poser d'en-tête `Authorization` sur une connexion WebSocket :
+`POST /api/temps-reel/ticket` (Bearer) crée un aléa de 32 octets dans Redis
+(`ws:ticket:<valeur>` → `{utilisateurId, role}`, TTL court) que le socket consomme avec
+**`GETDEL`** — lecture et suppression atomiques, donc **usage unique** ; deux `GET` puis `DEL`
+laisseraient une fenêtre de rejeu. Un ticket absent, expiré ou déjà consommé ne ferme pas la
+connexion : `connexion.refusee` puis bascule en visiteur (salons publics seulement).
+
+### Pièges vérifiés en séance (chacun a réellement coûté du temps)
+
+- **go-redis : l'ordre `Subscribe` → `Receive(ctx)` → *puis* `Channel()` est obligatoire.**
+  Ouvrir `Channel()` avant `Receive` fait consommer la confirmation d'abonnement par la
+  goroutine interne du client : l'abonnement paraît établi et **plus aucun message n'arrive**,
+  sans la moindre erreur.
+- **Après un `Upgrade` WebSocket, le handler tourne dans une goroutine et le `fiber.Ctx` /
+  `RequestCtx` est recyclé.** Tout ce dont la connexion a besoin (ticket, IP, en-têtes, rôle)
+  est extrait et copié **avant** l'upgrade ; le lire après donne des valeurs d'une autre
+  requête, ou vide.
+- **Un compteur partagé entre instances est un plancher, pas une vérité** :
+  `max(total lu dans Redis, total local)`. Se fier au seul total partagé fait afficher zéro
+  entre deux rafraîchissements (la fenêtre où l'instance n'a pas encore réécrit son champ), et
+  se fier au seul local sous-compte. Un champ d'instance plus vieux que le seuil de fraîcheur
+  est ignoré puis supprimé, sinon un process mort gonfle le compteur pour toujours.
+- **`CheckOrigin` permissif = faille CSWSH.** Un site tiers ouvrirait un socket authentifié
+  avec les cookies de la victime (l'origine n'est pas soumise à la politique CORS sur un
+  WebSocket). Liste blanche obligatoire (`WS_ORIGINES_AUTORISEES`), jamais `return true`.
+- **Jamais deux versions du worker sur la même file Redis.** Un ancien binaire encore vivant
+  consomme les tâches d'un type dont il n'a pas le handler : Asynq les met en échec avec un
+  backoff silencieux et la tâche « ne part jamais ». Avant de tester une nouvelle tâche
+  (`match:echeance`), vérifier qu'un seul processus tourne.
+- **Battement de cœur** : ping serveur toutes les 30 s, fermeture après 60 s sans signe de vie.
+  Le ping n'est pas un luxe : sans lui, l'infrastructure coupe les sockets inactifs (voir la
+  compétence de déploiement, coupure Cloudflare à 100 s).
+
+### Sécurité et recette
+
+- Aucune donnée privée (solde, e-mail, transaction, identifiant de paiement) sur un salon
+  public. L'autorisation d'un salon est **revérifiée côté serveur** à l'abonnement — un client
+  peut demander n'importe quel salon, il ne reçoit que ceux auxquels sa session donne droit
+  (`salons` acceptés et `refuses` renvoyés dans `abonnement.confirme`).
+- `backend/tests/parcours-temps-reel.ps1` fait partie des recettes à passer à **100 %**, au
+  même titre que `parcours-api.ps1`.
 
 ---
 
@@ -481,7 +660,8 @@ transactions uniques ; aucun solde négatif.
    les **9 plateformes** avec leur famille (PC ; PlayStation 5, PlayStation 4, Xbox Series X|S,
    Xbox One, Nintendo Switch 2, Nintendo Switch ; Mobile Android, Mobile iOS), les
    `configurations_financieres` par défaut (commission 10 %, mise min 500 FCFA, mise max
-   100 000 FCFA, frais de retrait 1 %) et un compte administrateur de test. Le seed complète
+   100 000 FCFA, frais de retrait 1 %, **délais de la machine à états : confirmation 30 min,
+   preuve 120 min, choix après un nul 30 min**) et un compte administrateur de test. Le seed complète
    aussi les lignes existantes (catégorie/famille vides après migration, anciens libellés
    `PlayStation` → `PlayStation 5`, `Xbox` → `Xbox Series X|S`) : enrichir le seed ne
    réinitialise jamais la base, et la recette (`tests/parcours-api.ps1`) vérifie ≥ 50 jeux
@@ -658,7 +838,10 @@ Créé lorsqu'un deuxième joueur rejoint le défi — représente le match rée
 | `score_joueur_2` | INTEGER | Score |
 | `gagnant_id` | UUID | Gagnant |
 | `perdant_id` | UUID | Perdant |
-| `statut` | VARCHAR(30) | en_cours / verification / litige / termine |
+| `statut` | VARCHAR(30) | en_cours / preuve_requise / nul_en_attente / litige / termine (`verification` : lignes héritées et arbitrage admin) |
+| `manche` | INTEGER | Manche courante, 1 par défaut. Incrémentée quand les deux joueurs choisissent « rejouer » après un nul — **sans aucun mouvement d'argent** |
+| `echeance` | TIMESTAMP | Fin du chrono en cours (NULL si aucun). Le client l'égrène sans appel réseau |
+| `echeance_type` | VARCHAR(20) | `confirmation` / `preuve` / `choix_nul` — vide quand il n'y a pas de chrono |
 | `date_debut` | TIMESTAMP | Début |
 | `date_fin` | TIMESTAMP | Fin |
 | `date_creation` | TIMESTAMP | Création |
@@ -671,7 +854,11 @@ Créé lorsqu'un deuxième joueur rejoint le défi — représente le match rée
 > `joueur2Id`, `scoreJoueur1`, `scoreJoueur2`.
 
 Exemple : match `#QP-MATCH-845`, `Kader225` 3 – 1 `Moussa10`, gagnant `Kader225`, statut
-`verification`.
+`termine` (les deux déclarations concordaient : règlement immédiat, sans preuve ni arbitre).
+
+**Table annexe `choix_nuls`** — choix d'un joueur après un nul déclaré des deux côtés :
+`id`, `match_id`, `utilisateur_id`, `manche`, `choix` (`rejouer` / `partager`), `date_choix`,
+`date_creation`. Unicité `match_id + utilisateur_id + manche`.
 
 ### 7. `mises`
 
@@ -699,14 +886,19 @@ Ce que chaque joueur déclare après le match (distinct du résultat final valid
 | `id` | UUID | Identifiant |
 | `match_id` | UUID | Match |
 | `utilisateur_id` | UUID | Joueur |
+| `manche` | INTEGER | Manche déclarée (1 par défaut) |
 | `score_pour` | INTEGER | Son score |
 | `score_contre` | INTEGER | Score adverse |
-| `gagnant_declare_id` | UUID | Gagnant déclaré |
+| `gagnant_declare_id` | UUID | Gagnant déclaré (NULL = nul déclaré) |
 | `commentaire` | TEXT | Commentaire |
 | `date_declaration` | TIMESTAMP | Date |
 
+> **La clé unique porte la manche** (`match_id + utilisateur_id + manche`) : après un « rejouer »,
+> chaque joueur redéclare la nouvelle manche sans que l'historique de la précédente soit détruit.
+> `GET /api/matchs/:id` renvoie **toutes** les manches ; le client filtre sur `match.manche`.
+
 Exemple : `Kader225` déclare 3-1 (gagnant : Kader225) ; `Moussa10` déclare 1-3 (gagnant :
-Kader225) → déclarations cohérentes.
+Kader225) → déclarations cohérentes, match réglé immédiatement.
 
 ### 9. `preuves_matchs`
 
@@ -915,18 +1107,25 @@ administrateurs (module `contact/`). JSON : `id`, `dateCreation`, `nom`, `email`
 
 4. Ils jouent : Kader 3 - 1 Moussa
 
-5. Déclarations                      → RESULTATS_DECLARES (cohérentes : Kader gagne)
+5. Kader déclare 3-1               → RESULTATS_DECLARES (manche 1)
+   MATCH reste en_cours + échéance « confirmation » (delai_confirmation_minutes)
+   Moussa reçoit en direct match.score_propose : « Confirmer 1-3 » ou « Proposer un autre score »
 
-6. Preuves envoyées                  → PREUVES_MATCHS (capture + vidéo, les deux joueurs)
+6. Moussa confirme (POST /confirmation, sans corps — le serveur écrit la déclaration miroir)
+   → MATCH (gagnant: Kader, statut: termine)  ← RÈGLEMENT IMMÉDIAT, ni preuve ni arbitre
 
-7. Validation                        → MATCH (gagnant: Kader, statut: termine)
-
-8. Règlement (commission 10 %) :
+7. Règlement (commission 10 %) :
    Total mises 4 000 → commission 400 → gain Kader 3 600
    MISE Kader → gagnee · MISE Moussa → perdue
+   Événements : match.score_confirme, match.termine, portefeuille.maj, transaction.creee
 
-9. En cas de litige :
-   MATCH → LITIGE → argent bloqué → arbitre → décision → mise à jour → paiement/remboursement
+Variantes de la machine à états
+   a. Moussa ne répond pas → à l'échéance, le score déclaré fait foi : victoire à Kader, payé.
+   b. Moussa déclare un score différent → MATCH: preuve_requise (échéance « preuve »).
+      Les deux preuves déposées (ou l'échéance) → LITIGE → arbitre → paiement/remboursement.
+   c. Les deux déclarent un nul → MATCH: nul_en_attente (échéance « choix_nul »).
+      rejouer + rejouer  → manche 2, AUCUN mouvement d'argent, escrow intact.
+      sinon (choix opposés ou échéance) → partage : chacun 1 800, la plateforme garde 400.
 ```
 
 ---

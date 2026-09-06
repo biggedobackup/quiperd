@@ -27,9 +27,15 @@ export function CompteurAnime({ valeur, format = 'montant', devise = 'XOF', dure
   const precedent = useRef(reduit ? cible : 0)
 
   useEffect(() => {
-    if (reduit) {
+    const arriverDirectement = () => {
       setAffiche(cible)
       precedent.current = cible
+    }
+    // Onglet en arrière-plan : le navigateur suspend complètement requestAnimationFrame.
+    // Animer serait non seulement inutile, mais dangereux — le compteur resterait figé sur
+    // sa valeur de départ, c'est-à-dire un solde affiché à 0 FCFA alors qu'il ne l'est pas.
+    if (reduit || (typeof document !== 'undefined' && document.hidden)) {
+      arriverDirectement()
       return
     }
     const depart = precedent.current
@@ -43,7 +49,14 @@ export function CompteurAnime({ valeur, format = 'montant', devise = 'XOF', dure
       else precedent.current = cible
     }
     raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
+    // Filet de sécurité : l'onglet peut passer en arrière-plan APRÈS le démarrage, ou le
+    // navigateur brider les images par seconde. Les minuteries, elles, continuent de tomber
+    // (au ralenti) : passé la durée de l'animation, on affiche la valeur réelle quoi qu'il arrive.
+    const filet = window.setTimeout(arriverDirectement, dureeMs + 250)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.clearTimeout(filet)
+    }
   }, [cible, dureeMs, reduit])
 
   const texte = format === 'montant' ? formatMontant(Math.round(affiche), devise) : Math.round(affiche).toLocaleString('fr-FR')

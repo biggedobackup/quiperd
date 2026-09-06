@@ -8,14 +8,15 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"go.uber.org/zap"
 	"quiperd/backend/config"
 	"quiperd/backend/defis"
 	"quiperd/backend/jobs"
 	"quiperd/backend/litiges"
+	"quiperd/backend/matchs"
 	"quiperd/backend/notifications"
 	"quiperd/backend/paiements"
 	"quiperd/backend/utils"
-	"go.uber.org/zap"
 )
 
 // Demarrer lance le serveur Asynq (worker) dans une goroutine.
@@ -35,6 +36,7 @@ func Demarrer(cfg *config.Config) *asynq.Server {
 	mux.HandleFunc(jobs.TypePaiementReverif, gererPaiementReverif)
 	mux.HandleFunc(jobs.TypeNotificationPush, gererPush)
 	mux.HandleFunc(jobs.TypeLitigeRelance, gererLitigeRelance)
+	mux.HandleFunc(jobs.TypeMatchEcheance, gererMatchEcheance)
 
 	go func() {
 		if err := srv.Run(mux); err != nil && utils.Log != nil {
@@ -92,4 +94,19 @@ func gererLitigeRelance(ctx context.Context, t *asynq.Task) error {
 		return nil
 	}
 	return litiges.RelancerSiEnCours(id)
+}
+
+// gererMatchEcheance applique l'expiration d'un chrono de match : victoire au déclarant
+// (confirmation), ouverture du litige (preuve) ou partage automatique (choix après un nul).
+// matchs.TraiterEcheance est idempotent : rejouer la tâche est sans effet.
+func gererMatchEcheance(ctx context.Context, t *asynq.Task) error {
+	var p jobs.ChargeMatchEcheance
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return err
+	}
+	id, err := uuid.Parse(p.MatchID)
+	if err != nil {
+		return nil
+	}
+	return matchs.TraiterEcheance(id, p.Type, p.Manche)
 }

@@ -4,6 +4,7 @@ import { icone, iconePlateforme } from '@/lib/icones'
 import { decrireCategorie } from '@/lib/catalogue'
 import { formatDateRelative, formatMontant } from '@/lib/format'
 import type { DefiListe } from '@/models/defi'
+import { CompteAReboursDefi } from '@/components/partages/defis-en-direct/animation-defis'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 
 export interface ProprietesCarteDefi {
@@ -42,11 +43,16 @@ export function CarteDefi({ defi, mien = false }: ProprietesCarteDefi) {
         </div>
         {defi.regles && <p className="mt-3 line-clamp-2 text-legende text-encre/80">{defi.regles}</p>}
       </div>
-      <div className="flex items-center justify-between border-t-2 border-trait bg-gris px-4 py-2.5 text-legende transition-colors group-hover:bg-volt group-hover:text-nuit">
-        <span className="flex items-center gap-1.5">
-          <FontAwesomeIcon icon={icone.horloge} />
-          {defi.statut === 'ouvert' && defi.dateExpiration ? `Expire ${formatDateRelative(defi.dateExpiration)}` : `Créé ${formatDateRelative(defi.dateCreation)}`}
-        </span>
+      <div className="flex items-center justify-between gap-3 border-t-2 border-trait bg-gris px-4 py-2.5 text-legende transition-colors group-hover:bg-volt group-hover:text-nuit">
+        {/* Défi ouvert : le décompte s'égrène et retire la carte à zéro (le serveur confirme ensuite). */}
+        {defi.statut === 'ouvert' && defi.dateExpiration ? (
+          <CompteAReboursDefi defiId={defi.id} echeance={defi.dateExpiration} ton="herite" />
+        ) : (
+          <span className="flex items-center gap-1.5">
+            <FontAwesomeIcon icon={icone.horloge} aria-hidden="true" />
+            Créé {formatDateRelative(defi.dateCreation)}
+          </span>
+        )}
         <span className="etiquette flex items-center gap-1">
           {mien ? 'Gérer' : 'Voir'} <FontAwesomeIcon icon={icone.suivant} />
         </span>

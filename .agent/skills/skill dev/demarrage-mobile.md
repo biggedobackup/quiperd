@@ -118,8 +118,12 @@ mobile/
 3. **Défis** — liste des défis ouverts (filtres jeu/plateforme/mise), création d'un défi
    (vérifie le solde disponible avant l'appel API), détail, bouton « rejoindre ».
 4. **Match** — une fois le défi rejoint : écran de suivi, déclaration du score en fin de
-   partie, upload de la preuve (capture + vidéo, avec barre de progression — la vidéo peut
-   être volumineuse), statut en temps réel (`en_cours` → `verification` → `termine`/`litige`).
+   partie, **confirmation du score proposé par l'adversaire** (`POST /matchs/:id/confirmation`,
+   sans corps), choix **rejouer / partager** après un nul (`POST /matchs/:id/choix-nul`),
+   manches, compte à rebours de l'échéance en cours, upload de la preuve (capture + vidéo, avec
+   barre de progression — la vidéo peut être volumineuse), statut suivi en direct
+   (`en_cours` → `preuve_requise` / `nul_en_attente` / `litige` → `termine`). La machine à
+   états est celle de `demarrage-backend.md` §5.3 — le mobile ne réimplémente aucune règle.
 5. **Litige** — ouverture depuis l'écran de match si désaccord, suivi de la décision arbitrale.
 6. **Notifications** — liste + push FCM (défi rejoint, match à valider, litige, paiement
    confirmé) ; taper une notification ouvre l'écran concerné.
@@ -161,3 +165,14 @@ mobile/
 - **Hors-ligne / réseau instable :** les actions financières (créer un défi, rejoindre, dépôt,
   retrait) ne sont jamais retentées automatiquement côté client — en cas d'échec réseau,
   l'utilisateur est informé et peut relancer manuellement, pour éviter tout doublon.
+- **Temps réel :** le mobile ouvre le **même** socket que le web (`GET /api/temps-reel`) et
+  parle **le même contrat** — noms d'événements, salons et charges utiles sont ceux de
+  [`backend/tempsreel/evenements.go`](../../../backend/tempsreel/evenements.go), source de
+  vérité unique (miroir web : `frontend/src/temps-reel/evenements.ts`). Mêmes salons
+  (`public:defis`, `utilisateur:<id>`, `match:<id>`, `admin`) et même authentification par
+  **ticket à usage unique** : `POST /api/temps-reel/ticket` avec le Bearer, puis ouverture de
+  `wss://…/api/temps-reel?ticket=…` — le ticket est consommé à la connexion, il faut en
+  redemander un à chaque reconnexion. Le serveur envoie un ping toutes les 30 s ; répondre au
+  pong et se reconnecter avec un backoff (1 s → 30 s) après une coupure, puis recharger les
+  écrans concernés une seule fois. **Aucun polling** : ni `Timer.periodic` de rafraîchissement,
+  ni rechargement automatique d'une liste — le serveur pousse (même règle que le web).

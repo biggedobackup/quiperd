@@ -1,9 +1,13 @@
 import { createFileRoute, useNavigate, type SearchSchemaInput } from '@tanstack/react-router'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { icone } from '@/lib/icones'
+import { cles } from '@/lib/query'
 import { formatDateHeure, formatIdentifiant, pluriel } from '@/lib/format'
 import { optionsDetailMatch, optionsLitigesAdmin, optionsStatistiques } from '@/lib/requetes'
 import type { Litige } from '@/models/litige'
+import { salons } from '@/temps-reel/evenements'
+import { useEvenement } from '@/temps-reel/hooks'
+import { BandeauNouveautes, useFileTempsReel } from '@/components/admin/temps-reel-admin'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { DataTable, type Colonne } from '@/components/partages/data-table/data-table'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
@@ -30,9 +34,21 @@ export const Route = createFileRoute('/admin/_prive/litiges/')({
 function PageLitigesAdmin() {
   const { page } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
+  const queryClient = useQueryClient()
   const { data, isPending, isPlaceholderData } = useQuery({ ...optionsLitigesAdmin(page), placeholderData: keepPreviousData })
   const statistiques = useQuery(optionsStatistiques)
   const ouverts = statistiques.data?.litigesOuverts
+
+  // Un litige poussé pendant la lecture n'est PAS inséré dans le tableau : la pagination
+  // glisserait sous le curseur. On l'annonce, l'administrateur affiche quand il veut.
+  const file = useFileTempsReel()
+  useEvenement('admin.litige_ouvert', ({ litigeId }) => file.signaler(litigeId), salons.admin)
+
+  const afficherNouveaux = () => {
+    file.vider()
+    void queryClient.invalidateQueries({ queryKey: cles.litiges.tous })
+    if (page !== 1) void navigate({ search: (prev) => ({ ...prev, page: 1 }) })
+  }
 
   const colonnes: Colonne<Litige>[] = [
     { cle: 'match', entete: 'Match', rendu: (l) => <NomMatch matchId={l.matchId} /> },
@@ -49,6 +65,7 @@ function PageLitigesAdmin() {
         titre="Litiges"
         description={ouverts === undefined ? 'Tous les litiges, du plus récent au plus ancien.' : `${ouverts} ${pluriel(ouverts, 'litige')} en attente de décision · liste du plus récent au plus ancien.`}
       />
+      <BandeauNouveautes nombre={file.nombre} singulier="nouveau litige à arbitrer" plurielForme="nouveaux litiges à arbitrer" onAfficher={afficherNouveaux} className="mb-4" />
       <div className={`transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`} aria-busy={isPlaceholderData || undefined}>
         <DataTable
           colonnes={colonnes}

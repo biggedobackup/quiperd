@@ -4,6 +4,26 @@
 # réseau Docker ; en réseau local, le site est servi en HTTP simple sur l'adresse du serveur.
 # Les en-têtes X-Forwarded-* de cloudflared (réseau privé Docker) sont transmis tels quels :
 # c'est ainsi que le site sait si le visiteur est en HTTPS (cookies Secure).
+#
+# TEMPS RÉEL — pourquoi /api/temps-reel est routé depuis le port 80 et pas seulement depuis 8080
+# Le navigateur ne peut pas faire passer un WebSocket par une server function TanStack : il joint
+# le backend directement. Le socket est donc exposé sur l'origine DU SITE (port 80), en plus de
+# celle de l'API (port 8080). Trois bénéfices :
+#   1. l'origine du socket est celle de la page → aucune requête inter-site, donc aucun risque de
+#      détournement de socket (CSWSH) et aucune origine à déclarer ;
+#   2. le lien public en « tunnel rapide », qui n'expose que caddy:80, suffit au temps réel ;
+#   3. rien de plus à ouvrir sur le pare-feu.
+# Seuls les chemins EXACTS /api/temps-reel et /api/temps-reel/ sont routés (les matchers de chemin
+# Caddy sont exacts sans joker) : /api/temps-reel/ticket n'est PAS exposé sur le port 80 — il est
+# appelé côté serveur par le site, avec le jeton Bearer.
+#
+# À ne pas défaire :
+#   - aucun `read_timeout` / `write_timeout` dans le bloc global `servers`. Caddy est sans limite
+#     par défaut ; en poser un couperait les sockets ouverts en pleine partie ;
+#   - `flush_interval -1` sur la route du socket : aucune mise en tampon des trames ;
+#   - `encode` est déclaré DANS les blocs `handle` des routes HTTP ordinaires, jamais sur la route
+#     du socket : une trame WebSocket n'a rien à faire dans un flux compressé ;
+#   - Caddy relaie `Upgrade` / `Connection` de lui-même : ne pas les recopier à la main.
 
 {
 	servers {
@@ -13,23 +33,46 @@
 
 # Site web (conteneur web, TanStack Start / Nitro)
 :80 {
-	encode gzip zstd
 	header {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		-Server
 	}
-	reverse_proxy web:3000
+
+	# Socket temps réel, sur la même origine que les pages du site.
+	@socket path /api/temps-reel /api/temps-reel/
+	handle @socket {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		encode gzip zstd
+		reverse_proxy web:3000
+	}
 }
 
 # API (application mobile, documentation Swagger sur /api/docs) — même backend que celui que le
 # site appelle en interne. Les preuves ne sont servies que par la route protégée du backend.
 :8080 {
-	encode gzip zstd
 	header {
 		X-Content-Type-Options "nosniff"
 		-Server
 	}
-	reverse_proxy backend:8080
+
+	# Même socket, joignable aussi par l'origine de l'API (application mobile, tunnel nommé avec
+	# un sous-domaine api.*). Bloc séparé pour laisser la compression aux réponses HTTP normales.
+	@socket path /api/temps-reel /api/temps-reel/
+	handle @socket {
+		reverse_proxy backend:8080 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		encode gzip zstd
+		reverse_proxy backend:8080
+	}
 }
