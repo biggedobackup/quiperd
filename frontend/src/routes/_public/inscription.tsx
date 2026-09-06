@@ -88,9 +88,9 @@ function PageInscription() {
     }
     toastSucces('Compte créé', 'Un code à 6 chiffres vient de partir vers votre boîte mail.')
     await router.invalidate()
-    // Le compte existe et le joueur est connecté : on l'emmène confirmer son adresse, mais
-    // l'écran laisse sortir (barre de navigation + « Plus tard »). `nouveau` lui évite de
-    // redemander un code dans la minute qui suit celui de l'inscription.
+    // Le compte existe et le joueur est connecté. La confirmation est désormais obligatoire :
+    // le layout `/joueur` renvoie automatiquement vers cet écran tant que l'adresse n'est pas
+    // confirmée. `nouveau` lui évite de redemander un code dans la minute qui suit l'inscription.
     await navigate({ to: '/joueur/confirmation-email', search: { nouveau: true } })
   })
 

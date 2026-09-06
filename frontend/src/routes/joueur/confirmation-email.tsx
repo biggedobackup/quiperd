@@ -3,8 +3,9 @@
  *
  * Pourquoi cet écran vit sous `/joueur` et non dans `_public` : la route backend est
  * authentifiée (Bearer), le compte existe déjà et le joueur est connecté. Le layout `/joueur`
- * fournit la session (l'adresse à rappeler), la garde de rôle, le `noindex` et — surtout — la
- * barre de navigation basse : le joueur peut ressortir quand il veut, il n'est pas enfermé.
+ * fournit la session (l'adresse à rappeler), la garde de rôle et le `noindex`. Confirmation
+ * obligatoire : tant que l'adresse n'est pas confirmée, le layout `/joueur` renvoie ici tout
+ * le reste de l'espace joueur — seuls cet écran et le profil sont accessibles.
  */
 import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from 'react'
 import { createFileRoute, getRouteApi, useNavigate, useRouter, type SearchSchemaInput } from '@tanstack/react-router'
@@ -170,11 +171,6 @@ function PageConfirmationEmail() {
         surtitre="Sécurité"
         titre="Confirmez votre e-mail"
         description="De l’argent réel transite par votre compte : nous vérifions une seule fois que cette adresse est bien la vôtre."
-        actions={
-          <Button variante="fantome" onClick={() => void navigate({ href: destination })} iconeDebut={icone.precedent}>
-            Plus tard
-          </Button>
-        }
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
