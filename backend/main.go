@@ -75,8 +75,8 @@ func main() {
 
 	routes.Enregistrer(app)
 
-	utils.Log.Info("QUI PERD API démarrée sur le port " + cfg.AppPort)
-	if err := app.Listen(":" + cfg.AppPort); err != nil {
+	utils.Log.Info("QUI PERD API démarrée sur " + cfg.AppHost + ":" + cfg.AppPort)
+	if err := app.Listen(cfg.AppHost + ":" + cfg.AppPort); err != nil {
 		utils.Log.Fatal("démarrage du serveur impossible: " + err.Error())
 	}
 }

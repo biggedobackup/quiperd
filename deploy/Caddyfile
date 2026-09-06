@@ -1,0 +1,35 @@
+# QUI PERD — reverse proxy Caddy (conteneur « caddy », copié dans ~/production par deployer.sh).
+#
+# Pas de TLS ici : en public, Cloudflare Tunnel termine le HTTPS et joint Caddy en HTTP via le
+# réseau Docker ; en réseau local, le site est servi en HTTP simple sur l'adresse du serveur.
+# Les en-têtes X-Forwarded-* de cloudflared (réseau privé Docker) sont transmis tels quels :
+# c'est ainsi que le site sait si le visiteur est en HTTPS (cookies Secure).
+
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+# Site web (conteneur web, TanStack Start / Nitro)
+:80 {
+	encode gzip zstd
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+	reverse_proxy web:3000
+}
+
+# API (application mobile, documentation Swagger sur /api/docs) — même backend que celui que le
+# site appelle en interne. Les preuves ne sont servies que par la route protégée du backend.
+:8080 {
+	encode gzip zstd
+	header {
+		X-Content-Type-Options "nosniff"
+		-Server
+	}
+	reverse_proxy backend:8080
+}

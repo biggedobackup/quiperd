@@ -11,6 +11,7 @@ import (
 // Config regroupe toute la configuration lue depuis l'environnement (.env).
 type Config struct {
 	AppEnv     string
+	AppHost    string
 	AppPort    string
 	AppBaseURL string
 	CorsOrigin string
@@ -60,6 +61,7 @@ func Charger() *Config {
 
 	Cfg = &Config{
 		AppEnv:     getEnv("APP_ENV", "development"),
+		AppHost:    getEnv("APP_HOST", ""),
 		AppPort:    getEnv("APP_PORT", "8080"),
 		AppBaseURL: getEnv("APP_BASE_URL", "http://localhost:8080"),
 		CorsOrigin: getEnv("CORS_ORIGIN", "http://localhost:3000"),

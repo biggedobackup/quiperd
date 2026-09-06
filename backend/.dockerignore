@@ -1,0 +1,13 @@
+# Jamais dans l'image : secrets, binaires locaux, preuves uploadées, tests, journaux.
+.env
+.env.*
+!.env.example
+*.exe
+quiperd-backend
+quiperd-backend.*
+public/preuves/
+tests/
+tmp/
+*.log
+Dockerfile
+.dockerignore

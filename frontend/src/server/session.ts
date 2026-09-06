@@ -16,7 +16,22 @@ const DUREE_MAX_SECONDES = 72 * 3600 // alignée sur JWT_EXPIRATION_HEURES du ba
 
 export type NomCookie = typeof COOKIE_JOUEUR | typeof COOKIE_ADMIN
 
+/**
+ * Attribut `Secure` des cookies : décidé par le schéma réellement vu par le visiteur, jamais par
+ * `NODE_ENV` seul. Derrière un reverse proxy (Caddy, Cloudflare Tunnel) c'est `X-Forwarded-Proto`
+ * qui fait foi : le même serveur peut être joint en HTTPS via le tunnel et en HTTP simple sur le
+ * réseau local — un cookie `Secure` posé sur une visite HTTP serait refusé par le navigateur, donc
+ * aucune connexion possible. À défaut d'en-tête, l'origine publique `SITE_URL` décide.
+ */
 function estSecurise(): boolean {
+  try {
+    const transmis = getRequestHeader('x-forwarded-proto')
+    if (transmis) return transmis.split(',')[0]?.trim().toLowerCase() === 'https'
+  } catch {
+    // hors contexte de requête : on retombe sur la configuration
+  }
+  const site = process.env.SITE_URL
+  if (site) return site.startsWith('https://')
   if (process.env.NODE_ENV === 'production') return true
   try {
     return new URL(getRequest().url).protocol === 'https:'

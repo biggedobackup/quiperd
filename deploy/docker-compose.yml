@@ -1,0 +1,134 @@
+# QUI PERD — pile de production (Docker Compose).
+# Copié dans ~/production par deployer.sh ; les ${…} viennent de ~/production/.env
+# (généré par preparer-production.sh). Les images backend et web sont construites depuis ~/dev.
+#
+#   visiteur ──HTTPS──► Cloudflare ──tunnel──► cloudflared ──► caddy:80 ──► web:3000 ──► backend:8080
+#   réseau local ──HTTP──► caddy :80 (site) / :8080 (API, appli mobile, Swagger)
+#   backend ──► postgres:5432, redis:6379 (réseau interne Docker uniquement)
+name: quiperd
+
+x-journal: &journal
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging: *journal
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging: *journal
+
+  backend:
+    build:
+      context: ${QUIPERD_DEV}/backend
+    image: quiperd-backend:${QUIPERD_VERSION:-latest}
+    restart: unless-stopped
+    # Même utilisateur que le propriétaire de ./preuves : le backend y écrit les fichiers uploadés.
+    user: "${QUIPERD_UID}:${QUIPERD_GID}"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./preuves:/app/public/preuves
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/api/sante >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *journal
+
+  web:
+    build:
+      context: ${QUIPERD_DEV}/frontend
+    image: quiperd-web:${QUIPERD_VERSION:-latest}
+    restart: unless-stopped
+    # Le site ne reçoit que ce dont il a besoin : aucun secret du backend.
+    environment:
+      API_BASE_URL: http://backend:8080/api
+      SITE_URL: ${SITE_URL}
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *journal
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - web
+    ports:
+      - "80:80"
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging: *journal
+
+  # Lien public — tunnel Cloudflare nommé (domaine à vous, URL stable). Actif quand
+  # CLOUDFLARE_TUNNEL_TOKEN est renseigné (profil « tunnel », choisi par deployer.sh).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - caddy
+    logging: *journal
+
+  # Lien public — tunnel rapide sans compte : URL aléatoire *.trycloudflare.com qui change à
+  # chaque redémarrage (profil « tunnel-rapide », choisi par deployer.sh quand il n'y a pas de jeton).
+  tunnel-rapide:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    profiles: ["tunnel-rapide"]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+    depends_on:
+      - caddy
+    logging: *journal
+
+volumes:
+  caddy_data:
+  caddy_config:
