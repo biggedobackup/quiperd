@@ -22,7 +22,8 @@ import { UtilisateurModal, type ModeUtilisateurModal } from '@/components/admin/
 import { DetailUtilisateurModal } from '@/components/admin/modals/detail-utilisateur-modal'
 
 /** Actions du tableau en icônes seules (libellé en `title`/`aria-label`), hauteur compacte. */
-const CLASSE_ACTION_ICON = 'h-8 w-8 px-0'
+// 44 px : ce sont les seules actions par ligne, et sur téléphone elles se touchent au doigt.
+const CLASSE_ACTION_ICON = 'h-11 w-11 px-0'
 
 const OPTIONS_STATUT = [
   { valeur: 'actif', libelle: 'Actifs' },

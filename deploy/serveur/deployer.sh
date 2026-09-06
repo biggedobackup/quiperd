@@ -62,6 +62,18 @@ definir_env QUIPERD_VERSION "$REVISION"
 if [ -z "$(lire_env WS_PUBLIC_URL)" ]; then
   definir_env WS_PUBLIC_URL "$(lire_env SITE_URL)/api/temps-reel"
 fi
+
+# E-mails transactionnels : mêmes raisons, les installations antérieures n'ont pas ces clés.
+# On les pose désactivées — un envoi silencieusement raté vaut mieux qu'un backend qui refuse
+# de démarrer, et l'exploitant renseigne ses identifiants SMTP quand il le décide.
+if [ -z "$(lire_env EMAIL_ACTIF)" ]; then
+  definir_env EMAIL_ACTIF false
+  definir_env EMAIL_EXPEDITEUR "QUI PERD <no-reply@exemple.com>"
+  definir_env SMTP_HOTE smtp.office365.com
+  definir_env SMTP_PORT 587
+  definir_env SMTP_UTILISATEUR ""
+  definir_env SMTP_MOT_DE_PASSE ""
+fi
 if [ -n "$(lire_env CLOUDFLARE_TUNNEL_TOKEN)" ]; then
   PROFIL=tunnel
 elif [ "$(lire_env QUIPERD_TUNNEL_RAPIDE)" = "oui" ]; then

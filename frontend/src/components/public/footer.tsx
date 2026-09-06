@@ -37,10 +37,15 @@ export function Footer({ connecte }: { connecte: boolean }) {
         {colonnes.map((c) => (
           <div key={c.titre}>
             <h3 className="etiquette mb-4 text-craie/60">{c.titre}</h3>
-            <ul className="space-y-2.5">
+            <ul className="space-y-0.5">
               {c.liens.map((l) => (
                 <li key={l.to}>
-                  <Link to={l.to} className="text-legende text-craie transition-colors hover:text-volt">
+                  {/*
+                    `min-h-11` : sur téléphone, des liens de 18 px empilés se manquent au doigt.
+                    La zone cliquable est portée à 44 px sans changer la taille du texte ; l'espacement
+                    de la liste est réduit d'autant (`space-y-0.5`) pour que le pied de page ne gonfle pas.
+                  */}
+                  <Link to={l.to} className="inline-flex min-h-11 items-center text-legende text-craie transition-colors hover:text-volt">
                     {l.libelle}
                   </Link>
                 </li>

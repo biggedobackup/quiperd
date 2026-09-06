@@ -47,7 +47,7 @@ function PageConfigurations() {
                 <p className="mt-2 text-legende text-muet">{meta?.aide}</p>
                 <div className="mt-auto flex items-center justify-between pt-4 text-[11px] text-muet">
                   <span className="chiffres">en vigueur depuis le {formatDateHeure(c.dateDebut)}</span>
-                  <Button taille="sm" variante="secondaire" onClick={() => setEdition(c)} iconeDebut={icone.reglages}>
+                  <Button taille="sm" variante="secondaire" className="min-h-11" onClick={() => setEdition(c)} iconeDebut={icone.reglages}>
                     Modifier
                   </Button>
                 </div>

@@ -111,6 +111,34 @@ export const reinitialiserMotDePasse = createServerFn({ method: 'POST' })
     ),
   )
 
+/**
+ * Confirmation de l'adresse e-mail par le code à 6 chiffres reçu par courriel.
+ * `400` code faux ou expiré (le corps peut porter `essaisRestants`), `409` adresse déjà
+ * confirmée, `429` trop d'essais — l'écran traduit chacun de ces cas en français.
+ */
+export const confirmerEmail = createServerFn({ method: 'POST' })
+  .inputValidator((d: { code: string }) => d)
+  .handler(async ({ data }): Promise<Resultat<{ emailVerifie: boolean }>> =>
+    enResultat(
+      appelJoueur<{ emailVerifie: boolean }>('/auth/verification-email', { methode: 'POST', corps: { code: data.code } }),
+    ),
+  )
+
+/**
+ * Renvoi du code de confirmation. `prochainEnvoiDans` (secondes) borne le prochain envoi ;
+ * un `429` signale qu'un code est parti il y a moins d'une minute. Le compte à rebours de
+ * l'écran est purement client : il n'interroge jamais l'API pour savoir où il en est.
+ */
+export const renvoyerCodeEmail = createServerFn({ method: 'POST' }).handler(
+  async (): Promise<Resultat<{ envoye: boolean; prochainEnvoiDans?: number }>> =>
+    enResultat(
+      appelJoueur<{ envoye: boolean; prochainEnvoiDans?: number }>('/auth/verification-email/renvoyer', {
+        methode: 'POST',
+        corps: {},
+      }),
+    ),
+)
+
 export interface ChangementMotDePasse {
   motDePasseActuel: string
   nouveauMotDePasse: string

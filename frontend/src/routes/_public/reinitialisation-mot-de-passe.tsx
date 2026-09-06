@@ -56,7 +56,7 @@ function PageReinitialisation() {
       titre="Nouveau mot de passe"
       sousTitre="Choisissez un mot de passe d’au moins 6 caractères."
       pied={
-        <Link to="/connexion" className="font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
           Retour à la connexion
         </Link>
       }

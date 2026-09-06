@@ -162,6 +162,7 @@ function PageMessages() {
         <Button
           taille="sm"
           variante="secondaire"
+          className="min-h-11"
           iconeDebut={icone.voir}
           onClick={(e) => {
             e.stopPropagation()

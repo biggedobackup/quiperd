@@ -320,3 +320,24 @@ export function useRappelStable<A extends unknown[]>(rappel: (...args: A) => voi
   })
   return useCallback((...args: A) => reference.current(...args), [])
 }
+
+/**
+ * Garantit que le socket est bien lié à l'utilisateur passé en paramètre (`null` pour un
+ * visiteur). À monter dans les coquilles joueur et administrateur, qui savent QUI est connecté.
+ *
+ * Pourquoi c'est nécessaire : la connexion, l'inscription et le changement de compte se font par
+ * navigation interne, sans recharger la page. Le socket ouvert reste alors celui du visiteur (ou
+ * du compte précédent) ; il ne reçoit plus aucun événement privé — solde, notifications, matchs —
+ * jusqu'au prochain rechargement complet. Le client ne peut pas s'en apercevoir seul : le cookie
+ * de session est HttpOnly, il ne le lit pas.
+ *
+ * La vérification est relancée à chaque ouverture de socket (`generation`) et ne force qu'une
+ * seule tentative par identité attendue, pour ne jamais boucler.
+ */
+export function useIdentiteTempsReel(utilisateurId: string | null | undefined): void {
+  const client = useClientTempsReel()
+  const generation = useGenerationTempsReel()
+  useEffect(() => {
+    client.verifierIdentite(utilisateurId ?? null)
+  }, [client, utilisateurId, generation])
+}

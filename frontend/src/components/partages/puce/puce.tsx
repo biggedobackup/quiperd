@@ -19,7 +19,7 @@ export function Puce({ actif, onClick, icone: ic, compte, children }: Proprietes
       role="tab"
       aria-selected={actif}
       onClick={onClick}
-      className={`etiquette inline-flex h-9 items-center gap-2 border-2 border-encre px-3 transition-colors ${
+      className={`etiquette inline-flex h-11 items-center gap-2 border-2 border-encre px-3 transition-colors ${
         actif ? 'bg-encre text-craie' : 'bg-papier text-encre hover:bg-volt hover:text-nuit'
       }`}
     >

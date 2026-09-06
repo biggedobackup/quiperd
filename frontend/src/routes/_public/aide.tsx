@@ -77,10 +77,10 @@ function PageAide() {
             <h2 className="mt-2 text-h3 text-craie">Une question précise ?</h2>
             <p className="mt-2 text-legende text-craie/70">Écrivez-nous depuis le formulaire ci-dessous ou par courriel : l’équipe répond par e-mail, du lundi au samedi.</p>
             <div className="mt-4 flex flex-col gap-2">
-              <a href="#contact" className="inline-flex items-center justify-center gap-2 border-2 border-volt bg-volt px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-nuit transition-colors hover:bg-craie">
+              <a href="#contact" className="inline-flex min-h-11 items-center justify-center gap-2 border-2 border-volt bg-volt px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-nuit transition-colors hover:bg-craie">
                 <FontAwesomeIcon icon={icone.message} /> Écrire un message
               </a>
-              <a href="mailto:support@quiperd.com" className="inline-flex items-center justify-center gap-2 border-2 border-craie/40 px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-craie transition-colors hover:border-volt hover:text-volt">
+              <a href="mailto:support@quiperd.com" className="inline-flex min-h-11 items-center justify-center gap-2 border-2 border-craie/40 px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-craie transition-colors hover:border-volt hover:text-volt">
                 <FontAwesomeIcon icon={icone.courriel} /> support@quiperd.com
               </a>
             </div>

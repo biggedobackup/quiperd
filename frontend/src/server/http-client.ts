@@ -4,17 +4,43 @@
  */
 export const API_BASE_URL = (process.env.API_BASE_URL ?? 'http://127.0.0.1:8080/api').replace(/\/$/, '')
 
+/**
+ * Champs simples d'un corps d'erreur. Volontairement scalaire : ce type traverse la frontière
+ * serveur → client d'une server function, et TanStack Start refuse ce qu'il ne sait pas
+ * sérialiser (`unknown` compris).
+ */
+export type ChampsErreur = Record<string, string | number | boolean | null>
+
 /** Erreur normalisée de la charte API : `{ "erreur": "…", "details"?: { champ: message } }`. */
 export class ErreurApi extends Error {
   readonly statut: number
   readonly details?: Record<string, string>
+  /**
+   * Champs scalaires portés par le corps de l'erreur à côté de `erreur`. Quelques routes en
+   * ajoutent hors charte (`essaisRestants` d'un code de vérification, `prochainEnvoiDans` d'un
+   * renvoi limité) : les garder évite d'aller les deviner dans le texte du message.
+   */
+  readonly corps?: ChampsErreur
 
-  constructor(statut: number, message: string, details?: Record<string, string>) {
+  constructor(statut: number, message: string, details?: Record<string, string>, corps?: ChampsErreur) {
     super(message)
     this.name = 'ErreurApi'
     this.statut = statut
     this.details = details
+    this.corps = corps
   }
+}
+
+/** Ne retient d'un corps JSON que ses valeurs scalaires (les sous-objets ne servent à rien ici). */
+function scalairesDe(json: unknown): ChampsErreur | undefined {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return undefined
+  const champs: ChampsErreur = {}
+  for (const [cle, valeur] of Object.entries(json as Record<string, unknown>)) {
+    if (valeur === null || typeof valeur === 'string' || typeof valeur === 'number' || typeof valeur === 'boolean') {
+      champs[cle] = valeur
+    }
+  }
+  return Object.keys(champs).length > 0 ? champs : undefined
 }
 
 export type Methode = 'GET' | 'POST' | 'PATCH' | 'DELETE'
@@ -72,6 +98,7 @@ export async function appelBackend<T>(chemin: string, options: OptionsAppel = {}
       reponse.status,
       corpsErreur.erreur ?? messageParDefaut(reponse.status),
       corpsErreur.details,
+      scalairesDe(json),
     )
   }
   return json as T
@@ -100,14 +127,17 @@ function messageParDefaut(statut: number): string {
  */
 export type Resultat<T> =
   | { ok: true; donnees: T }
-  | { ok: false; statut: number; message: string; details?: Record<string, string> }
+  | { ok: false; statut: number; message: string; details?: Record<string, string>; corps?: ChampsErreur }
+
+/** Branche « échec » d'un `Resultat` — pour les helpers qui ne traitent que l'erreur. */
+export type EchecResultat = Extract<Resultat<unknown>, { ok: false }>
 
 export async function enResultat<T>(promesse: Promise<T>): Promise<Resultat<T>> {
   try {
     return { ok: true, donnees: await promesse }
   } catch (e) {
     if (e instanceof ErreurApi) {
-      return { ok: false, statut: e.statut, message: e.message, details: e.details }
+      return { ok: false, statut: e.statut, message: e.message, details: e.details, corps: e.corps }
     }
     throw e
   }

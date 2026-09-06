@@ -199,6 +199,9 @@ func ChangerStatut(c fiber.Ctx) error {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "mise à jour impossible")
 	}
 	tampon.Diffuser()
+	// Après le commit seulement : le joueur ne doit jamais être prévenu d'un virement
+	// que la base pourrait encore annuler.
+	NotifierIssueRetraitParCourriel(&p, in.Statut)
 	return utils.OK(c, fiber.Map{"statut": in.Statut})
 }
 
@@ -279,8 +282,10 @@ func Enregistrer(api fiber.Router) {
 	api.Post("/paiements/callback-fusion", CallbackFusion)
 
 	grp := api.Group("/paiements", auth.Connecte())
+	// Le DÉPÔT reste ouvert même sans adresse confirmée : faire entrer de l'argent ne
+	// présente pas le même risque, et bloquer un dépôt frustrerait le joueur pour rien.
 	grp.Post("/depot", Depot)
-	grp.Post("/retrait", Retrait)
+	grp.Post("/retrait", auth.EmailConfirme(), Retrait)
 	grp.Get("/", auth.AdminSeul(), Lister)
 	grp.Patch("/:id/statut", auth.AdminSeul(), ChangerStatut)
 }

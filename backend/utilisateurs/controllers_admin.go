@@ -41,6 +41,9 @@ func Creer(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "création impossible")
 	}
+	// Un compte ouvert par l'administrateur reste soumis à la confirmation d'adresse :
+	// c'est le titulaire de la boîte, pas l'administrateur, qui prouve qu'elle existe.
+	_ = auth.EnvoyerCodeVerification(u)
 	return utils.OK(c, u, fiber.StatusCreated)
 }
 

@@ -56,10 +56,10 @@ export function VerificationPreuves({ matchId, nomDe, onChangement }: { matchId:
             actions={
               p.statut === 'en_attente' && (
                 <span className="flex gap-2">
-                  <Button taille="sm" variante="secondaire" onClick={() => mutation.mutate({ id: p.id, statut: 'validee' })} chargement={mutation.isPending && mutation.variables?.id === p.id} iconeDebut={icone.valider}>
+                  <Button taille="sm" className="min-h-11" variante="secondaire" onClick={() => mutation.mutate({ id: p.id, statut: 'validee' })} chargement={mutation.isPending && mutation.variables?.id === p.id} iconeDebut={icone.valider}>
                     Valider
                   </Button>
-                  <Button taille="sm" variante="danger" onClick={() => setARejeter(p)} iconeDebut={icone.fermer}>
+                  <Button taille="sm" className="min-h-11" variante="danger" onClick={() => setARejeter(p)} iconeDebut={icone.fermer}>
                     Rejeter
                   </Button>
                 </span>

@@ -23,7 +23,21 @@ const (
 	// score (victoire au déclarant), dépôt des preuves (ouverture du litige) ou choix
 	// après un nul (partage automatique). Le handler est idempotent.
 	TypeMatchEcheance = "match:echeance"
+	// TypeCourrielEnvoi transporte un e-mail transactionnel déjà rendu (sujet, texte,
+	// HTML). Le contrôleur enfile et rend la main : un serveur SMTP lent ne retarde
+	// jamais une réponse HTTP.
+	TypeCourrielEnvoi = "courriel:envoi"
 )
+
+// FileCourriel est la file Asynq dédiée aux e-mails : un serveur SMTP lent ne doit pas
+// occuper les ouvriers qui traitent les échéances de match.
+const FileCourriel = "courriel"
+
+// DelaisRetentativeCourriel donne l'espacement des tentatives d'envoi d'un e-mail.
+// Volontairement peu nombreuses et espacées : au-delà, l'incident n'est plus passager.
+var DelaisRetentativeCourriel = []time.Duration{
+	30 * time.Second, 2 * time.Minute, 10 * time.Minute, 30 * time.Minute,
+}
 
 // Client est le client Asynq global (nil si Redis indisponible → enfilage ignoré).
 var Client *asynq.Client
@@ -71,6 +85,15 @@ type ChargeMatchEcheance struct {
 	Manche  int    `json:"manche"`
 }
 
+// ChargeCourriel porte un e-mail entièrement rendu par l'appelant : le paquet jobs ne
+// connaît ni gabarit ni SMTP (il ne dépend que de config + asynq).
+type ChargeCourriel struct {
+	Destinataire string `json:"destinataire"`
+	Sujet        string `json:"sujet"`
+	Texte        string `json:"texte"`
+	HTML         string `json:"html"`
+}
+
 // --- Enfilage ---
 
 // EnfilerDefiExpiration programme l'expiration d'un défi non rejoint.
@@ -107,6 +130,18 @@ func EnfilerMatchEcheance(matchID, typ string, manche int, dans time.Duration) {
 		asynq.ProcessIn(dans),
 		asynq.TaskID(fmt.Sprintf("match-ech:%s:%s:%d", matchID, typ, manche)),
 		asynq.MaxRetry(3))
+}
+
+// EnfilerCourriel programme l'envoi d'un e-mail transactionnel (file dédiée, quelques
+// tentatives espacées — voir DelaisRetentativeCourriel). Aucun identifiant de tâche :
+// deux messages identiques envoyés à la suite (renvoi de code) doivent bien partir deux
+// fois, contrairement aux échéances qui, elles, sont idempotentes.
+func EnfilerCourriel(destinataire, sujet, texte, html string) {
+	enfiler(TypeCourrielEnvoi,
+		ChargeCourriel{Destinataire: destinataire, Sujet: sujet, Texte: texte, HTML: html},
+		asynq.Queue(FileCourriel),
+		asynq.MaxRetry(len(DelaisRetentativeCourriel)),
+		asynq.Timeout(60*time.Second))
 }
 
 func enfiler(typ string, charge any, opts ...asynq.Option) {

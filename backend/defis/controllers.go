@@ -384,8 +384,10 @@ func Enregistrer(api fiber.Router) {
 	api.Get("/defis/ouverts", ListerOuverts)
 	grp := api.Group("/defis", auth.Connecte())
 	grp.Get("/", Lister)
-	grp.Post("/", Creer)
+	// Engager de l'argent exige une adresse confirmée (403 sinon) ; consulter, annuler
+	// son propre défi et déposer restent ouverts.
+	grp.Post("/", auth.EmailConfirme(), Creer)
 	grp.Get("/:id", Detail)
-	grp.Post("/:id/rejoindre", Rejoindre)
+	grp.Post("/:id/rejoindre", auth.EmailConfirme(), Rejoindre)
 	grp.Delete("/:id", Annuler)
 }

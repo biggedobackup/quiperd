@@ -5,11 +5,14 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
 	"quiperd/backend/config"
+	"quiperd/backend/courriel"
 	"quiperd/backend/defis"
 	"quiperd/backend/jobs"
 	"quiperd/backend/litiges"
@@ -27,7 +30,10 @@ func Demarrer(cfg *config.Config) *asynq.Server {
 		asynq.RedisClientOpt{Addr: addr, Password: password, DB: db},
 		asynq.Config{
 			Concurrency: 10,
-			Queues:      map[string]int{"default": 5, "push": 3},
+			// La file `courriel` est distincte : une session SMTP lente ne doit jamais
+			// occuper les ouvriers qui tranchent les échéances de match.
+			Queues:         map[string]int{"default": 5, "push": 3, jobs.FileCourriel: 2},
+			RetryDelayFunc: asynq.RetryDelayFunc(delaiRetentative),
 		},
 	)
 
@@ -37,6 +43,7 @@ func Demarrer(cfg *config.Config) *asynq.Server {
 	mux.HandleFunc(jobs.TypeNotificationPush, gererPush)
 	mux.HandleFunc(jobs.TypeLitigeRelance, gererLitigeRelance)
 	mux.HandleFunc(jobs.TypeMatchEcheance, gererMatchEcheance)
+	mux.HandleFunc(jobs.TypeCourrielEnvoi, gererCourriel)
 
 	go func() {
 		if err := srv.Run(mux); err != nil && utils.Log != nil {
@@ -44,6 +51,37 @@ func Demarrer(cfg *config.Config) *asynq.Server {
 		}
 	}()
 	return srv
+}
+
+// delaiRetentative espace explicitement les tentatives d'envoi d'e-mail (30 s, 2 min,
+// 10 min, 30 min) et laisse la politique par défaut d'Asynq pour toutes les autres tâches.
+func delaiRetentative(n int, err error, t *asynq.Task) time.Duration {
+	if t != nil && t.Type() == jobs.TypeCourrielEnvoi {
+		delais := jobs.DelaisRetentativeCourriel
+		if n >= 0 && n < len(delais) {
+			return delais[n]
+		}
+		return delais[len(delais)-1]
+	}
+	return asynq.DefaultRetryDelayFunc(n, err, t)
+}
+
+// gererCourriel envoie un e-mail transactionnel. Une adresse illisible ne se répare pas
+// en réessayant : la tâche est archivée immédiatement (SkipRetry). Toute autre panne
+// (SMTP injoignable, authentification momentanément refusée) est retentée.
+func gererCourriel(ctx context.Context, t *asynq.Task) error {
+	var p jobs.ChargeCourriel
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return nil // charge illisible : rejouer n'y changerait rien
+	}
+	err := courriel.Envoyer(p.Destinataire, courriel.Message{Sujet: p.Sujet, Texte: p.Texte, HTML: p.HTML})
+	if errors.Is(err, courriel.ErrAdresseInvalide) {
+		if utils.Log != nil {
+			utils.Log.Warn("courriel abandonné : adresse invalide", zap.String("sujet", p.Sujet))
+		}
+		return asynq.SkipRetry
+	}
+	return err
 }
 
 func gererDefiExpiration(ctx context.Context, t *asynq.Task) error {

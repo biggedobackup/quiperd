@@ -46,6 +46,20 @@ function Api([string]$Method, [string]$Path, $Body = $null, [string]$Token = '')
 }
 function Sql([string]$q) { $out = & psql -h $PgHost -p $PgPort -U $PgUser -d $PgDb -At -c $q 2>&1; return (@($out | ForEach-Object { "$_" }) -join "`n") }
 
+# Commande Redis brute : sert à lire le code de confirmation d'adresse, que l'API ne renvoie
+# évidemment jamais. Sans confirmation, créer un défi répondrait 403 et tout le parcours tomberait.
+function Redis([string]$cmd) {
+  $c = [System.Net.Sockets.TcpClient]::new('127.0.0.1', 6379)
+  $s = $c.GetStream()
+  $w = [System.IO.StreamWriter]::new($s); $w.NewLine = "`r`n"; $w.AutoFlush = $true
+  $w.WriteLine($cmd)
+  Start-Sleep -Milliseconds 200
+  $buf = New-Object byte[] 65536
+  $n = $s.Read($buf, 0, $buf.Length)
+  $c.Close()
+  return [Text.Encoding]::UTF8.GetString($buf, 0, $n)
+}
+
 # ---------------------------------------------------------------- Client WebSocket
 # Aucune tâche de fond : le socket est « pompé » à la demande. Une lecture en cours qui n'a rien
 # reçu est CONSERVÉE d'un pompage à l'autre (jamais annulée), sans quoi ClientWebSocket passerait
@@ -148,6 +162,15 @@ function NouveauJoueur([string]$Prefixe, [int]$Credit) {
   $r = Api POST '/auth/inscription' $ident
   if ($r.Status -notin 200, 201) { throw "inscription $Prefixe : $($r.Status) $($r.Raw)" }
   $id = $r.Body.utilisateur.id
+  # Confirmation de l'adresse : depuis l'ajout du code à 6 chiffres, miser l'exige. Le code
+  # n'est jamais renvoyé par l'API, on le lit dans le hachage Redis où le backend le range.
+  $rep = Redis "HGET verif:email:$id code"
+  if ($rep -match '(\d{6})') {
+    $rc = Api POST '/auth/verification-email' @{ code = $Matches[1] } $r.Body.jeton
+    if ($rc.Status -ne 200) { throw "confirmation d'adresse $Prefixe : $($rc.Status) $($rc.Raw)" }
+  } else {
+    throw "code de confirmation introuvable en Redis pour $Prefixe"
+  }
   # Crédit direct en base : le parcours de dépôt Mobile Money est déjà couvert par parcours-api.ps1.
   Sql "insert into portefeuilles (id, utilisateur_id, devise, solde_disponible, solde_bloque, date_creation, date_modification)
        values (gen_random_uuid(), '$id', 'XOF', $Credit, 0, now(), now())

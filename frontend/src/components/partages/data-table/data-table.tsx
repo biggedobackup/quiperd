@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { KeyboardEvent, ReactNode } from 'react'
 import { SkeletonLignes } from '../skeleton/skeleton'
 
 export interface Colonne<T> {
@@ -21,6 +21,23 @@ export interface ProprietesDataTable<T> {
   /** Légende accessible du tableau. */
   legende: string
   onClicLigne?: (ligne: T) => void
+}
+
+/**
+ * Rend une ligne (ou une carte) réellement activable : une `<tr>` ou un `<li>` qui ne porte
+ * qu'un `onClick` est invisible au clavier et aux lecteurs d'écran. Un arbitre qui navigue
+ * au clavier ne pourrait tout simplement pas ouvrir un litige.
+ */
+function proprietesActivation(activer: () => void) {
+  return {
+    role: 'button' as const,
+    tabIndex: 0,
+    onKeyDown: (e: KeyboardEvent<HTMLElement>) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return
+      e.preventDefault()
+      activer()
+    },
+  }
 }
 
 /**
@@ -55,7 +72,8 @@ export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, v
               <tr
                 key={cleLigne(l)}
                 onClick={onClicLigne ? () => onClicLigne(l) : undefined}
-                className={`h-10 transition-colors ${onClicLigne ? 'cursor-pointer hover:bg-volt-fond' : 'hover:bg-gris'}`}
+                {...(onClicLigne ? proprietesActivation(() => onClicLigne(l)) : {})}
+                className={`h-10 transition-colors ${onClicLigne ? 'cursor-pointer hover:bg-volt-fond focus-visible:bg-volt-fond focus-visible:outline-2 focus-visible:outline-encre' : 'hover:bg-gris'}`}
               >
                 {colonnes.map((c) => (
                   <td key={c.cle} className={`px-3 py-2 align-middle ${c.droite ? 'chiffres text-right' : ''} ${c.className ?? ''}`}>
@@ -73,7 +91,8 @@ export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, v
           <li
             key={cleLigne(l)}
             onClick={onClicLigne ? () => onClicLigne(l) : undefined}
-            className={`ticket-sm border-2 border-encre bg-papier p-4 ${onClicLigne ? 'cursor-pointer active:bg-volt-fond' : ''}`}
+            {...(onClicLigne ? proprietesActivation(() => onClicLigne(l)) : {})}
+            className={`ticket-sm border-2 border-encre bg-papier p-4 ${onClicLigne ? 'cursor-pointer active:bg-volt-fond focus-visible:outline-2 focus-visible:outline-encre' : ''}`}
           >
             <dl className="grid grid-cols-[minmax(0,40%)_1fr] gap-x-3 gap-y-2 text-legende">
               {colonnes

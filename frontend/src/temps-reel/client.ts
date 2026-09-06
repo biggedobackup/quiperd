@@ -36,6 +36,13 @@ export interface InstantaneTempsReel {
   connecte: boolean
   /** Rôle confirmé par le hub à l'ouverture (`connexion.prete`). */
   role: RoleTempsReel
+  /**
+   * Identité confirmée par le hub (`connexion.prete`), `null` pour un visiteur. Elle sert à
+   * détecter qu'une connexion ou une déconnexion a eu lieu dans l'onglet alors que le socket
+   * était déjà ouvert : le socket resterait sinon lié à l'ancienne session et n'apporterait
+   * plus aucun événement privé jusqu'au prochain rechargement complet.
+   */
+  utilisateurId: string | null
   /** Dernier `compteur.en_ligne` reçu, `null` tant que le serveur n'en a poussé aucun. */
   joueursEnLigne: number | null
   /** Tentatives de reconnexion consécutives (0 dès qu'une connexion aboutit). */
@@ -75,6 +82,15 @@ export interface ClientTempsReel {
    * tableau de bord resterait muet jusqu'au prochain rechargement complet.
    */
   verifierEspace(): void
+  /**
+   * Reconnecte si le socket n'est pas lié à l'utilisateur attendu. À appeler depuis les coquilles
+   * joueur et admin, qui savent QUI est connecté : une connexion, une inscription ou un changement
+   * de compte se fait par navigation interne, sans recharger la page — le socket resterait alors
+   * celui du visiteur (ou du compte précédent) et n'apporterait plus aucun événement privé.
+   * Passer `null` pour un visiteur. Ne force qu'UNE tentative par identité attendue, afin de ne
+   * jamais boucler si le serveur renvoie durablement une autre session.
+   */
+  verifierIdentite(utilisateurIdAttendu: string | null): void
   /** Force une tentative immédiate (bouton « Reconnecter » de l'indicateur). */
   reconnecterMaintenant(): void
 }
@@ -91,6 +107,7 @@ const INSTANTANE_INITIAL: InstantaneTempsReel = Object.freeze({
   etat: 'hors_ligne' as EtatConnexion,
   connecte: false,
   role: 'visiteur' as RoleTempsReel,
+  utilisateurId: null,
   joueursEnLigne: null,
   tentatives: 0,
   generation: 0,
@@ -116,6 +133,9 @@ function creerClient(): ClientTempsReel {
   // Espace réellement utilisé pour le ticket du socket courant. Il sert à détecter qu'une
   // navigation a changé d'espace : le socket doit alors être rouvert avec le bon rôle.
   let espaceConnecte: EspaceTempsReel | null = null
+  // Dernière identité pour laquelle une reconnexion a déjà été forcée : empêche de boucler si le
+  // serveur renvoie durablement une session différente de celle qu'attend l'interface.
+  let identiteForcee: string | null | undefined = undefined
   let minuterieReconnexion: ReturnType<typeof setTimeout> | null = null
   let minuteriePing: ReturnType<typeof setInterval> | null = null
 
@@ -137,6 +157,7 @@ function creerClient(): ClientTempsReel {
     if (
       suivant.etat === instantaneCourant.etat &&
       suivant.role === instantaneCourant.role &&
+      suivant.utilisateurId === instantaneCourant.utilisateurId &&
       suivant.joueursEnLigne === instantaneCourant.joueursEnLigne &&
       suivant.tentatives === instantaneCourant.tentatives &&
       suivant.generation === instantaneCourant.generation
@@ -259,7 +280,7 @@ function creerClient(): ClientTempsReel {
 
     switch (enveloppe.evenement) {
       case 'connexion.prete':
-        majInstantane({ role: enveloppe.charge.role })
+        majInstantane({ role: enveloppe.charge.role, utilisateurId: enveloppe.charge.utilisateurId ?? null })
         break
       case 'connexion.refusee':
         console.warn('[temps-reel] connexion refusée :', enveloppe.charge.raison)
@@ -453,6 +474,18 @@ function creerClient(): ClientTempsReel {
       if (espaceConnecte === null || espaceConnecte === espaceEffectif()) return
       this.reconnecterMaintenant()
     },
+    verifierIdentite(utilisateurIdAttendu) {
+      if (demarrages === 0 || connexionEnCours) return
+      if (instantaneCourant.etat !== 'connecte') return // rien à comparer tant que rien n'est ouvert
+      const attendu = utilisateurIdAttendu ?? null
+      if (instantaneCourant.utilisateurId === attendu) {
+        identiteForcee = undefined
+        return
+      }
+      if (identiteForcee === attendu) return // déjà tenté pour cette identité : on n'insiste pas
+      identiteForcee = attendu
+      this.reconnecterMaintenant()
+    },
     reconnecterMaintenant() {
       if (demarrages === 0) return
       annulerReconnexion()
@@ -487,6 +520,7 @@ const CLIENT_INERTE: ClientTempsReel = Object.freeze({
   surInstantane: () => () => {},
   definirEspace: () => {},
   verifierEspace: () => {},
+  verifierIdentite: () => {},
   reconnecterMaintenant: () => {},
 })
 

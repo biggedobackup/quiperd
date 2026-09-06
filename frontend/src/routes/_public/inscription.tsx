@@ -86,9 +86,12 @@ function PageInscription() {
       toastErreur('Inscription impossible', r.message)
       return
     }
-    toastSucces('Compte créé', 'Bienvenue dans l’arène.')
+    toastSucces('Compte créé', 'Un code à 6 chiffres vient de partir vers votre boîte mail.')
     await router.invalidate()
-    await navigate({ to: '/joueur/tableau-de-bord' })
+    // Le compte existe et le joueur est connecté : on l'emmène confirmer son adresse, mais
+    // l'écran laisse sortir (barre de navigation + « Plus tard »). `nouveau` lui évite de
+    // redemander un code dans la minute qui suit celui de l'inscription.
+    await navigate({ to: '/joueur/confirmation-email', search: { nouveau: true } })
   })
 
   return (
@@ -99,7 +102,7 @@ function PageInscription() {
       pied={
         <>
           Déjà inscrit ?{' '}
-          <Link to="/connexion" className="font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+          <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
             Se connecter
           </Link>
         </>

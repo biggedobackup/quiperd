@@ -256,7 +256,7 @@ function PanneauCatalogue({
                 <button
                   type="button"
                   onClick={() => setASupprimer(e)}
-                  className="flex size-8 items-center justify-center justify-self-end border-2 border-transparent text-perte hover:border-perte"
+                  className="flex size-11 items-center justify-center justify-self-end border-2 border-transparent text-perte hover:border-perte"
                   aria-label={`Supprimer ${e.nom}`}
                 >
                   <FontAwesomeIcon icon={icone.fermer} />

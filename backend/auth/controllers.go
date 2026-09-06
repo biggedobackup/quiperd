@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	"quiperd/backend/administration"
 	"quiperd/backend/config"
+	"quiperd/backend/courriel"
 	"quiperd/backend/utils"
 )
 
@@ -39,6 +40,12 @@ func Inscription(c fiber.Ctx) error {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "génération de session impossible")
 	}
 	enregistrerSession(c, u.ID, jti, exp)
+	// Code de confirmation envoyé en tâche de fond : un serveur SMTP lent ou en panne ne
+	// doit ni retarder ni faire échouer l'inscription. Le code n'est jamais renvoyé ici.
+	if err := EnvoyerCodeVerification(u); err != nil && utils.Log != nil {
+		utils.Log.Warn("code de confirmation non émis à l'inscription",
+			zap.String("utilisateurId", u.ID.String()), zap.Error(err))
+	}
 	return utils.OK(c, fiber.Map{"utilisateur": u, "jeton": jeton, "expiration": exp}, fiber.StatusCreated)
 }
 
@@ -155,7 +162,9 @@ func Moi(c fiber.Ctx) error {
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusNotFound, "utilisateur introuvable")
 	}
-	return utils.OK(c, fiber.Map{"utilisateur": u, "role": RoleJoueur})
+	// `emailVerifie` est repris à la racine : le client lit l'état de la session sans
+	// avoir à descendre dans l'objet utilisateur (il y figure aussi).
+	return utils.OK(c, fiber.Map{"utilisateur": u, "role": RoleJoueur, "emailVerifie": u.EmailVerifie})
 }
 
 type entreeMotDePasseOublie struct {
@@ -172,16 +181,25 @@ func MotDePasseOublie(c fiber.Ctx) error {
 		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
 	}
 	var u Utilisateur
-	// Réponse générique quoi qu'il arrive (pas d'énumération de comptes).
+	// Réponse générique quoi qu'il arrive (pas d'énumération de comptes) : la réponse
+	// ci-dessous est IDENTIQUE que le compte existe ou non. Ne pas la spécialiser.
 	if err := config.DB.Where("email = ?", strings.ToLower(in.Email)).First(&u).Error; err == nil {
 		token := uuid.NewString()
 		ctx, annuler := context.WithTimeout(context.Background(), 3*time.Second)
 		defer annuler()
 		config.Redis.Set(ctx, "reset:"+token, u.ID.String(), time.Hour)
-		// Envoi email non configuré en dev : on journalise le lien de réinitialisation.
+		lien := config.Cfg.SiteURL + "/reinitialisation-mot-de-passe?token=" + token
+		courriel.Enfiler(u.Email, courriel.MessageMotDePasseOublie(u.NomUtilisateur, lien, 60))
 		if utils.Log != nil {
-			utils.Log.Info("réinitialisation mot de passe demandée",
-				zap.String("email", u.Email), zap.String("token", token))
+			// Le jeton n'est journalisé qu'en mode développement (aucun message ne part
+			// alors) : un jeton de réinitialisation dans les logs de production vaut un
+			// mot de passe en clair.
+			if courriel.Actif() {
+				utils.Log.Info("réinitialisation mot de passe demandée", zap.String("email", u.Email))
+			} else {
+				utils.Log.Info("réinitialisation mot de passe demandée (envoi désactivé)",
+					zap.String("email", u.Email), zap.String("token", token))
+			}
 		}
 	}
 	return utils.OK(c, fiber.Map{"message": "Si un compte existe, un lien de réinitialisation a été envoyé."})

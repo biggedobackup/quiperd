@@ -16,6 +16,14 @@ export interface Utilisateur {
   pays: string
   statut: StatutUtilisateur
   dateModification: string
+  /**
+   * Adresse e-mail confirmée par le code à 6 chiffres (`POST /api/auth/verification-email`).
+   * Tant qu'elle vaut `false`, le backend refuse en 403 la création et la jonction d'un défi
+   * ainsi que la demande de retrait ; le dépôt reste autorisé. Ne jamais tester `!emailVerifie` :
+   * passer par `emailNonConfirme()` (components/joueur/email-non-verifie), qui n'accuse que
+   * le `false` explicite du serveur.
+   */
+  emailVerifie: boolean
 }
 
 /** Statuts qu'un administrateur peut fixer à la création ou en édition. */

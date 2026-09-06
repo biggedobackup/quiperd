@@ -9,7 +9,9 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"quiperd/backend/administration"
+	"quiperd/backend/auth"
 	"quiperd/backend/config"
+	"quiperd/backend/courriel"
 	"quiperd/backend/jobs"
 	"quiperd/backend/notifications"
 	"quiperd/backend/portefeuilles"
@@ -102,7 +104,56 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 		return nil, err
 	}
 	tampon.Diffuser()
+	// Accusé de réception au joueur (enfilé : le SMTP ne retarde pas la réponse HTTP).
+	// Le numéro Mobile Money n'est jamais repris en entier dans le message.
+	AccuserRetraitParCourriel(p, numero)
 	return p, nil
+}
+
+// destinataire renvoie l'adresse et le pseudo d'un joueur, ou deux chaînes vides si le
+// compte est introuvable (aucun e-mail n'est alors envoyé).
+func destinataire(userID uuid.UUID) (email, pseudo string) {
+	u, err := auth.TrouverUtilisateur(userID)
+	if err != nil {
+		return "", ""
+	}
+	return u.Email, u.NomUtilisateur
+}
+
+// AccuserRetraitParCourriel envoie l'accusé de demande de retrait : montant reçu, frais,
+// total débité et numéro Mobile Money masqué (4 derniers chiffres seulement).
+func AccuserRetraitParCourriel(p *Paiement, numero string) {
+	if p == nil {
+		return
+	}
+	email, pseudo := destinataire(p.UtilisateurID)
+	if email == "" {
+		return
+	}
+	courriel.Enfiler(email, courriel.MessageRetraitDemande(pseudo,
+		p.Montant.StringFixed(2), p.Frais.StringFixed(2), p.Montant.Add(p.Frais).StringFixed(2),
+		p.Devise, courriel.MasquerNumero(numero)))
+}
+
+// NotifierIssueRetraitParCourriel prévient le joueur du sort de son virement :
+// `reussi` (somme envoyée) ou `echoue` (montant ET frais recrédités sur le portefeuille).
+func NotifierIssueRetraitParCourriel(p *Paiement, statut string) {
+	if p == nil || p.Type != TypeRetrait {
+		return
+	}
+	email, pseudo := destinataire(p.UtilisateurID)
+	if email == "" {
+		return
+	}
+	montant := p.Montant.StringFixed(2)
+	frais := p.Frais.StringFixed(2)
+	switch statut {
+	case StatutReussi:
+		courriel.Enfiler(email, courriel.MessageRetraitReussi(pseudo, montant, frais, p.Devise))
+	case StatutEchoue:
+		courriel.Enfiler(email, courriel.MessageRetraitEchoue(pseudo, montant, frais,
+			p.Montant.Add(p.Frais).StringFixed(2), p.Devise))
+	}
 }
 
 // AppliquerReussiteDepot crédite le portefeuille une seule fois (idempotent).

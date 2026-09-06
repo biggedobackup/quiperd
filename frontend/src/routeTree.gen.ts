@@ -26,6 +26,7 @@ import { Route as PublicMotDePasseOublieRouteImport } from './routes/_public/mot
 import { Route as PublicReinitialisationMotDePasseRouteImport } from './routes/_public/reinitialisation-mot-de-passe'
 import { Route as AdminPriveRouteImport } from './routes/admin/_prive'
 import { Route as AdminConnexionRouteImport } from './routes/admin/connexion'
+import { Route as JoueurConfirmationEmailRouteImport } from './routes/joueur/confirmation-email'
 import { Route as JoueurLitigesRouteImport } from './routes/joueur/litiges'
 import { Route as JoueurNotificationsRouteImport } from './routes/joueur/notifications'
 import { Route as JoueurPortefeuilleRouteImport } from './routes/joueur/portefeuille'
@@ -134,6 +135,11 @@ const AdminConnexionRoute = AdminConnexionRouteImport.update({
   id: '/admin/connexion',
   path: '/admin/connexion',
   getParentRoute: () => rootRouteImport,
+} as any)
+const JoueurConfirmationEmailRoute = JoueurConfirmationEmailRouteImport.update({
+  id: '/confirmation-email',
+  path: '/confirmation-email',
+  getParentRoute: () => JoueurRoute,
 } as any)
 const JoueurLitigesRoute = JoueurLitigesRouteImport.update({
   id: '/litiges',
@@ -272,6 +278,7 @@ export interface FileRoutesByFullPath {
   '/reinitialisation-mot-de-passe': typeof PublicReinitialisationMotDePasseRoute
   '/admin': typeof AdminPriveRouteWithChildren
   '/admin/connexion': typeof AdminConnexionRoute
+  '/joueur/confirmation-email': typeof JoueurConfirmationEmailRoute
   '/joueur/litiges': typeof JoueurLitigesRoute
   '/joueur/notifications': typeof JoueurNotificationsRoute
   '/joueur/portefeuille': typeof JoueurPortefeuilleRoute
@@ -312,6 +319,7 @@ export interface FileRoutesByTo {
   '/reinitialisation-mot-de-passe': typeof PublicReinitialisationMotDePasseRoute
   '/admin': typeof AdminPriveRouteWithChildren
   '/admin/connexion': typeof AdminConnexionRoute
+  '/joueur/confirmation-email': typeof JoueurConfirmationEmailRoute
   '/joueur/litiges': typeof JoueurLitigesRoute
   '/joueur/notifications': typeof JoueurNotificationsRoute
   '/joueur/portefeuille': typeof JoueurPortefeuilleRoute
@@ -355,6 +363,7 @@ export interface FileRoutesById {
   '/_public/reinitialisation-mot-de-passe': typeof PublicReinitialisationMotDePasseRoute
   '/admin/_prive': typeof AdminPriveRouteWithChildren
   '/admin/connexion': typeof AdminConnexionRoute
+  '/joueur/confirmation-email': typeof JoueurConfirmationEmailRoute
   '/joueur/litiges': typeof JoueurLitigesRoute
   '/joueur/notifications': typeof JoueurNotificationsRoute
   '/joueur/portefeuille': typeof JoueurPortefeuilleRoute
@@ -399,6 +408,7 @@ export interface FileRouteTypes {
     | '/reinitialisation-mot-de-passe'
     | '/admin'
     | '/admin/connexion'
+    | '/joueur/confirmation-email'
     | '/joueur/litiges'
     | '/joueur/notifications'
     | '/joueur/portefeuille'
@@ -439,6 +449,7 @@ export interface FileRouteTypes {
     | '/reinitialisation-mot-de-passe'
     | '/admin'
     | '/admin/connexion'
+    | '/joueur/confirmation-email'
     | '/joueur/litiges'
     | '/joueur/notifications'
     | '/joueur/portefeuille'
@@ -481,6 +492,7 @@ export interface FileRouteTypes {
     | '/_public/reinitialisation-mot-de-passe'
     | '/admin/_prive'
     | '/admin/connexion'
+    | '/joueur/confirmation-email'
     | '/joueur/litiges'
     | '/joueur/notifications'
     | '/joueur/portefeuille'
@@ -637,6 +649,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/connexion'
       preLoaderRoute: typeof AdminConnexionRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/joueur/confirmation-email': {
+      id: '/joueur/confirmation-email'
+      path: '/confirmation-email'
+      fullPath: '/joueur/confirmation-email'
+      preLoaderRoute: typeof JoueurConfirmationEmailRouteImport
+      parentRoute: typeof JoueurRoute
     }
     '/joueur/litiges': {
       id: '/joueur/litiges'
@@ -836,6 +855,7 @@ const PublicRouteWithChildren =
   PublicRoute._addFileChildren(PublicRouteChildren)
 
 interface JoueurRouteChildren {
+  JoueurConfirmationEmailRoute: typeof JoueurConfirmationEmailRoute
   JoueurLitigesRoute: typeof JoueurLitigesRoute
   JoueurNotificationsRoute: typeof JoueurNotificationsRoute
   JoueurPortefeuilleRoute: typeof JoueurPortefeuilleRoute
@@ -849,6 +869,7 @@ interface JoueurRouteChildren {
 }
 
 const JoueurRouteChildren: JoueurRouteChildren = {
+  JoueurConfirmationEmailRoute: JoueurConfirmationEmailRoute,
   JoueurLitigesRoute: JoueurLitigesRoute,
   JoueurNotificationsRoute: JoueurNotificationsRoute,
   JoueurPortefeuilleRoute: JoueurPortefeuilleRoute,

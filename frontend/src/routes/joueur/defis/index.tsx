@@ -203,7 +203,7 @@ function Onglet({ actif, onClick, children }: { actif: boolean; onClick: () => v
       role="tab"
       aria-selected={actif}
       onClick={onClick}
-      className={`etiquette h-10 px-4 transition-colors ${actif ? 'bg-encre text-craie' : 'text-muet hover:bg-volt-fond hover:text-encre'}`}
+      className={`etiquette h-11 px-4 transition-colors ${actif ? 'bg-encre text-craie' : 'text-muet hover:bg-volt-fond hover:text-encre'}`}
     >
       {children}
     </button>

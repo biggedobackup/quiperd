@@ -12,6 +12,7 @@ import { annulerDefi, rejoindreDefi } from '@/services/defis'
 import { salons } from '@/temps-reel/evenements'
 import { useEvenement } from '@/temps-reel/hooks'
 import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
+import { BlocEmailNonConfirme, estRefusEmail, toastRefusEmail, useEmailNonConfirme } from '@/components/joueur/email-non-verifie'
 import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
 import { CompteAReboursDefi } from '@/components/partages/defis-en-direct/animation-defis'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
@@ -61,6 +62,11 @@ function DetailDefi() {
   const [confirmRejoindre, setConfirmRejoindre] = useState(false)
   const [confirmAnnuler, setConfirmAnnuler] = useState(false)
   const [denouement, setDenouement] = useState<Denouement | null>(null)
+  // Rejoindre exige une adresse confirmée (403 côté backend) : on remplace le bouton plutôt
+  // que de faire ouvrir une confirmation de mise qui échouerait.
+  const emailNonConfirmeSession = useEmailNonConfirme()
+  const [refuseParLeServeur, setRefuseParLeServeur] = useState(false)
+  const emailBloque = emailNonConfirmeSession || refuseParLeServeur
 
   // Salon public (le défi peut être rejoint par n'importe qui) + salon personnel.
   const ecoutes = [salons.defisPublics, salons.utilisateur(moi.id)]
@@ -105,6 +111,11 @@ function DetailDefi() {
     onSuccess: async (r) => {
       setConfirmRejoindre(false)
       if (!r.ok) {
+        if (estRefusEmail(r)) {
+          setRefuseParLeServeur(true)
+          toastRefusEmail(r)
+          return
+        }
         toastErreur(r.statut === 422 ? 'Solde insuffisant' : 'Impossible de rejoindre', r.message)
         invalider()
         return
@@ -149,6 +160,10 @@ function DetailDefi() {
               <Button variante="danger" onClick={() => setConfirmAnnuler(true)} iconeDebut={icone.interdire}>
                 Annuler le défi
               </Button>
+            ) : ouvert && emailBloque ? (
+              <LienBouton to="/joueur/confirmation-email" search={{ vers: `/joueur/defis/${defiId}` }} variante="secondaire" iconeDebut={icone.courriel}>
+                Confirmer mon e-mail
+              </LienBouton>
             ) : ouvert ? (
               <Button variante="volt" onClick={() => setConfirmRejoindre(true)} iconeDebut={icone.poigneeDeMain}>
                 Rejoindre pour {formatMontant(mise)}
@@ -159,6 +174,15 @@ function DetailDefi() {
       />
 
       {denouement && <BandeauDenouement denouement={denouement} mien={mien} />}
+
+      {ouvert && !mien && emailBloque && (
+        <BlocEmailNonConfirme
+          action="rejoindre un défi"
+          vers={`/joueur/defis/${defiId}`}
+          note="Le défi reste ouvert le temps que vous saisissiez le code — sauf si quelqu’un d’autre le rejoint d’abord."
+          className="mb-6"
+        />
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">

@@ -32,6 +32,9 @@ func Migrer() error {
 	if err := preparerManches(); err != nil {
 		return err
 	}
+	if err := preparerVerificationEmail(); err != nil {
+		return err
+	}
 	if err := config.DB.AutoMigrate(
 		&auth.Utilisateur{},
 		&auth.Administrateur{},
@@ -127,6 +130,33 @@ func preparerManches() error {
 	// Ancienne clé unique à deux colonnes : supprimée pour que l'AutoMigrate recrée la
 	// version à trois colonnes.
 	return config.DB.Exec(`DROP INDEX IF EXISTS "idx_decl_match_user"`).Error
+}
+
+// preparerVerificationEmail ajoute `utilisateurs.email_verifie`.
+//
+// Point délicat : les comptes DÉJÀ inscrits ne doivent pas se retrouver bloqués du jour
+// au lendemain (ils ne peuvent pas confirmer une adresse pour laquelle aucun code n'a
+// jamais été envoyé). La colonne est donc créée avec DEFAULT true — ce qui remplit les
+// lignes existantes à true — puis le DEFAULT est ramené à false pour les futurs comptes.
+//
+// L'opération ne se fait QU'UNE fois : si la colonne existe déjà, on ne touche à rien.
+// Un `UPDATE utilisateurs SET email_verifie = true` rejoué à chaque démarrage
+// confirmerait tout le monde à chaque redémarrage et viderait la fonctionnalité de son
+// sens.
+func preparerVerificationEmail() error {
+	m := config.DB.Migrator()
+	if !m.HasTable(&auth.Utilisateur{}) {
+		return nil // base neuve : l'AutoMigrate posera la colonne à false
+	}
+	if m.HasColumn(&auth.Utilisateur{}, "email_verifie") {
+		return nil // déjà migré
+	}
+	if err := config.DB.Exec(
+		`ALTER TABLE utilisateurs ADD COLUMN email_verifie boolean NOT NULL DEFAULT true`).Error; err != nil {
+		return err
+	}
+	return config.DB.Exec(
+		`ALTER TABLE utilisateurs ALTER COLUMN email_verifie SET DEFAULT false`).Error
 }
 
 // finaliserManches vérifie l'état de la base après l'AutoMigrate et signale les matchs

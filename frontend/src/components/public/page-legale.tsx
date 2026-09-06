@@ -21,7 +21,7 @@ export function PageLegale({ titre, miseAJour, sections }: { titre: string; mise
             <ol className="space-y-2 border-l-2 border-encre pl-4">
               {sections.map((s, i) => (
                 <li key={s.titre}>
-                  <a href={`#section-${i + 1}`} className="text-legende text-muet transition-colors hover:text-encre">
+                  <a href={`#section-${i + 1}`} className="inline-flex min-h-11 items-center text-legende text-muet transition-colors hover:text-encre">
                     <span className="chiffres mr-2">{String(i + 1).padStart(2, '0')}</span>
                     {s.titre}
                   </a>

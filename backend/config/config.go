@@ -15,6 +15,10 @@ type Config struct {
 	AppPort    string
 	AppBaseURL string
 	CorsOrigin string
+	// SiteURL est l'adresse publique du site (frontend) utilisée pour fabriquer les
+	// liens envoyés par e-mail (réinitialisation de mot de passe). Par défaut :
+	// CORS_ORIGIN, seule origine servie par le frontend.
+	SiteURL string
 
 	// WSOriginesAutorisees complète CorsOrigin pour l'ouverture du socket temps réel
 	// (GET /api/temps-reel). Liste séparée par des virgules, chaque entrée étant une
@@ -61,6 +65,18 @@ type Config struct {
 
 	FCMActif           bool
 	FCMCredentialsFile string
+
+	// --- Courrier électronique (paquet courriel) ---
+	// EmailActif à false : aucun message ne part sur le réseau, il est seulement
+	// journalisé (mode développement). Jamais de secret dans les journaux : seuls le
+	// destinataire et le sujet sont tracés.
+	EmailActif      bool
+	EmailExpediteur string
+	SMTPHote        string
+	SMTPPort        string
+	SMTPUtilisateur string
+	// SMTPMotDePasse ne doit JAMAIS être journalisé, sérialisé ni recopié ailleurs.
+	SMTPMotDePasse string
 }
 
 // Cfg est l'instance globale, initialisée par Charger().
@@ -70,12 +86,15 @@ var Cfg *Config
 func Charger() *Config {
 	_ = godotenv.Load()
 
+	corsOrigin := getEnv("CORS_ORIGIN", "http://localhost:3000")
+
 	Cfg = &Config{
 		AppEnv:     getEnv("APP_ENV", "development"),
 		AppHost:    getEnv("APP_HOST", ""),
 		AppPort:    getEnv("APP_PORT", "8080"),
 		AppBaseURL: getEnv("APP_BASE_URL", "http://localhost:8080"),
-		CorsOrigin: getEnv("CORS_ORIGIN", "http://localhost:3000"),
+		CorsOrigin: corsOrigin,
+		SiteURL:    strings.TrimRight(getEnv("SITE_URL", corsOrigin), "/"),
 
 		WSOriginesAutorisees: splitCSV(getEnv("WS_ORIGINES_AUTORISEES", "")),
 		WSTicketTTLSecondes:  getEnvInt("WS_TICKET_TTL_SECONDES", 60),
@@ -114,6 +133,13 @@ func Charger() *Config {
 
 		FCMActif:           getEnvBool("FCM_ACTIF", false),
 		FCMCredentialsFile: getEnv("FCM_CREDENTIALS_FILE", ""),
+
+		EmailActif:      getEnvBool("EMAIL_ACTIF", false),
+		EmailExpediteur: getEnv("EMAIL_EXPEDITEUR", "QUI PERD <no-reply@quiperd.local>"),
+		SMTPHote:        getEnv("SMTP_HOTE", ""),
+		SMTPPort:        getEnv("SMTP_PORT", "587"),
+		SMTPUtilisateur: getEnv("SMTP_UTILISATEUR", ""),
+		SMTPMotDePasse:  getEnv("SMTP_MOT_DE_PASSE", ""),
 	}
 	return Cfg
 }

@@ -20,13 +20,19 @@ const (
 // Utilisateur — joueur de la plateforme (table 1).
 type Utilisateur struct {
 	utils.ModeleBase
-	NomUtilisateur   string    `gorm:"type:varchar(50);uniqueIndex" json:"nomUtilisateur"`
-	Email            string    `gorm:"type:varchar(255);uniqueIndex" json:"email"`
-	Telephone        string    `gorm:"type:varchar(30)" json:"telephone"`
-	MotDePasse       string    `gorm:"type:text" json:"-"`
-	PhotoProfil      string    `gorm:"type:text" json:"photoProfil"`
-	Pays             string    `gorm:"type:varchar(100)" json:"pays"`
-	Statut           string    `gorm:"type:varchar(20);default:'actif';index" json:"statut"`
+	NomUtilisateur string `gorm:"type:varchar(50);uniqueIndex" json:"nomUtilisateur"`
+	Email          string `gorm:"type:varchar(255);uniqueIndex" json:"email"`
+	Telephone      string `gorm:"type:varchar(30)" json:"telephone"`
+	MotDePasse     string `gorm:"type:text" json:"-"`
+	PhotoProfil    string `gorm:"type:text" json:"photoProfil"`
+	Pays           string `gorm:"type:varchar(100)" json:"pays"`
+	Statut         string `gorm:"type:varchar(20);default:'actif';index" json:"statut"`
+	// EmailVerifie : l'adresse a été confirmée par le code à 6 chiffres envoyé à
+	// l'inscription (POST /auth/verification-email). Tant qu'il vaut false, le joueur
+	// peut déposer de l'argent mais ne peut ni créer/rejoindre un défi ni demander un
+	// retrait. Les comptes antérieurs à la migration sont passés à true (voir
+	// migrations.preparerVerificationEmail) : personne n'est bloqué rétroactivement.
+	EmailVerifie     bool      `gorm:"column:email_verifie;not null;default:false" json:"emailVerifie"`
 	DateModification time.Time `gorm:"autoUpdateTime" json:"dateModification"`
 }
 

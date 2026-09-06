@@ -47,7 +47,7 @@ function PageMotDePasseOublie() {
       sousTitre="Indiquez l’e-mail de votre compte : nous vous envoyons un lien de réinitialisation."
       accroche="On ne perd pas un match pour un mot de passe."
       pied={
-        <Link to="/connexion" className="font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
           Retour à la connexion
         </Link>
       }

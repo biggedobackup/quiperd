@@ -15,4 +15,6 @@ func Enregistrer(api fiber.Router) {
 	grp.Post("/deconnexion", Connecte(), Deconnexion)
 	grp.Get("/moi", Connecte(), Moi)
 	grp.Post("/changer-mot-de-passe", Connecte(), ChangerMotDePasse)
+	grp.Post("/verification-email", Connecte(), VerifierEmail)
+	grp.Post("/verification-email/renvoyer", Connecte(), RenvoyerVerificationEmail)
 }

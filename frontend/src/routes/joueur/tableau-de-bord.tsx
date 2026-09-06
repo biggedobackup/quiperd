@@ -64,7 +64,7 @@ function TableauDeBord() {
                 Bloqué en séquestre :{' '}
                 <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} className="font-bold text-craie" />
               </span>
-              <Link to="/joueur/portefeuille" className="etiquette ml-auto flex items-center gap-1 text-volt hover:underline">
+              <Link to="/joueur/portefeuille" className="etiquette ml-auto flex min-h-11 items-center gap-1 text-volt hover:underline">
                 Historique <FontAwesomeIcon icon={icone.suivant} />
               </Link>
             </div>
@@ -74,7 +74,7 @@ function TableauDeBord() {
           <div className="ticket-sm flex h-full flex-col border-2 border-encre bg-papier p-5">
             <div className="flex items-center justify-between">
               <span className="etiquette text-muet">Notifications</span>
-              <Link to="/joueur/notifications" className="etiquette text-encre hover:underline">
+              <Link to="/joueur/notifications" className="etiquette inline-flex min-h-11 items-center text-encre hover:underline">
                 Tout voir
               </Link>
             </div>
@@ -102,7 +102,7 @@ function TableauDeBord() {
       <section className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-h3">Matchs en cours</h3>
-          <Link to="/joueur/matchs" className="etiquette flex items-center gap-1 hover:underline">
+          <Link to="/joueur/matchs" className="etiquette flex min-h-11 items-center gap-1 hover:underline">
             Tous mes matchs <FontAwesomeIcon icon={icone.suivant} />
           </Link>
         </div>
@@ -122,7 +122,7 @@ function TableauDeBord() {
       <section className="mt-10">
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-h3">Défis ouverts</h3>
-          <Link to="/joueur/defis" className="etiquette flex items-center gap-1 hover:underline">
+          <Link to="/joueur/defis" className="etiquette flex min-h-11 items-center gap-1 hover:underline">
             Tous les défis <FontAwesomeIcon icon={icone.suivant} />
           </Link>
         </div>

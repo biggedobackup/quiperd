@@ -13,7 +13,8 @@ import { Badge } from '@/components/partages/badge/badge'
  */
 export function CarteDefiPublique({ defi, connecte }: { defi: DefiListe; connecte: boolean }) {
   const categorie = decrireCategorie(defi.jeuCategorie)
-  const classesPied = 'etiquette flex items-center justify-between gap-2 px-4 py-3 transition-colors'
+  // `min-h-11` : c'est l'action principale de la carte, elle doit se toucher au doigt.
+  const classesPied = 'etiquette flex min-h-11 items-center justify-between gap-2 px-4 py-3 transition-colors'
   return (
     <article className="ticket flex h-full flex-col border-2 border-encre bg-papier transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-tampon">
       <div className="flex items-center justify-between gap-3 px-4 py-3">

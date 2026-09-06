@@ -9,6 +9,7 @@ import { icone } from '@/lib/icones'
 import type { Administrateur } from '@/models/utilisateur'
 import { deconnexionAdmin } from '@/services/auth'
 import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
+import { useIdentiteTempsReel } from '@/temps-reel/hooks'
 import { Logo } from '@/components/partages/logo/logo'
 import { AbonnementAdmin } from '@/components/admin/temps-reel-admin'
 import { toastSucces } from '@/components/partages/toast/toast'
@@ -41,6 +42,10 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
   const router = useRouter()
   const titre = ENTREES.find((e) => chemin.startsWith(e.to))?.libelle ?? 'Administration'
 
+  // Le socket doit être celui de CET administrateur : la connexion se fait par navigation
+  // interne, et laisserait sinon un socket de visiteur auquel le salon `admin` est refusé.
+  useIdentiteTempsReel(administrateur.id)
+
   const queryClient = useQueryClient()
 
   const seDeconnecter = async () => {
@@ -61,7 +66,7 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
           key={e.to}
           to={e.to}
           onClick={() => setMenu(false)}
-          className="flex h-10 items-center gap-3 border-l-[3px] px-5 text-legende transition-colors"
+          className="flex h-11 items-center gap-3 border-l-[3px] px-5 text-legende transition-colors"
           activeProps={{ className: 'border-volt bg-craie/5 font-semibold text-craie' }}
           inactiveProps={{ className: 'border-transparent text-craie/70 hover:bg-craie/5 hover:text-craie' }}
         >
@@ -97,7 +102,7 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
           {/* `min-w-0` + `truncate` : si la place manque (téléphone), seul le titre cède —
               l'indicateur de direct et le lien vers le site public restent entiers. */}
           <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-9 shrink-0 items-center justify-center border-2 border-encre bg-papier lg:hidden">
+            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-11 shrink-0 items-center justify-center border-2 border-encre bg-papier lg:hidden">
               <FontAwesomeIcon icon={menu ? icone.fermer : icone.menu} />
             </button>
             <h1 className="min-w-0 truncate text-h3">{titre}</h1>

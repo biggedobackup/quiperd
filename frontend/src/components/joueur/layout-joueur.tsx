@@ -11,11 +11,12 @@ import { optionsNotifications, optionsPortefeuille } from '@/lib/requetes'
 import type { Utilisateur } from '@/models/utilisateur'
 import { deconnexionJoueur } from '@/services/auth'
 import { salons } from '@/temps-reel/evenements'
-import { useEvenement } from '@/temps-reel/hooks'
+import { useEvenement, useIdentiteTempsReel } from '@/temps-reel/hooks'
 import { ajouterNotification, fusionnerSolde } from '@/temps-reel/cache'
 import { Logo } from '@/components/partages/logo/logo'
 import { Skeleton } from '@/components/partages/skeleton/skeleton'
 import { toastSucces } from '@/components/partages/toast/toast'
+import { BandeauEmailNonConfirme, emailNonConfirme } from '@/components/joueur/email-non-verifie'
 
 interface Entree {
   to: string
@@ -47,6 +48,10 @@ export function LayoutJoueur({ utilisateur, children }: { utilisateur: Utilisate
   // notifications et le solde de la barre latérale sont visibles depuis n'importe quel écran :
   // s'ils ne dépendaient que des abonnements des pages (portefeuille, notifications, litiges),
   // ils resteraient figés sur les défis, les matchs, le tableau de bord ou le profil.
+  // Le socket doit être celui de CE joueur : une connexion ou une inscription se fait par
+  // navigation interne, sans recharger la page, et laisserait sinon le socket du visiteur.
+  useIdentiteTempsReel(utilisateur.id)
+
   const queryClient = useQueryClient()
   const monSalon = salons.utilisateur(utilisateur.id)
   useEvenement('notification.nouvelle', (n) => ajouterNotification(queryClient, n), monSalon)
@@ -57,6 +62,13 @@ export function LayoutJoueur({ utilisateur, children }: { utilisateur: Utilisate
       <Sidebar nonLues={nonLues} />
       <div className="flex min-w-0 flex-1 flex-col md:pl-[76px] lg:pl-[264px]">
         <Navbar utilisateur={utilisateur} nonLues={nonLues} />
+        {/*
+          Rappel tant que l'adresse n'est pas confirmée. Il vit hors du `<main>` animé : il ne
+          rejoue donc pas la transition à chaque changement de page, et il disparaît dès que la
+          confirmation a rechargé la session (`router.invalidate()`), sans rechargement complet.
+          Inutile sur l'écran de confirmation lui-même, qui dit déjà tout.
+        */}
+        {emailNonConfirme(utilisateur) && chemin !== '/joueur/confirmation-email' && <BandeauEmailNonConfirme email={utilisateur.email} />}
         <main className="flex-1 px-4 pb-24 pt-6 sm:px-6 md:pb-10 lg:px-8">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -184,10 +196,10 @@ function Navbar({ utilisateur, nonLues }: { utilisateur: Utilisateur; nonLues: n
                 <p className="truncate text-legende font-bold">{utilisateur.nomUtilisateur}</p>
                 <p className="truncate text-[12px] text-muet">{utilisateur.email}</p>
               </div>
-              <Link to="/joueur/profil" role="menuitem" className="flex items-center gap-2 px-4 py-2.5 text-legende hover:bg-volt-fond" onClick={() => setMenu(false)}>
+              <Link to="/joueur/profil" role="menuitem" className="flex min-h-11 items-center gap-2 px-4 py-2.5 text-legende hover:bg-volt-fond" onClick={() => setMenu(false)}>
                 <FontAwesomeIcon icon={icone.profil} fixedWidth /> Mon profil
               </Link>
-              <button type="button" role="menuitem" onClick={() => void seDeconnecter()} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-legende text-perte hover:bg-perte-fond">
+              <button type="button" role="menuitem" onClick={() => void seDeconnecter()} className="flex min-h-11 w-full items-center gap-2 px-4 py-2.5 text-left text-legende text-perte hover:bg-perte-fond">
                 <FontAwesomeIcon icon={icone.deconnexion} fixedWidth /> Déconnexion
               </button>
             </div>

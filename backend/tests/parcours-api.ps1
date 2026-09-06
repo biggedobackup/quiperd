@@ -101,6 +101,44 @@ $rA = Api POST '/auth/inscription' $A
 Check 'POST /auth/inscription Moussa & Ali -> 201' ($rM.Status -eq 201 -and $rA.Status -eq 201)
 $KID = $rK.Body.utilisateur.id; $MID = $rM.Body.utilisateur.id; $AID = $rA.Body.utilisateur.id
 
+# ---- Confirmation d'adresse e-mail --------------------------------------------------------
+# Depuis l'ajout du code à 6 chiffres, miser exige une adresse confirmée : sans cette étape,
+# toute la suite du parcours (défis, retraits) répondrait 403. Le code n'étant JAMAIS renvoyé
+# par l'API, on le lit là où le backend le range : le hachage Redis `verif:email:<id>`.
+function CodeEmail([string]$UtilisateurId) {
+  $rep = Redis "HGET verif:email:$UtilisateurId code"
+  if ($rep -match '(\d{6})') { return $Matches[1] }
+  return ''
+}
+$r = Api POST '/defis' @{} -Token $rA.Body.jeton
+Check 'POST /defis avant confirmation d''adresse -> 403' ($r.Status -eq 403) $r.Raw
+$r = Api POST '/paiements/retrait' @{} -Token $rA.Body.jeton
+Check 'POST /paiements/retrait avant confirmation d''adresse -> 403' ($r.Status -eq 403) $r.Raw
+$r = Api POST '/auth/verification-email' @{ code = '000000' }
+Check 'POST /auth/verification-email sans jeton -> 401' ($r.Status -eq 401) $r.Raw
+$r = Api POST '/auth/verification-email' @{ code = '000000' } -Token $rK.Body.jeton
+Check 'POST /auth/verification-email code faux -> 400' ($r.Status -eq 400) $r.Raw
+$codeK = CodeEmail $KID
+Check 'code de confirmation présent en Redis, 6 chiffres' ($codeK -match '^\d{6}$') "longueur=$($codeK.Length)"
+Check 'code JAMAIS renvoyé dans la réponse d''inscription' (-not ($rK.Raw -match $codeK)) 'réponse exempte du code'
+$r = Api POST '/auth/verification-email' @{ code = $codeK } -Token $rK.Body.jeton
+Check 'POST /auth/verification-email code correct -> 200 emailVerifie' ($r.Status -eq 200 -and $r.Body.emailVerifie -eq $true) $r.Raw
+$r = Api POST '/auth/verification-email' @{ code = $codeK } -Token $rK.Body.jeton
+Check 'POST /auth/verification-email déjà confirmé -> 409' ($r.Status -eq 409) $r.Raw
+Check 'utilisateurs.email_verifie = true après confirmation' ((Sql "select email_verifie::text from utilisateurs where id='$KID'") -eq 'true')
+$n = Sql "select count(*) from journaux_audit where action='auth:email_verifie' and identifiant_cible='$KID'"
+Check 'confirmation journalisée (auth:email_verifie)' ([int]$n -ge 1) "entrées=$n"
+$r = Api POST '/auth/verification-email/renvoyer' @{} -Token $rM.Body.jeton
+Check 'POST /auth/verification-email/renvoyer -> 200' ($r.Status -eq 200) $r.Raw
+$r = Api POST '/auth/verification-email/renvoyer' @{} -Token $rM.Body.jeton
+Check 'renvoi moins de 60 s après le précédent -> 429' ($r.Status -eq 429) $r.Raw
+foreach ($cpl in @(@{ id = $MID; jeton = $rM.Body.jeton; nom = 'Moussa' }, @{ id = $AID; jeton = $rA.Body.jeton; nom = 'Ali' })) {
+  $rr = Api POST '/auth/verification-email' @{ code = (CodeEmail $cpl.id) } -Token $cpl.jeton
+  Check "adresse de $($cpl.nom) confirmée -> 200" ($rr.Status -eq 200) $rr.Raw
+}
+$r = Api POST '/defis' @{} -Token $rA.Body.jeton
+Check 'POST /defis après confirmation : ce n''est plus un 403' ($r.Status -ne 403) "statut=$($r.Status)"
+
 $r = Api POST '/auth/inscription' $K
 Check 'POST /auth/inscription doublon -> 409' ($r.Status -eq 409) $r.Raw
 

@@ -13,6 +13,7 @@ import { MESSAGES, appliquerErreursApi } from '@/lib/formulaires'
 import { optionsJeuxGroupees, optionsPlateformesGroupees } from '@/lib/catalogue'
 import { optionsJeux, optionsPlateformes, optionsPortefeuille, optionsRegles } from '@/lib/requetes'
 import { creerDefi } from '@/services/defis'
+import { BlocEmailNonConfirme, estRefusEmail, toastRefusEmail, useEmailNonConfirme } from '@/components/joueur/email-non-verifie'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { Input } from '@/components/partages/input/input'
@@ -50,6 +51,11 @@ function NouveauDefi() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [erreurGlobale, setErreurGlobale] = useState<string | null>(null)
+  // Adresse non confirmée : le backend répondrait 403. On le dit avant le formulaire, et on
+  // garde le cas où la session lue au chargement était en avance sur la réalité (403 au POST).
+  const emailNonConfirmeSession = useEmailNonConfirme()
+  const [refuseParLeServeur, setRefuseParLeServeur] = useState(false)
+  const emailBloque = emailNonConfirmeSession || refuseParLeServeur
 
   const schema = z.object({
     jeuId: z.string().min(1, MESSAGES.requis),
@@ -87,6 +93,11 @@ function NouveauDefi() {
       data: { jeuId: v.jeuId, plateformeId: v.plateformeId, montantMise: v.montantMise, regles: v.regles, dureeHeures: Number(v.dureeHeures) },
     })
     if (!r.ok) {
+      if (estRefusEmail(r)) {
+        setRefuseParLeServeur(true)
+        toastRefusEmail(r)
+        return
+      }
       setErreurGlobale(appliquerErreursApi(r, setError))
       toastErreur(r.statut === 422 ? 'Solde insuffisant' : 'Création impossible', r.message)
       return
@@ -96,6 +107,19 @@ function NouveauDefi() {
     void queryClient.invalidateQueries({ queryKey: cles.portefeuille.tous })
     await navigate({ to: '/joueur/defis/$defiId', params: { defiId: r.donnees.id } })
   })
+
+  if (emailBloque) {
+    return (
+      <>
+        <EnTetePage surtitre="Arène" titre="Nouveau défi" />
+        <BlocEmailNonConfirme
+          action="créer un défi"
+          vers="/joueur/defis/nouveau"
+          note="Vous pourrez reprendre la création juste après : nous vous ramenons ici."
+        />
+      </>
+    )
+  }
 
   return (
     <>
@@ -195,7 +219,7 @@ function MiseRapide({ montant }: { montant: number }) {
   return (
     <button
       type="button"
-      className="chiffres h-8 border-2 border-trait bg-gris px-3 text-legende font-bold transition-colors hover:border-encre hover:bg-volt hover:text-nuit"
+      className="chiffres h-11 border-2 border-trait bg-gris px-3 text-legende font-bold transition-colors hover:border-encre hover:bg-volt hover:text-nuit"
       onClick={(e) => {
         const form = e.currentTarget.closest('form')
         const champ = form?.querySelector<HTMLInputElement>('input[name="montantMise"]')

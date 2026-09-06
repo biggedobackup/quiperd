@@ -123,6 +123,17 @@ PAIEMENT_PRESTATAIRES=ligdicash,fusionmoney
 # Firebase Cloud Messaging (push)
 FCM_ACTIF=false
 FCM_CREDENTIALS_FILE=
+
+# Envoi d'e-mails (code de confirmation d'inscription, réinitialisation de mot de passe,
+# accusé de demande de retrait). Renseignez SMTP_UTILISATEUR et SMTP_MOT_DE_PASSE, puis
+# passez EMAIL_ACTIF à true : tant qu'il vaut false, les messages sont seulement journalisés.
+# Le port 587 impose STARTTLS (Office 365, Gmail, la plupart des hébergeurs).
+EMAIL_ACTIF=false
+EMAIL_EXPEDITEUR=QUI PERD <no-reply@exemple.com>
+SMTP_HOTE=smtp.office365.com
+SMTP_PORT=587
+SMTP_UTILISATEUR=
+SMTP_MOT_DE_PASSE=
 EOF
   echo "Créé : $ENV_PROD"
 fi

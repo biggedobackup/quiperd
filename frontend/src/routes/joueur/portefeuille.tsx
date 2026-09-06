@@ -18,7 +18,8 @@ import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { DepotModal } from '@/components/joueur/modals/depot-modal'
 import { RetraitModal } from '@/components/joueur/modals/retrait-modal'
-import { Button } from '@/components/partages/button/button'
+import { BlocEmailNonConfirme, estRefusEmail, toastRefusEmail, useEmailNonConfirme } from '@/components/joueur/email-non-verifie'
+import { Button, LienBouton } from '@/components/partages/button/button'
 import { CompteurAnime } from '@/components/partages/compteur-anime/compteur-anime'
 import { DataTable, type Colonne } from '@/components/partages/data-table/data-table'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
@@ -108,6 +109,10 @@ function PagePortefeuille() {
   const retrait = useServerFn(retirer)
   const [modalDepot, setModalDepot] = useState(false)
   const [modalRetrait, setModalRetrait] = useState(false)
+  // Le retrait exige une adresse confirmée (403 côté backend) ; le dépôt, lui, reste ouvert.
+  const emailNonConfirmeSession = useEmailNonConfirme()
+  const [refuseParLeServeur, setRefuseParLeServeur] = useState(false)
+  const retraitBloque = emailNonConfirmeSession || refuseParLeServeur
 
   const salonMoi = salons.utilisateur(session.utilisateur.id)
   const [suivis, setSuivis] = useState<readonly PaiementSuivi[]>([])
@@ -207,6 +212,11 @@ function PagePortefeuille() {
     onSuccess: (r) => {
       setModalRetrait(false)
       if (!r.ok) {
+        if (estRefusEmail(r)) {
+          setRefuseParLeServeur(true)
+          toastRefusEmail(r)
+          return
+        }
         toastErreur(r.statut === 422 ? 'Solde insuffisant' : 'Retrait impossible', r.message)
         invalider()
         return
@@ -262,9 +272,17 @@ function PagePortefeuille() {
           // L'indicateur passe en dernier : sur un écran étroit, les deux boutons d'action
           // restent sur la même ligne et c'est lui qui va à la ligne.
           <>
-            <Button variante="secondaire" onClick={() => setModalRetrait(true)} iconeDebut={icone.retrait}>
-              Retirer
-            </Button>
+            {retraitBloque ? (
+              // Le bouton mène à ce qui débloque le retrait, plutôt que d'ouvrir une modale
+              // dont la confirmation serait refusée par le backend.
+              <LienBouton to="/joueur/confirmation-email" search={{ vers: '/joueur/portefeuille' }} variante="secondaire" iconeDebut={icone.courriel}>
+                Confirmer pour retirer
+              </LienBouton>
+            ) : (
+              <Button variante="secondaire" onClick={() => setModalRetrait(true)} iconeDebut={icone.retrait}>
+                Retirer
+              </Button>
+            )}
             <Button variante="volt" onClick={() => setModalDepot(true)} iconeDebut={icone.depot}>
               Déposer
             </Button>
@@ -272,6 +290,15 @@ function PagePortefeuille() {
           </>
         }
       />
+
+      {retraitBloque && (
+        <BlocEmailNonConfirme
+          action="demander un retrait"
+          vers="/joueur/portefeuille"
+          note="Le dépôt, lui, reste possible : vous pouvez alimenter votre portefeuille dès maintenant."
+          className="mb-6"
+        />
+      )}
 
       {paiement && (
         <p className="mb-6 flex items-start gap-2 border-2 border-info bg-info-fond p-3 text-legende text-info">

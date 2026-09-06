@@ -67,7 +67,7 @@ function PageConnexion() {
       pied={
         <>
           Pas encore de compte ?{' '}
-          <Link to="/inscription" className="font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+          <Link to="/inscription" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
             Créer un compte
           </Link>
         </>
