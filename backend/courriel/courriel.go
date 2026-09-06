@@ -3,7 +3,7 @@
 //
 // Règles du paquet :
 //   - bibliothèque standard uniquement (`net/smtp`, `crypto/tls`) — aucune dépendance ;
-//   - STARTTLS obligatoire (port 587), authentification PlainAuth, délais bornés ;
+//   - STARTTLS obligatoire (port 587), authentification AUTH LOGIN (`authLogin` ci-dessous), délais bornés ;
 //   - EMAIL_ACTIF=false ⇒ rien ne part sur le réseau, le message est seulement journalisé ;
 //   - un échec d'envoi ne fait JAMAIS échouer l'action métier : les modules n'appellent
 //     jamais Envoyer directement, ils passent par Enfiler (tâche Asynq `courriel:envoi`).
@@ -49,6 +49,30 @@ type Message struct {
 	Sujet string
 	Texte string
 	HTML  string
+}
+
+// authLogin implémente smtp.Auth pour le mécanisme LOGIN (smtp.office365.com /
+// Exchange Online refuse AUTH PLAIN par « 504 5.7.4 Unrecognized authentication
+// type »). La bibliothèque standard ne fournit que PlainAuth et CRAMMD5Auth : LOGIN
+// (le mécanisme qu'utilise un client comme Nodemailer) doit être écrit à la main.
+// Rien d'externe — les identifiants transitent en base64 sur le canal déjà chiffré
+// par STARTTLS, exactement comme PlainAuth.
+type authLogin struct {
+	utilisateur string
+	motDePasse  string
+}
+
+func (a *authLogin) Start(*smtp.ServerInfo) (string, []byte, error) {
+	// « AUTH LOGIN <nom d'utilisateur en base64> » : l'identifiant part en réponse
+	// initiale, le serveur demande ensuite le mot de passe.
+	return "LOGIN", []byte(a.utilisateur), nil
+}
+
+func (a *authLogin) Next(_ []byte, more bool) ([]byte, error) {
+	if more {
+		return []byte(a.motDePasse), nil
+	}
+	return nil, nil
 }
 
 // Actif indique si l'envoi réseau est armé (EMAIL_ACTIF + hôte SMTP renseigné).
@@ -160,8 +184,7 @@ func transmettre(destinataire string, corps []byte) error {
 		return fmt.Errorf("STARTTLS: %w", err)
 	}
 	if cfg.SMTPUtilisateur != "" {
-		// PlainAuth n'accepte de transmettre l'identifiant qu'une fois le canal chiffré.
-		if err := client.Auth(smtp.PlainAuth("", cfg.SMTPUtilisateur, cfg.SMTPMotDePasse, hote)); err != nil {
+		if err := client.Auth(&authLogin{utilisateur: cfg.SMTPUtilisateur, motDePasse: cfg.SMTPMotDePasse}); err != nil {
 			return fmt.Errorf("authentification SMTP refusée: %w", err)
 		}
 	}
