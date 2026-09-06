@@ -201,6 +201,21 @@ export interface OptionsResynchronisation {
 }
 
 /**
+ * Dernière génération de socket déjà resynchronisée, par famille de clés.
+ *
+ * Indispensable, et volontairement AU NIVEAU DU MODULE (pas un `useRef`) : un `useRef` naît
+ * vide à chaque montage, l'effet ci-dessous se déclencherait donc à chaque arrivée sur
+ * l'écran — c'est-à-dire à chaque navigation, et autant de fois que React remonte le
+ * composant. La donnée que le loader vient tout juste de charger serait jetée aussitôt et
+ * redemandée au serveur ; mesuré sur `/joueur/portefeuille`, cela faisait quatre
+ * invalidations et trois appels réseau par écran, pour une seule navigation.
+ *
+ * La mémoire vit ici, hors de React : une famille n'est resynchronisée qu'une fois par
+ * (re)connexion du socket, exactement ce que promet la documentation du hook.
+ */
+const resynchronisationsFaites = new Map<string, number>()
+
+/**
  * Invalide les familles de clés données à CHAQUE (re)connexion du socket, en un seul appel.
  * C'est la seule forme de rafraîchissement autorisée : elle rattrape ce qui a été manqué
  * pendant une coupure, elle ne tourne jamais en boucle.
@@ -221,6 +236,10 @@ export function useResynchronisation(familles: FamillesCles, options: OptionsRes
   useEffect(() => {
     if (generation === 0) return
     if (ignorerPremiere && generation === 1) return
+    // Déjà resynchronisée pour cette connexion : l'écran est simplement remonté (navigation,
+    // Suspense, remontage de développement). Ne rien redemander — le loader a la donnée.
+    if (resynchronisationsFaites.get(cle) === generation) return
+    resynchronisationsFaites.set(cle, generation)
     invaliderFamilles(queryClient, JSON.parse(cle) as readonly (readonly unknown[])[])
   }, [queryClient, generation, cle, ignorerPremiere])
 }

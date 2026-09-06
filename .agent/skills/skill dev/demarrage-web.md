@@ -491,6 +491,19 @@ Deux exceptions, et seulement celles-là :
 2. **un compte à rebours purement client** (`useChrono`), calculé à partir d'une date fournie
    par le serveur (`match.echeance`) — il n'émet aucune requête.
 
+> **Piège vérifié en recette : « à la reconnexion » ne veut pas dire « au montage ».**
+> Un effet React se rejoue à chaque montage du composant, donc à chaque navigation vers
+> l'écran, et autant de fois que React remonte l'arbre. Un `useResynchronisation` qui se
+> contente de dépendre de `generation` invalide donc à chaque arrivée sur la page : la donnée
+> que le loader vient de charger est jetée et redemandée. Mesuré sur `/joueur/portefeuille` :
+> quatre invalidations et trois appels réseau par écran pour une seule navigation, sur des
+> pages qui n'en demandent qu'un.
+> La mémoire du « déjà resynchronisé » doit donc vivre **au niveau du module**
+> (`Map<famille, generation>` dans `hooks.ts`), jamais dans un `useRef` — un `useRef` renaît
+> vide à chaque montage. Contrôle de non-régression : naviguer entre deux écrans doit produire
+> **zéro** `invalidateQueries`, et couper puis rétablir le backend doit en produire
+> **exactement un**.
+
 ### Le client `src/temps-reel/`
 
 - **Un seul socket pour toute l'application**, singleton (`client.ts`), multiplexé par salons.

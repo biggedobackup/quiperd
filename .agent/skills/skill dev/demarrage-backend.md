@@ -93,7 +93,7 @@ GORM + PostgreSQL + Redis + Asynq)**.
 | Catégorie                | Package / Technologie                     | Intégration                                            |
 |---------------------------|--------------------------------------------|--------------------------------------------------------|
 | Langage                     | Go 1.27.0                                  | ✅                                                       |
-| Framework                   | Fiber v3.5.0                               | serveur HTTP, middlewares CORS/recover/logger           |
+| Framework                   | Fiber v3.5.0                               | serveur HTTP, middlewares CORS/recover/compress (logger hors production) |
 | Base de données             | PostgreSQL 18                              | base `qui_perd`                                        |
 | ORM                         | GORM + driver postgres                     | modèles, AutoMigrate, transactions (essentiel pour l'escrow) |
 | Cache / Sessions            | Redis (`redis/go-redis/v9`)                | sessions JWT (liste blanche `jti`), cache classements/statistiques admin |
@@ -159,6 +159,15 @@ GORM + PostgreSQL + Redis + Asynq)**.
   message d'erreur SQL brut renvoyé au client.
 - **CORS :** ouvert au seul domaine du frontend web TanStack Start (site public + accès joueur
   + admin, une seule origine) ; l'app mobile n'est pas soumise à CORS.
+- **Compression :** `middleware/compress` monté sur toute l'API (mesuré : `GET /jeux` passe de
+  7 652 à 2 227 octets, −71 %). Le joueur est souvent en 3G, l'octet économisé est du temps
+  gagné. **Exclure impérativement `/api/temps-reel`** (`Next:`) : une trame WebSocket n'a rien
+  à faire dans un flux compressé, la connexion casserait à l'upgrade. Caddy comprime aussi en
+  production ; le middleware couvre l'app mobile et tout déploiement sans reverse proxy.
+- **Journal HTTP :** `middleware/logger` uniquement hors production (`cfg.EstProduction()`).
+  En production il écrit une ligne sur stdout à chaque requête, alors que le reverse proxy
+  tient déjà le journal d'accès — c'est un coût par requête et des journaux de conteneur qui
+  gonflent pour rien.
 - **Uploads (preuves de match) :** `multipart/form-data`, champs `fichier` (+ `type` :
   `capture_ecran` ou `video`) → fichier stocké sur le disque du serveur dans
   `public/preuves/<matchId>/<utilisateurId>/<idFichier>.<ext>`, servi via une route protégée

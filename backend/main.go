@@ -12,10 +12,12 @@ package main
 import (
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
@@ -83,7 +85,22 @@ func main() {
 	})
 
 	app.Use(recover.New())
-	app.Use(logger.New())
+	// Journal HTTP : une ligne par requête. Utile en développement, coûteux en production
+	// (écriture synchrone sur stdout à chaque appel, journaux de conteneur qui gonflent) —
+	// le reverse proxy tient déjà le journal d'accès.
+	if !cfg.EstProduction() {
+		app.Use(logger.New())
+	}
+	// Compression des réponses (gzip/brotli/deflate). Les listes JSON de l'API sont très
+	// répétitives : la charge utile tombe d'environ 80 %, ce qui compte pour un joueur en
+	// 3G. JAMAIS sur le socket temps réel : une trame WebSocket n'a rien à faire dans un
+	// flux compressé, la connexion serait cassée à l'upgrade.
+	app.Use(compress.New(compress.Config{
+		Next: func(c fiber.Ctx) bool {
+			return strings.HasPrefix(c.Path(), "/api/temps-reel")
+		},
+		Level: compress.LevelBestSpeed,
+	}))
 	app.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{cfg.CorsOrigin},
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
