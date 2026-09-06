@@ -21,7 +21,7 @@ export function CarteMatch({ match, moiId }: ProprietesCarteMatch) {
     <Link
       to="/joueur/matchs/$matchId"
       params={{ matchId: match.id }}
-      className="ticket-sm group grid grid-cols-[1fr_auto] items-center gap-4 border-2 border-encre bg-nuit p-4 text-craie transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-tampon-volt sm:grid-cols-[1fr_auto_1fr_auto]"
+      className="ticket-sm group grid h-full grid-cols-[1fr_auto] items-center gap-4 border-2 border-encre bg-nuit p-4 text-craie transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-tampon-volt sm:grid-cols-[1fr_auto_1fr_auto]"
     >
       <Joueur nom={match.joueur1Nom} moi={jeSuisJ1} score={match.scoreJoueur1} gagnant={g1} />
       <span className="chiffres hidden text-h3 text-craie/40 sm:block">—</span>
@@ -30,9 +30,13 @@ export function CarteMatch({ match, moiId }: ProprietesCarteMatch) {
         <BadgeStatut famille="match" valeur={match.statut} />
         <span className="chiffres text-legende text-craie/70">{formatMontant(match.montantMise, match.devise)}</span>
         <span className="text-[11px] text-craie/50">{match.jeuNom} · {formatDateRelative(match.dateCreation)}</span>
-        {match.statut === 'termine' && gagne !== null && (
-          <span className={`etiquette flex items-center gap-1 ${gagne ? 'text-volt' : 'text-perte'}`}>
+        {match.statut === 'termine' && gagne !== null ? (
+          <span className={`etiquette flex min-h-[18px] items-center gap-1 ${gagne ? 'text-volt' : 'text-perte'}`}>
             <FontAwesomeIcon icon={gagne ? icone.trophee : icone.erreur} /> {gagne ? 'Gagné' : 'Perdu'}
+          </span>
+        ) : (
+          <span className="etiquette flex min-h-[18px] items-center" aria-hidden="true">
+             
           </span>
         )}
       </div>

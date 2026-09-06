@@ -6,7 +6,7 @@ import { icone } from '@/lib/icones'
 import { cles } from '@/lib/query'
 import { formatDate } from '@/lib/format'
 import { optionsUtilisateurs } from '@/lib/requetes'
-import { changerStatutUtilisateur, supprimerUtilisateur } from '@/services/utilisateurs'
+import { supprimerUtilisateur } from '@/services/utilisateurs'
 import type { Utilisateur } from '@/models/utilisateur'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button } from '@/components/partages/button/button'
@@ -21,8 +21,8 @@ import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 import { UtilisateurModal, type ModeUtilisateurModal } from '@/components/admin/modals/utilisateur-modal'
 import { DetailUtilisateurModal } from '@/components/admin/modals/detail-utilisateur-modal'
 
-/** Cibles tactiles ≥ 44 px dans les cartes mobiles, hauteur compacte dans le tableau. */
-const CLASSE_ACTION = 'min-h-11 md:min-h-0'
+/** Actions du tableau en icônes seules (libellé en `title`/`aria-label`), hauteur compacte. */
+const CLASSE_ACTION_ICON = 'h-8 w-8 px-0'
 
 const OPTIONS_STATUT = [
   { valeur: 'actif', libelle: 'Actifs' },
@@ -51,31 +51,16 @@ function PageUtilisateurs() {
   const navigate = Route.useNavigate()
   const { data, isPending, isPlaceholderData } = useQuery({ ...optionsUtilisateurs(recherche, statut, page), placeholderData: keepPreviousData })
   const queryClient = useQueryClient()
-  const changer = useServerFn(changerStatutUtilisateur)
   const supprimer = useServerFn(supprimerUtilisateur)
   const [saisie, setSaisie] = useState(recherche)
   const [formulaire, setFormulaire] = useState<Formulaire | null>(null)
   const [detail, setDetail] = useState<Utilisateur | null>(null)
-  const [cibleStatut, setCibleStatut] = useState<Utilisateur | null>(null)
   const [aSupprimer, setASupprimer] = useState<Utilisateur | null>(null)
 
   const invalider = () => {
     void queryClient.invalidateQueries({ queryKey: cles.admin.utilisateursTous })
     void queryClient.invalidateQueries({ queryKey: cles.admin.statistiques })
   }
-
-  const mutStatut = useMutation({
-    mutationFn: (u: Utilisateur) => changer({ data: { id: u.id, statut: u.statut === 'suspendu' ? 'actif' : 'suspendu' } }),
-    onSuccess: (r, u) => {
-      setCibleStatut(null)
-      if (!r.ok) {
-        toastErreur('Modification impossible', r.message)
-        return
-      }
-      toastSucces(u.statut === 'suspendu' ? `${u.nomUtilisateur} réactivé` : `${u.nomUtilisateur} suspendu`, u.statut === 'suspendu' ? undefined : 'Toutes ses sessions ont été fermées.')
-      invalider()
-    },
-  })
 
   const mutSupprimer = useMutation({
     mutationFn: (u: Utilisateur) => supprimer({ data: { id: u.id } }),
@@ -118,22 +103,12 @@ function PageUtilisateurs() {
       droite: true,
       rendu: (u) => (
         // La ligne entière ouvre la fiche : les boutons ne doivent pas la déclencher.
-        <span className="flex flex-wrap justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-          {u.statut === 'supprime' ? (
-            <Button taille="sm" variante="secondaire" className={CLASSE_ACTION} iconeDebut={icone.voir} onClick={() => setDetail(u)}>
-              Voir
-            </Button>
-          ) : (
+        <span className="flex flex-wrap justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          <Button taille="sm" variante="secondaire" className={CLASSE_ACTION_ICON} iconeDebut={icone.voir} onClick={() => setDetail(u)} title="Voir les détails" aria-label={`Voir ${u.nomUtilisateur}`} />
+          {u.statut !== 'supprime' && (
             <>
-              <Button taille="sm" variante="secondaire" className={CLASSE_ACTION} iconeDebut={icone.modifier} onClick={() => setFormulaire({ mode: 'edition', utilisateur: u })}>
-                Modifier
-              </Button>
-              <Button taille="sm" variante="secondaire" className={CLASSE_ACTION} iconeDebut={u.statut === 'suspendu' ? icone.reactiver : icone.suspendre} onClick={() => setCibleStatut(u)}>
-                {u.statut === 'suspendu' ? 'Réactiver' : 'Suspendre'}
-              </Button>
-              <Button taille="sm" variante="danger" className={CLASSE_ACTION} iconeDebut={icone.supprimer} onClick={() => setASupprimer(u)}>
-                Supprimer
-              </Button>
+              <Button taille="sm" variante="secondaire" className={CLASSE_ACTION_ICON} iconeDebut={icone.modifier} onClick={() => setFormulaire({ mode: 'edition', utilisateur: u })} title="Modifier" aria-label={`Modifier ${u.nomUtilisateur}`} />
+              <Button taille="sm" variante="danger" className={CLASSE_ACTION_ICON} iconeDebut={icone.supprimer} onClick={() => setASupprimer(u)} title="Supprimer" aria-label={`Supprimer ${u.nomUtilisateur}`} />
             </>
           )}
         </span>
@@ -181,21 +156,6 @@ function PageUtilisateurs() {
 
       <UtilisateurModal ouvert={formulaire !== null} utilisateur={formulaire?.mode === 'edition' ? formulaire.utilisateur : null} onFermer={() => setFormulaire(null)} onEnregistre={surEnregistrement} />
       <DetailUtilisateurModal utilisateur={detail} onFermer={() => setDetail(null)} />
-
-      <ConfirmModal
-        ouvert={cibleStatut !== null}
-        onFermer={() => setCibleStatut(null)}
-        onConfirmer={() => cibleStatut && mutStatut.mutate(cibleStatut)}
-        titre={cibleStatut?.statut === 'suspendu' ? 'Réactiver ce compte ?' : 'Suspendre ce compte ?'}
-        variante={cibleStatut?.statut === 'suspendu' ? 'primaire' : 'danger'}
-        libelleConfirmer={cibleStatut?.statut === 'suspendu' ? 'Réactiver' : 'Suspendre'}
-        chargement={mutStatut.isPending}
-      >
-        <p>
-          <strong>{cibleStatut?.nomUtilisateur}</strong> ({cibleStatut?.email}).
-        </p>
-        <p className="text-legende text-muet">{cibleStatut?.statut === 'suspendu' ? 'Le joueur pourra de nouveau se connecter, créer et rejoindre des défis.' : 'Ses sessions seront fermées et toute connexion refusée. Ses mises bloquées restent en séquestre.'}</p>
-      </ConfirmModal>
 
       <ConfirmModal ouvert={aSupprimer !== null} onFermer={() => setASupprimer(null)} onConfirmer={() => aSupprimer && mutSupprimer.mutate(aSupprimer)} titre="Supprimer ce compte ?" variante="danger" libelleConfirmer="Supprimer" chargement={mutSupprimer.isPending}>
         <p>

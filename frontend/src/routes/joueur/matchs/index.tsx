@@ -53,7 +53,7 @@ function MesMatchs() {
       ) : data && data.length > 0 ? (
         <Cascade className="grid gap-3 lg:grid-cols-2">
           {data.map((m) => (
-            <ElementCascade key={m.id}>
+            <ElementCascade key={m.id} className="h-full">
               <CarteMatch match={m} moiId={session.utilisateur.id} />
             </ElementCascade>
           ))}

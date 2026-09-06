@@ -1,11 +1,18 @@
 import { useState, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useServerFn } from '@tanstack/react-start'
+import { icone } from '@/lib/icones'
+import { cles } from '@/lib/query'
 import { formatDateHeure, formatMontant } from '@/lib/format'
 import { optionsUtilisateur } from '@/lib/requetes'
+import { changerStatutUtilisateur } from '@/services/utilisateurs'
 import type { Utilisateur } from '@/models/utilisateur'
 import { Modal } from '@/components/partages/modal/modal'
+import { Button } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
+import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { SkeletonTexte } from '@/components/partages/skeleton/skeleton'
+import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
 function Ligne({ libelle, children }: { libelle: string; children: ReactNode }) {
   return (
@@ -17,8 +24,8 @@ function Ligne({ libelle, children }: { libelle: string; children: ReactNode }) 
 }
 
 /**
- * Fiche d'un compte en lecture seule (« Voir », seule action possible sur un compte supprimé) :
- * identité, statut, dates et soldes du portefeuille via `GET /api/utilisateurs/:id`.
+ * Fiche d'un compte (« Voir ») : identité, statut, dates et soldes du portefeuille via
+ * `GET /api/utilisateurs/:id`, avec action Suspendre/Réactiver (sauf compte supprimé).
  */
 export function DetailUtilisateurModal({ utilisateur, onFermer }: { utilisateur: Utilisateur | null; onFermer: () => void }) {
   // Dernier compte affiché conservé pendant l'animation de fermeture (contenu stable).
@@ -27,6 +34,25 @@ export function DetailUtilisateurModal({ utilisateur, onFermer }: { utilisateur:
   const detail = useQuery({ ...optionsUtilisateur(cible?.id ?? ''), enabled: cible !== null })
   const u = detail.data ?? cible
   const portefeuille = detail.data?.portefeuille
+  const queryClient = useQueryClient()
+  const changer = useServerFn(changerStatutUtilisateur)
+  const [confirmerStatut, setConfirmerStatut] = useState(false)
+  const suspendu = u?.statut === 'suspendu'
+
+  const mutStatut = useMutation({
+    mutationFn: () => changer({ data: { id: cible!.id, statut: suspendu ? 'actif' : 'suspendu' } }),
+    onSuccess: (r) => {
+      setConfirmerStatut(false)
+      if (!r.ok) {
+        toastErreur('Modification impossible', r.message)
+        return
+      }
+      toastSucces(suspendu ? `${cible!.nomUtilisateur} réactivé` : `${cible!.nomUtilisateur} suspendu`, suspendu ? undefined : 'Toutes ses sessions ont été fermées.')
+      void queryClient.invalidateQueries({ queryKey: cles.admin.utilisateursTous })
+      void queryClient.invalidateQueries({ queryKey: cles.admin.statistiques })
+      void queryClient.invalidateQueries({ queryKey: cles.admin.utilisateur(cible!.id) })
+    },
+  })
 
   return (
     <Modal ouvert={utilisateur !== null} onFermer={onFermer} titre={u?.nomUtilisateur ?? 'Compte'} description={u?.email} taille="sm">
@@ -69,6 +95,27 @@ export function DetailUtilisateurModal({ utilisateur, onFermer }: { utilisateur:
           <p className="text-legende text-muet">{detail.isError ? 'Détail indisponible pour le moment.' : 'Aucun portefeuille associé à ce compte.'}</p>
         )}
       </div>
+      {u && u.statut !== 'supprime' && (
+        <div className="mt-5 flex justify-end border-t-2 border-trait pt-4">
+          <Button taille="sm" variante={suspendu ? 'secondaire' : 'danger'} iconeDebut={suspendu ? icone.reactiver : icone.suspendre} onClick={() => setConfirmerStatut(true)}>
+            {suspendu ? 'Réactiver' : 'Suspendre'}
+          </Button>
+        </div>
+      )}
+      <ConfirmModal
+        ouvert={confirmerStatut}
+        onFermer={() => setConfirmerStatut(false)}
+        onConfirmer={() => mutStatut.mutate()}
+        titre={suspendu ? 'Réactiver ce compte ?' : 'Suspendre ce compte ?'}
+        variante={suspendu ? 'primaire' : 'danger'}
+        libelleConfirmer={suspendu ? 'Réactiver' : 'Suspendre'}
+        chargement={mutStatut.isPending}
+      >
+        <p>
+          <strong>{u?.nomUtilisateur}</strong> ({u?.email}).
+        </p>
+        <p className="text-legende text-muet">{suspendu ? 'Le joueur pourra de nouveau se connecter, créer et rejoindre des défis.' : 'Ses sessions seront fermées et toute connexion refusée. Ses mises bloquées restent en séquestre.'}</p>
+      </ConfirmModal>
     </Modal>
   )
 }
