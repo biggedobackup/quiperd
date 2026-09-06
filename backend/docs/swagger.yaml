@@ -1,0 +1,1293 @@
+basePath: /api
+definitions:
+  administration.ConfigurationPublique:
+    properties:
+      devise:
+        type: string
+      type:
+        type: string
+      valeur:
+        type: number
+    type: object
+  administration.JournalAudit:
+    properties:
+      action:
+        type: string
+      administrateurId:
+        type: string
+      adresseIp:
+        type: string
+      ancienneValeur:
+        type: string
+      dateCreation:
+        type: string
+      id:
+        type: string
+      identifiantCible:
+        type: string
+      nouvelleValeur:
+        type: string
+      tableCible:
+        type: string
+      utilisateurId:
+        type: string
+    type: object
+  auth.EntreeInscription:
+    properties:
+      email:
+        type: string
+      motDePasse:
+        minLength: 6
+        type: string
+      nomUtilisateur:
+        maxLength: 50
+        minLength: 3
+        type: string
+      pays:
+        type: string
+      telephone:
+        type: string
+    required:
+    - email
+    - motDePasse
+    - nomUtilisateur
+    type: object
+  auth.Utilisateur:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      nomUtilisateur:
+        type: string
+      pays:
+        type: string
+      photoProfil:
+        type: string
+      statut:
+        type: string
+      telephone:
+        type: string
+    type: object
+  comptes_gamers.CompteGamer:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      id:
+        type: string
+      identifiantJoueur:
+        type: string
+      jeuId:
+        type: string
+      nomAffichage:
+        type: string
+      plateformeId:
+        type: string
+      utilisateurId:
+        type: string
+    type: object
+  contact.MessageContact:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      message:
+        type: string
+      nom:
+        type: string
+      noteAdmin:
+        type: string
+      statut:
+        type: string
+      sujet:
+        type: string
+      utilisateurId:
+        type: string
+    type: object
+  contact.entreeMessage:
+    properties:
+      email:
+        maxLength: 255
+        type: string
+      message:
+        maxLength: 2000
+        minLength: 10
+        type: string
+      nom:
+        maxLength: 100
+        minLength: 2
+        type: string
+      sujet:
+        maxLength: 150
+        minLength: 3
+        type: string
+    required:
+    - email
+    - message
+    - nom
+    - sujet
+    type: object
+  contact.entreeTraitement:
+    properties:
+      noteAdmin:
+        maxLength: 2000
+        type: string
+      statut:
+        enum:
+        - nouveau
+        - lu
+        - traite
+        type: string
+    type: object
+  defis.DefiListe:
+    properties:
+      createurId:
+        type: string
+      createurNom:
+        type: string
+      dateCreation:
+        type: string
+      dateExpiration:
+        type: string
+      dateModification:
+        type: string
+      devise:
+        type: string
+      id:
+        type: string
+      jeuCategorie:
+        type: string
+      jeuId:
+        type: string
+      jeuNom:
+        type: string
+      montantMise:
+        type: number
+      plateformeFamille:
+        type: string
+      plateformeId:
+        type: string
+      plateformeNom:
+        type: string
+      regles:
+        type: string
+      statut:
+        type: string
+    type: object
+  jeux.Jeu:
+    properties:
+      categorie:
+        type: string
+      dateCreation:
+        type: string
+      id:
+        type: string
+      nom:
+        type: string
+      statut:
+        type: string
+    type: object
+  matchs.MatchEnrichi:
+    properties:
+      dateCreation:
+        type: string
+      dateDebut:
+        type: string
+      dateFin:
+        type: string
+      defiId:
+        type: string
+      devise:
+        type: string
+      gagnantId:
+        type: string
+      id:
+        type: string
+      jeuNom:
+        type: string
+      joueur1Id:
+        description: |-
+          Noms de colonnes explicites : GORM dériverait `joueur1_id` / `score_joueur1`,
+          alors que le modèle de données (§7, table 6) impose `joueur_1_id` / `score_joueur_1`,
+          noms utilisés par les requêtes SQL brutes (litiges, scores).
+        type: string
+      joueur1Nom:
+        type: string
+      joueur2Id:
+        type: string
+      joueur2Nom:
+        type: string
+      montantMise:
+        type: number
+      perdantId:
+        type: string
+      plateformeNom:
+        type: string
+      scoreJoueur1:
+        type: integer
+      scoreJoueur2:
+        type: integer
+      statut:
+        type: string
+    type: object
+  notifications.Notification:
+    properties:
+      dateCreation:
+        type: string
+      id:
+        type: string
+      lu:
+        type: boolean
+      message:
+        type: string
+      titre:
+        type: string
+      type:
+        type: string
+      utilisateurId:
+        type: string
+    type: object
+  paiements.Paiement:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      devise:
+        type: string
+      frais:
+        description: frais de retrait (configurations_financieres.frais_retrait)
+        type: number
+      id:
+        type: string
+      montant:
+        type: number
+      operateur:
+        type: string
+      prestataire:
+        type: string
+      reference:
+        type: string
+      referencePrestataire:
+        type: string
+      statut:
+        type: string
+      traite:
+        type: boolean
+      type:
+        type: string
+      utilisateurId:
+        type: string
+    type: object
+  plateformes.Plateforme:
+    properties:
+      dateCreation:
+        type: string
+      famille:
+        type: string
+      id:
+        type: string
+      nom:
+        type: string
+      statut:
+        type: string
+    type: object
+  portefeuilles.Portefeuille:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      devise:
+        type: string
+      id:
+        type: string
+      soldeBloque:
+        type: number
+      soldeDisponible:
+        type: number
+      utilisateurId:
+        type: string
+    type: object
+  portefeuilles.TransactionPortefeuille:
+    properties:
+      dateCreation:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      matchId:
+        type: string
+      miseId:
+        type: string
+      montant:
+        type: number
+      portefeuilleId:
+        type: string
+      reference:
+        type: string
+      statut:
+        type: string
+      type:
+        type: string
+    type: object
+  utilisateurs.EntreeCreation:
+    properties:
+      email:
+        type: string
+      motDePasse:
+        minLength: 6
+        type: string
+      nomUtilisateur:
+        maxLength: 50
+        minLength: 3
+        type: string
+      pays:
+        type: string
+      statut:
+        enum:
+        - actif
+        - suspendu
+        - en_attente
+        type: string
+      telephone:
+        type: string
+    required:
+    - email
+    - motDePasse
+    - nomUtilisateur
+    type: object
+  utilisateurs.EntreeModification:
+    properties:
+      email:
+        type: string
+      motDePasse:
+        minLength: 6
+        type: string
+      nomUtilisateur:
+        maxLength: 50
+        minLength: 3
+        type: string
+      pays:
+        type: string
+      photoProfil:
+        type: string
+      statut:
+        enum:
+        - actif
+        - suspendu
+        - en_attente
+        type: string
+      telephone:
+        type: string
+    type: object
+  utilisateurs.PortefeuilleResume:
+    properties:
+      soldeBloque:
+        type: number
+      soldeDisponible:
+        type: number
+    type: object
+  utilisateurs.UtilisateurDetail:
+    properties:
+      dateCreation:
+        type: string
+      dateModification:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      nomUtilisateur:
+        type: string
+      pays:
+        type: string
+      photoProfil:
+        type: string
+      portefeuille:
+        $ref: '#/definitions/utilisateurs.PortefeuilleResume'
+      statut:
+        type: string
+      telephone:
+        type: string
+    type: object
+  utils.Page-administration_JournalAudit:
+    properties:
+      elements:
+        items:
+          $ref: '#/definitions/administration.JournalAudit'
+        type: array
+      page:
+        type: integer
+      pages:
+        type: integer
+      taille:
+        type: integer
+      total:
+        type: integer
+    type: object
+  utils.Page-auth_Utilisateur:
+    properties:
+      elements:
+        items:
+          $ref: '#/definitions/auth.Utilisateur'
+        type: array
+      page:
+        type: integer
+      pages:
+        type: integer
+      taille:
+        type: integer
+      total:
+        type: integer
+    type: object
+  utils.Page-contact_MessageContact:
+    properties:
+      elements:
+        items:
+          $ref: '#/definitions/contact.MessageContact'
+        type: array
+      page:
+        type: integer
+      pages:
+        type: integer
+      taille:
+        type: integer
+      total:
+        type: integer
+    type: object
+  utils.Page-paiements_Paiement:
+    properties:
+      elements:
+        items:
+          $ref: '#/definitions/paiements.Paiement'
+        type: array
+      page:
+        type: integer
+      pages:
+        type: integer
+      taille:
+        type: integer
+      total:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: API de la plateforme QUI PERD (défis de match, escrow, paiements Mobile
+    Money).
+  title: QUI PERD API
+  version: "1.0"
+paths:
+  /administration/configurations-financieres:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Configurations financières actives (admin)
+      tags:
+      - administration
+    patch:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Modifier une configuration financière (admin) — historisé
+      tags:
+      - administration
+  /administration/journaux-audit:
+    get:
+      parameters:
+      - description: Page (défaut 1)
+        in: query
+        name: page
+        type: integer
+      - description: Éléments par page (1..100, défaut 10)
+        in: query
+        name: taille
+        type: integer
+      - description: Filtre exact sur l'action (ex. litige:decision)
+        in: query
+        name: action
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Page-administration_JournalAudit'
+      security:
+      - BearerAuth: []
+      summary: Journal d'audit (admin, lecture seule) — paginé, 10 par page, plus
+        récents d'abord
+      tags:
+      - administration
+  /administration/statistiques:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: KPIs du tableau de bord admin (cache Redis 60 s)
+      tags:
+      - administration
+  /auth/admin/connexion:
+    post:
+      responses: {}
+      summary: Connexion administrateur
+      tags:
+      - auth
+  /auth/changer-mot-de-passe:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Changer son mot de passe
+      tags:
+      - auth
+  /auth/connexion:
+    post:
+      responses: {}
+      summary: Connexion joueur
+      tags:
+      - auth
+  /auth/deconnexion:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Déconnexion (invalide la session Redis)
+      tags:
+      - auth
+  /auth/inscription:
+    post:
+      parameters:
+      - description: Compte à créer
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/auth.EntreeInscription'
+      responses: {}
+      summary: Créer un compte joueur
+      tags:
+      - auth
+  /auth/moi:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Utilisateur ou administrateur courant
+      tags:
+      - auth
+  /auth/mot-de-passe-oublie:
+    post:
+      responses: {}
+      summary: Demande de réinitialisation de mot de passe
+      tags:
+      - auth
+  /auth/reinitialisation-mot-de-passe:
+    post:
+      responses: {}
+      summary: Réinitialiser le mot de passe avec un token
+      tags:
+      - auth
+  /comptes-gamers:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/comptes_gamers.CompteGamer'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Mes identifiants de joueur par jeu/plateforme
+      tags:
+      - comptes-gamers
+    post:
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/comptes_gamers.CompteGamer'
+      security:
+      - BearerAuth: []
+      summary: Ajouter un identifiant de joueur (jeu + plateforme)
+      tags:
+      - comptes-gamers
+  /comptes-gamers/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Supprimer un identifiant de joueur (propriétaire)
+      tags:
+      - comptes-gamers
+    patch:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/comptes_gamers.CompteGamer'
+      security:
+      - BearerAuth: []
+      summary: Modifier un identifiant de joueur (propriétaire)
+      tags:
+      - comptes-gamers
+  /configurations-financieres:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/administration.ConfigurationPublique'
+            type: array
+      summary: Règles financières actives (public) — commission, mises min/max, frais
+        de retrait
+      tags:
+      - administration
+  /contact:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Page-contact_MessageContact'
+        "400":
+          description: statut inconnu
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Messages de contact paginés (admin) — ?page=1&taille=10&statut=nouveau|lu|traite,
+        plus récents d'abord
+      tags:
+      - contact
+    post:
+      parameters:
+      - description: nom (≥ 2), email, sujet (≥ 3), message (10 à 2000 caractères)
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/contact.entreeMessage'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/contact.MessageContact'
+        "400":
+          description: validation échouée (details par champ)
+          schema:
+            additionalProperties: true
+            type: object
+        "429":
+          description: Trop de messages envoyés, réessayez dans une heure.
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Envoyer un message de contact (public ; jeton joueur facultatif → utilisateurId
+        ; anti-spam 5 messages/heure/IP)
+      tags:
+      - contact
+  /contact/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: message introuvable
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Supprimer un message de contact (admin) — journalisé (contact:suppression)
+      tags:
+      - contact
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/contact.MessageContact'
+        "404":
+          description: message introuvable
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Détail d'un message de contact (admin)
+      tags:
+      - contact
+    patch:
+      parameters:
+      - description: statut (nouveau|lu|traite) et/ou noteAdmin (≤ 2000 caractères)
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/contact.entreeTraitement'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/contact.MessageContact'
+        "400":
+          description: validation échouée
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: message introuvable
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 'Traiter un message de contact (admin) : statut et/ou note interne
+        — changement de statut journalisé (contact:statut_<statut>)'
+      tags:
+      - contact
+  /defis:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/defis.DefiListe'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Défis ouverts (?jeu=, ?plateforme=, ?miseMax=) — ou mes défis, tous
+        statuts (?mes=1)
+      tags:
+      - defis
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Créer un défi (bloque la mise du créateur)
+      tags:
+      - defis
+  /defis/{id}:
+    delete:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Annuler un défi ouvert (rend la mise au créateur, moins la commission)
+      tags:
+      - defis
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Détail d'un défi (libellés créateur/jeu/plateforme) et son match s'il
+        existe
+      tags:
+      - defis
+  /defis/{id}/rejoindre:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Rejoindre un défi (bloque la mise, crée le match)
+      tags:
+      - defis
+  /defis/ouverts:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/defis.DefiListe'
+            type: array
+      summary: Défis ouverts, en attente d'un adversaire (public — site vitrine)
+      tags:
+      - defis
+  /jeux:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/jeux.Jeu'
+            type: array
+      summary: 'Catalogue des jeux (public : actifs ; admin : tous) — ?categorie=
+        pour filtrer'
+      tags:
+      - jeux
+    post:
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/jeux.Jeu'
+      security:
+      - BearerAuth: []
+      summary: Ajouter un jeu (admin) — catégorie obligatoire
+      tags:
+      - jeux
+  /jeux/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Supprimer un jeu (admin)
+      tags:
+      - jeux
+    patch:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jeux.Jeu'
+      security:
+      - BearerAuth: []
+      summary: 'Modifier un jeu (admin) : nom, catégorie, statut'
+      tags:
+      - jeux
+  /litiges:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: 'Mes litiges (admin : ?tous=1 pour tous)'
+      tags:
+      - litiges
+  /litiges/{id}:
+    patch:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Décision arbitrale (admin) — règlement au gagnant ou remboursement
+        croisé (chaque mise rendue moins la commission)
+      tags:
+      - litiges
+  /matchs:
+    get:
+      parameters:
+      - description: en_cours | verification | litige | termine
+        in: query
+        name: statut
+        type: string
+      - description: 'Admin : 1 = tous les matchs, réponse paginée'
+        in: query
+        name: tous
+        type: integer
+      - description: 'Admin (?tous=1) : page, défaut 1'
+        in: query
+        name: page
+        type: integer
+      - description: 'Admin (?tous=1) : éléments par page, 1..100, défaut 10'
+        in: query
+        name: taille
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/matchs.MatchEnrichi'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 'Mes matchs (tableau, ?statut=en_cours|verification|litige|termine)
+        ; admin ?tous=1 : page utils.Page[MatchEnrichi] (10/page, ?page&taille)'
+      tags:
+      - matchs
+  /matchs/{id}:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Détail d'un match (libellés joueurs/jeu/plateforme + déclarations)
+      tags:
+      - matchs
+  /matchs/{id}/declaration:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Déclarer le score d'un match
+      tags:
+      - matchs
+  /matchs/{id}/litige:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Ouvrir un litige sur un match
+      tags:
+      - litiges
+  /matchs/{id}/preuves:
+    get:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Preuves d'un match
+      tags:
+      - preuves
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Envoyer une preuve de match (multipart → disque local)
+      tags:
+      - preuves
+  /matchs/{id}/validation:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Valider un match (admin) — déclenche le règlement de l'escrow
+      tags:
+      - matchs
+  /notifications:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/notifications.Notification'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Mes notifications
+      tags:
+      - notifications
+  /notifications/{id}/lue:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Marquer une notification comme lue
+      tags:
+      - notifications
+  /notifications/jeton-fcm:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Enregistrer le jeton FCM de l'appareil courant (push)
+      tags:
+      - notifications
+  /paiements:
+    get:
+      parameters:
+      - description: Page (défaut 1)
+        in: query
+        name: page
+        type: integer
+      - description: Éléments par page (1..100, défaut 10)
+        in: query
+        name: taille
+        type: integer
+      - description: depot | retrait
+        in: query
+        name: type
+        type: string
+      - description: en_attente | reussi | echoue | rembourse
+        in: query
+        name: statut
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Page-paiements_Paiement'
+      security:
+      - BearerAuth: []
+      summary: Suivi des paiements (admin) — paginé, 10 par page, plus récents d'abord
+      tags:
+      - paiements
+  /paiements/{id}/statut:
+    patch:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Validation/échec/remboursement manuel (admin)
+      tags:
+      - paiements
+  /paiements/callback-fusion:
+    post:
+      responses: {}
+      summary: Webhook MoneyFusion (public)
+      tags:
+      - paiements
+  /paiements/callback-ligdicash:
+    post:
+      responses: {}
+      summary: Webhook LigdiCash (public)
+      tags:
+      - paiements
+  /paiements/depot:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Dépôt via LigdiCash/MoneyFusion
+      tags:
+      - paiements
+  /paiements/retrait:
+    post:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Retrait vers Mobile Money
+      tags:
+      - paiements
+  /plateformes:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/plateformes.Plateforme'
+            type: array
+      summary: 'Catalogue des plateformes (public : actives ; admin : toutes) — ?famille=
+        pour filtrer'
+      tags:
+      - plateformes
+    post:
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/plateformes.Plateforme'
+      security:
+      - BearerAuth: []
+      summary: Ajouter une plateforme (admin) — famille obligatoire (pc, console,
+        mobile)
+      tags:
+      - plateformes
+  /plateformes/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+      security:
+      - BearerAuth: []
+      summary: Supprimer une plateforme (admin)
+      tags:
+      - plateformes
+    patch:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/plateformes.Plateforme'
+      security:
+      - BearerAuth: []
+      summary: 'Modifier une plateforme (admin) : nom, famille, statut'
+      tags:
+      - plateformes
+  /portefeuille:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/portefeuilles.Portefeuille'
+      security:
+      - BearerAuth: []
+      summary: Solde du portefeuille
+      tags:
+      - portefeuille
+  /portefeuille/transactions:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/portefeuilles.TransactionPortefeuille'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Historique des mouvements
+      tags:
+      - portefeuille
+  /preuves/{id}:
+    patch:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Valider/rejeter une preuve (admin)
+      tags:
+      - preuves
+  /preuves/{id}/fichier:
+    get:
+      responses: {}
+  /sante:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Vérification de disponibilité (Postgres + Redis)
+      tags:
+      - systeme
+  /utilisateurs:
+    get:
+      parameters:
+      - description: Page (défaut 1)
+        in: query
+        name: page
+        type: integer
+      - description: Éléments par page (1..100, défaut 10)
+        in: query
+        name: taille
+        type: integer
+      - description: Pseudo ou e-mail (recherche partielle)
+        in: query
+        name: recherche
+        type: string
+      - description: actif | suspendu | en_attente | supprime
+        in: query
+        name: statut
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utils.Page-auth_Utilisateur'
+      security:
+      - BearerAuth: []
+      summary: Liste des comptes (admin) — paginée, 10 par page, plus récents d'abord
+      tags:
+      - utilisateurs
+    post:
+      parameters:
+      - description: Compte à créer
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/utilisateurs.EntreeCreation'
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/auth.Utilisateur'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Créer un compte joueur (admin) — mêmes règles que l'inscription, portefeuille
+        créé, aucune session
+      tags:
+      - utilisateurs
+  /utilisateurs/{id}:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Suppression logique d'un compte (admin) — refusée (409) si de l'argent
+        ou un match est en jeu
+      tags:
+      - utilisateurs
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/utilisateurs.UtilisateurDetail'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 'Détail d''un compte (admin) : utilisateur + portefeuille { soldeDisponible,
+        soldeBloque }'
+      tags:
+      - utilisateurs
+    patch:
+      parameters:
+      - description: Champs à modifier (tous facultatifs)
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/utilisateurs.EntreeModification'
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.Utilisateur'
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 'Mettre à jour un compte (propriétaire : profil ; admin : tout, dont
+        email, statut, motDePasse)'
+      tags:
+      - utilisateurs
+  /utilisateurs/{id}/statut:
+    patch:
+      responses: {}
+      security:
+      - BearerAuth: []
+      summary: Activer / suspendre un compte (admin)
+      tags:
+      - utilisateurs
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

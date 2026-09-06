@@ -1,0 +1,277 @@
+package paiements
+
+import (
+	"encoding/json"
+
+	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
+	"gorm.io/gorm"
+	"quiperd/backend/administration"
+	"quiperd/backend/auth"
+	"quiperd/backend/config"
+	"quiperd/backend/portefeuilles"
+	"quiperd/backend/utils"
+)
+
+type entreeDepot struct {
+	Montant     decimal.Decimal `json:"montant"`
+	Prestataire string          `json:"prestataire" validate:"required,oneof=ligdicash fusionmoney"`
+	Numero      string          `json:"numero"`
+}
+
+// Depot godoc
+// @Summary Dépôt via LigdiCash/MoneyFusion
+// @Tags paiements
+// @Security BearerAuth
+// @Router /paiements/depot [post]
+func Depot(c fiber.Ctx) error {
+	userID := auth.UtilisateurIDDe(c)
+	var in entreeDepot
+	if err := c.Bind().Body(&in); err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
+	}
+	if d := utils.Valider(in); d != nil {
+		return utils.ErreurValidation(c, "validation échouée", d)
+	}
+	if in.Montant.LessThanOrEqual(decimal.Zero) {
+		return utils.Erreur(c, fiber.StatusBadRequest, "le montant doit être positif")
+	}
+	if !config.Cfg.PrestataireActif(in.Prestataire) {
+		return utils.Erreur(c, fiber.StatusBadRequest, "prestataire indisponible")
+	}
+	u, err := auth.TrouverUtilisateur(userID)
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusInternalServerError, "utilisateur introuvable")
+	}
+	p, urlPaiement, err := Deposer(userID, in.Montant, in.Prestataire, u.NomUtilisateur, u.Email, in.Numero)
+	if err != nil && p == nil {
+		return utils.Erreur(c, fiber.StatusBadGateway, "initiation du paiement impossible")
+	}
+	reponse := fiber.Map{"paiement": p}
+	if urlPaiement != "" {
+		reponse["urlPaiement"] = urlPaiement
+	} else {
+		reponse["message"] = "Paiement créé. En attente de confirmation du prestataire."
+	}
+	return utils.OK(c, reponse, fiber.StatusCreated)
+}
+
+type entreeRetrait struct {
+	Montant     decimal.Decimal `json:"montant"`
+	Prestataire string          `json:"prestataire" validate:"required,oneof=ligdicash fusionmoney"`
+	Numero      string          `json:"numero" validate:"required"`
+}
+
+// Retrait godoc
+// @Summary Retrait vers Mobile Money
+// @Tags paiements
+// @Security BearerAuth
+// @Router /paiements/retrait [post]
+func Retrait(c fiber.Ctx) error {
+	userID := auth.UtilisateurIDDe(c)
+	var in entreeRetrait
+	if err := c.Bind().Body(&in); err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
+	}
+	if d := utils.Valider(in); d != nil {
+		return utils.ErreurValidation(c, "validation échouée", d)
+	}
+	if in.Montant.LessThanOrEqual(decimal.Zero) {
+		return utils.Erreur(c, fiber.StatusBadRequest, "le montant doit être positif")
+	}
+	if !config.Cfg.PrestataireActif(in.Prestataire) {
+		return utils.Erreur(c, fiber.StatusBadRequest, "prestataire indisponible")
+	}
+	p, err := Retirer(userID, in.Montant, in.Prestataire, in.Numero)
+	if err == portefeuilles.ErrSoldeInsuffisant {
+		return utils.Erreur(c, fiber.StatusUnprocessableEntity, "solde disponible insuffisant")
+	}
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusInternalServerError, "demande de retrait impossible")
+	}
+	return utils.OK(c, p, fiber.StatusCreated)
+}
+
+// CallbackLigdicash godoc
+// @Summary Webhook LigdiCash (public)
+// @Tags paiements
+// @Router /paiements/callback-ligdicash [post]
+func CallbackLigdicash(c fiber.Ctx) error {
+	brut := string(c.Body())
+	// Journaliser le callback brut immédiatement (traçabilité litiges).
+	config.DB.Create(&PaiementEvenement{Prestataire: PrestataireLigdicash, Source: "callback", Corps: brut})
+
+	transactionID := extraireTransactionID(c, brut)
+	// Répondre 200 immédiatement ; traitement en arrière-plan (jamais de confirm bloquant ici).
+	if transactionID != "" {
+		go TraiterCallbackLigdicash(transactionID)
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+// CallbackFusion godoc
+// @Summary Webhook MoneyFusion (public)
+// @Tags paiements
+// @Router /paiements/callback-fusion [post]
+func CallbackFusion(c fiber.Ctx) error {
+	brut := string(c.Body())
+	config.DB.Create(&PaiementEvenement{Prestataire: PrestataireFusionMoney, Source: "callback", Corps: brut})
+
+	ref := extraireReferenceFusion(c, brut)
+	if ref != "" {
+		go TraiterCallbackFusion(ref)
+	}
+	return c.SendStatus(fiber.StatusOK)
+}
+
+type entreeStatut struct {
+	Statut string `json:"statut" validate:"required,oneof=reussi echoue rembourse"`
+}
+
+// ChangerStatut godoc
+// @Summary Validation/échec/remboursement manuel (admin)
+// @Tags paiements
+// @Security BearerAuth
+// @Router /paiements/{id}/statut [patch]
+func ChangerStatut(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "identifiant invalide")
+	}
+	adminID := auth.UtilisateurIDDe(c)
+	var in entreeStatut
+	if err := c.Bind().Body(&in); err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
+	}
+	if d := utils.Valider(in); d != nil {
+		return utils.ErreurValidation(c, "validation échouée", d)
+	}
+	var p Paiement
+	if err := config.DB.First(&p, "id = ?", id).Error; err != nil {
+		return utils.Erreur(c, fiber.StatusNotFound, "paiement introuvable")
+	}
+
+	// Dépôt validé manuellement → crédit idempotent.
+	if in.Statut == StatutReussi && p.Type == TypeDepot {
+		if err := AppliquerReussiteDepot(id, p.Montant, "validation_manuelle"); err != nil {
+			return utils.Erreur(c, fiber.StatusConflict, err.Error())
+		}
+		return utils.OK(c, fiber.Map{"statut": StatutReussi})
+	}
+
+	err = config.DB.Transaction(func(tx *gorm.DB) error {
+		switch {
+		case in.Statut == StatutReussi && p.Type == TypeRetrait && p.Statut == StatutEnAttente:
+			// Retrait effectué → les mouvements (retrait + frais) deviennent définitifs.
+			if err := portefeuilles.ValiderRetrait(tx, p.Reference); err != nil {
+				return err
+			}
+		case in.Statut == StatutEchoue && p.Type == TypeRetrait && p.Statut == StatutEnAttente:
+			// Retrait échoué → recréditer montant + frais réservés.
+			if err := portefeuilles.AnnulerRetrait(tx, p.UtilisateurID, p.Reference, p.Montant.Add(p.Frais)); err != nil {
+				return err
+			}
+		case in.Statut == StatutRembourse && p.Type == TypeDepot && p.Statut == StatutReussi:
+			// Remboursement d'un dépôt déjà crédité → débit inverse.
+			if err := portefeuilles.Debiter(tx, p.UtilisateurID, p.Montant, p.Reference+"-REVERSE", "Remboursement de dépôt"); err != nil {
+				return err
+			}
+		}
+		if err := tx.Model(&Paiement{}).Where("id = ?", id).Update("statut", in.Statut).Error; err != nil {
+			return err
+		}
+		administration.Journaliser(tx, administration.ParamsAudit{
+			AdministrateurID: &adminID, Action: "paiement:statut_" + in.Statut, TableCible: "paiements",
+			IdentifiantCible: &id,
+		})
+		return nil
+	})
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusInternalServerError, "mise à jour impossible")
+	}
+	return utils.OK(c, fiber.Map{"statut": in.Statut})
+}
+
+// Lister godoc
+// @Summary Suivi des paiements (admin) — paginé, 10 par page, plus récents d'abord
+// @Tags paiements
+// @Security BearerAuth
+// @Param page query int false "Page (défaut 1)"
+// @Param taille query int false "Éléments par page (1..100, défaut 10)"
+// @Param type query string false "depot | retrait"
+// @Param statut query string false "en_attente | reussi | echoue | rembourse"
+// @Success 200 {object} utils.Page[Paiement]
+// @Router /paiements [get]
+func Lister(c fiber.Ctx) error {
+	page, taille, offset := utils.Pagination(c)
+	q := config.DB.Model(&Paiement{})
+	if t := c.Query("type"); t != "" {
+		q = q.Where("type = ?", t)
+	}
+	if s := c.Query("statut"); s != "" {
+		q = q.Where("statut = ?", s)
+	}
+	q = q.Session(&gorm.Session{}) // base réutilisable : un COUNT puis un SELECT paginé
+	var total int64
+	if err := q.Count(&total).Error; err != nil {
+		return utils.Erreur(c, fiber.StatusInternalServerError, "lecture impossible")
+	}
+	liste := []Paiement{}
+	if err := q.Order("date_creation DESC").Limit(taille).Offset(offset).Find(&liste).Error; err != nil {
+		return utils.Erreur(c, fiber.StatusInternalServerError, "lecture impossible")
+	}
+	return utils.OK(c, utils.NouvellePage(liste, total, page, taille))
+}
+
+// extraireTransactionID cherche transaction_id dans le form (aplati) puis dans le JSON.
+func extraireTransactionID(c fiber.Ctx, brut string) string {
+	if v := c.FormValue("transaction_id"); v != "" {
+		return v
+	}
+	if v := c.FormValue("custom_data[transaction_id]"); v != "" {
+		return v
+	}
+	var corps struct {
+		TransactionID string `json:"transaction_id"`
+		CustomData    struct {
+			TransactionID string `json:"transaction_id"`
+		} `json:"custom_data"`
+	}
+	if err := json.Unmarshal([]byte(brut), &corps); err == nil {
+		if corps.CustomData.TransactionID != "" {
+			return corps.CustomData.TransactionID
+		}
+		return corps.TransactionID
+	}
+	return ""
+}
+
+// extraireReferenceFusion cherche notre référence dans personal_Info.
+func extraireReferenceFusion(c fiber.Ctx, brut string) string {
+	var corps struct {
+		PersonalInfo []struct {
+			Reference string `json:"reference"`
+		} `json:"personal_Info"`
+	}
+	if err := json.Unmarshal([]byte(brut), &corps); err == nil && len(corps.PersonalInfo) > 0 {
+		return corps.PersonalInfo[0].Reference
+	}
+	if v := c.FormValue("personal_Info[0][reference]"); v != "" {
+		return v
+	}
+	return ""
+}
+
+// Enregistrer monte les routes des paiements.
+func Enregistrer(api fiber.Router) {
+	// Webhooks publics (aucune authentification, réponse 200 immédiate).
+	api.Post("/paiements/callback-ligdicash", CallbackLigdicash)
+	api.Post("/paiements/callback-fusion", CallbackFusion)
+
+	grp := api.Group("/paiements", auth.Connecte())
+	grp.Post("/depot", Depot)
+	grp.Post("/retrait", Retrait)
+	grp.Get("/", auth.AdminSeul(), Lister)
+	grp.Patch("/:id/statut", auth.AdminSeul(), ChangerStatut)
+}

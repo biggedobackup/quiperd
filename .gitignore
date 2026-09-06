@@ -1,0 +1,57 @@
+# QUI PERD — dépôt unique : backend (Go), frontend (TanStack Start), mobile (Flutter), skills (.agent).
+# Chaque sous-projet garde aussi son propre .gitignore ; les règles ci-dessous s'appliquent à tout le dépôt.
+
+# Secrets et configuration locale (les .env.example sont versionnés)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Backend Go
+backend/quiperd-backend
+backend/quiperd-backend.exe
+backend/*.exe
+backend/public/preuves/
+backend/tests/tmp/
+backend/tmp/
+
+# Frontend (bun / Vite / TanStack Start)
+frontend/node_modules/
+frontend/.output/
+frontend/.nitro/
+frontend/.tanstack/
+frontend/.vite/
+frontend/dist/
+frontend/coverage/
+
+# Mobile (Flutter)
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/.idea/
+mobile/*.iml
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/key.properties
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/ephemeral/
+mobile/ios/Runner.xcworkspace/xcuserdata/
+
+# Journaux, caches, systèmes, outils locaux
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+*.zip

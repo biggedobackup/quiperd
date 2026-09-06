@@ -1,0 +1,7 @@
+.env
+*.env.local
+public/preuves/
+tmp/
+*.log
+quiperd-backend
+quiperd-backend.exe
