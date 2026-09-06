@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fasthttp/websocket"
@@ -116,13 +117,20 @@ func servir(conn *websocket.Conn, ticket, adresseIP string) {
 
 	c := nouvelleConnexion(utilisateurID, role, adresseIP)
 	hub.enregistrer(c)
-
-	// Ordre de démontage : signal de fermeture → sortie du hub → socket réseau.
-	defer conn.Close()
 	defer hub.retirer(c)
-	defer c.fermer()
 
-	go c.pompeEcriture(conn)
+	// La pompe d'écriture est LANCÉE puis ATTENDUE explicitement ici : c'est elle qui
+	// possède les écritures du socket et qui ferme la connexion réseau. `servir` ne doit
+	// PAS rendre la main tant qu'elle tourne encore : dès le retour du handler, fasthttp
+	// recycle la connexion hijackée (l'interface `net.Conn` embarquée du hijackConn
+	// redevient nil) et toute écriture résiduelle déclencherait un SIGSEGV au lieu d'un
+	// simple échec d'écriture réseau.
+	var pompeWg sync.WaitGroup
+	pompeWg.Add(1)
+	go func() {
+		defer pompeWg.Done()
+		c.pompeEcriture(conn)
+	}()
 
 	if raisonRefus != "" {
 		// Le client sait ainsi qu'il doit redemander un ticket : il n'est pas
@@ -132,6 +140,11 @@ func servir(conn *websocket.Conn, ticket, adresseIP string) {
 	c.envoyerEvenement(EvtConnexionPrete, "", chargeConnexionPrete(c))
 
 	c.pompeLecture(conn)
+
+	// Fin de vie : fermer la connexion (le canal `ferme` réveille la pompe, qui envoie le
+	// close WebSocket puis referme la socket), puis attendre qu'elle soit réellement sortie.
+	c.fermer()
+	pompeWg.Wait()
 }
 
 func chargeConnexionPrete(c *Connexion) map[string]any {
@@ -148,6 +161,14 @@ func chargeConnexionPrete(c *Connexion) map[string]any {
 // pompeEcriture est la SEULE goroutine qui écrit sur le socket : c'est ce qui
 // rend les écritures sûres sans verrou sur la connexion réseau.
 func (c *Connexion) pompeEcriture(conn *websocket.Conn) {
+	// Défense en profondeur : cette goroutine est détachée, une panique du transport
+	// (bibliothèque websocket) ne doit JAMAIS abattre tout le backend. On la journalise.
+	defer func() {
+		if r := recover(); r != nil {
+			journaliser("temps réel: panique récupérée dans la pompe d'écriture",
+				zap.String("connexion", c.ID), zap.Any("panique", r))
+		}
+	}()
 	minuteur := time.NewTicker(intervallePing)
 	defer func() {
 		minuteur.Stop()
