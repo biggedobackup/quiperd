@@ -1,0 +1,14 @@
+# Jamais dans l'image : dépendances locales, sorties de build, secrets, journaux.
+node_modules/
+.output/
+.nitro/
+.tanstack/
+.vite/
+dist/
+coverage/
+.env
+.env.*
+!.env.example
+*.log
+Dockerfile
+.dockerignore

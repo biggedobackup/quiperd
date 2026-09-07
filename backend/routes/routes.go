@@ -6,6 +6,7 @@ import (
 	"github.com/swaggo/swag"
 	"quiperd/backend/administration"
 	"quiperd/backend/auth"
+	"quiperd/backend/classement"
 	"quiperd/backend/comptes_gamers"
 	"quiperd/backend/config"
 	"quiperd/backend/contact"
@@ -43,6 +44,7 @@ func Enregistrer(app *fiber.App) {
 	plateformes.Enregistrer(api)
 	defis.Enregistrer(api)
 	matchs.Enregistrer(api)
+	classement.Enregistrer(api)
 	preuves.Enregistrer(api)
 	litiges.Enregistrer(api)
 	portefeuilles.Enregistrer(api)

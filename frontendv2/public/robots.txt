@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /joueur/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: /sitemap.xml
