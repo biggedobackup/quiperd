@@ -63,7 +63,24 @@ func Migrer() error {
 	if err := indexComposites(); err != nil {
 		return err
 	}
+	if err := retirerAvecScore(); err != nil {
+		return err
+	}
 	return finaliserManches()
+}
+
+// retirerAvecScore supprime la colonne `jeux.avec_score`, restée sur les bases de
+// développement qui ont fait tourner la version à deux modes de déclaration.
+//
+// Un match ne se déclare plus qu'en désignant le vainqueur, quel que soit le jeu : la
+// colonne ne pilote plus rien et AutoMigrate ne sait pas retirer un champ disparu du
+// modèle. On la retire donc explicitement, une fois, et l'appel devient sans effet ensuite.
+func retirerAvecScore() error {
+	m := config.DB.Migrator()
+	if !m.HasColumn(&jeux.Jeu{}, "avec_score") {
+		return nil
+	}
+	return m.DropColumn(&jeux.Jeu{}, "avec_score")
 }
 
 // indexComposites ajoute les index que les modèles ne savent pas exprimer : ceux

@@ -100,7 +100,7 @@ const Map<String, String> typesNotification = {
   'defi_rejoint': 'Défi accepté',
   'defi_expire': 'Défi expiré',
   'match_a_valider': 'Match à valider',
-  'match_score': 'Score à confirmer',
+  'match_score': 'Résultat à confirmer',
   'match_desaccord': 'Déclarations divergentes',
   'match_nul': 'Match nul',
   'match_rejoue': 'Nouvelle manche',

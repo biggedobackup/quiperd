@@ -270,7 +270,7 @@ function DetailDefi() {
       >
         <p>
           <strong className="chiffres">{formatMontant(mise)}</strong> seront immédiatement bloqués sur votre portefeuille. Le match contre{' '}
-          <strong>{defi.createurNom}</strong> commence aussitôt : jouez, puis déclarez le score et envoyez vos preuves.
+          <strong>{defi.createurNom}</strong> commence aussitôt : jouez, puis déclarez le résultat et envoyez vos preuves.
         </p>
         <p className="text-legende text-muet">Si les déclarations concordent et que les preuves sont validées, le gagnant reçoit {formatMontant(gainEstime)} (estimation).</p>
       </ConfirmModal>

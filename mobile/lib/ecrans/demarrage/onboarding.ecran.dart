@@ -40,7 +40,7 @@ class _OnboardingEcranState extends State<OnboardingEcran> {
     ),
     (
       titre: 'Le gagnant remporte tout',
-      texte: 'Vous déclarez le score chacun de votre côté. '
+      texte: 'Vous déclarez le résultat chacun de votre côté. '
           'Deux déclarations identiques règlent le match immédiatement.',
       icone: Icons.emoji_events_outlined,
     ),

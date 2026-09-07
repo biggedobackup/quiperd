@@ -105,7 +105,10 @@ func Semer(log *zap.Logger) error {
 		var j jeux.Jeu
 		err := config.DB.Where("nom = ?", s.Nom).First(&j).Error
 		if err != nil {
-			config.DB.Create(&jeux.Jeu{Nom: s.Nom, Categorie: s.Categorie, Statut: "actif"})
+			config.DB.Create(&jeux.Jeu{
+				Nom: s.Nom, Categorie: s.Categorie,
+				Statut: "actif",
+			})
 			continue
 		}
 		if j.Categorie == "" {

@@ -5,7 +5,7 @@ export interface ResultatDeclare {
   matchId: string
   utilisateurId: string
   /**
-   * Manche déclarée. Après un « rejouer », chaque joueur redéclare le score de la nouvelle
+   * Manche déclarée. Après un « rejouer », chaque joueur redéclare le résultat de la nouvelle
    * manche : l'historique des manches précédentes est conservé. Absent des lignes créées
    * avant l'introduction du rejeu — lire `declaration.manche ?? 1`.
    */

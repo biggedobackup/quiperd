@@ -117,7 +117,7 @@ function DetailLitige() {
           {litige.dateResolution && <span className="chiffres text-legende text-muet">résolu le {formatDateHeure(litige.dateResolution)}</span>}
         </div>
         <blockquote className="rounded-xl border-l-4 border-perte bg-papier px-4 py-3 text-corps shadow-carte">« {litige.motif} »</blockquote>
-        <TableauScore joueur1={match.joueur1Nom} joueur2={match.joueur2Nom} score1={match.scoreJoueur1 ?? null} score2={match.scoreJoueur2 ?? null} gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null} etiquette="Scores enregistrés" sousTitre="Chaque joueur a déclaré de son point de vue" />
+        <TableauScore joueur1={match.joueur1Nom} joueur2={match.joueur2Nom} score1={match.scoreJoueur1 ?? null} score2={match.scoreJoueur2 ?? null} gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null} etiquette="Issue enregistrée" sousTitre="Chaque joueur a déclaré de son point de vue" />
         <section className="rounded-2xl border border-trait bg-papier p-5 shadow-carte">
           <h3 className="text-h3">Déclarations</h3>
           {data.declarations.length === 0 ? (
@@ -127,7 +127,10 @@ function DetailLitige() {
               {data.declarations.map((d) => (
                 <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-legende">
                   <span>
-                    <strong>{nomDe(d.utilisateurId)}</strong> : <span className="chiffres font-bold">{d.scorePour} — {d.scoreContre}</span> · gagnant déclaré {d.gagnantDeclareId ? nomDe(d.gagnantDeclareId) : 'nul'}
+                    <strong>{nomDe(d.utilisateurId)}</strong> :{' '}
+                    <span className="font-bold">
+                      {d.scorePour === d.scoreContre ? 'match nul' : d.scorePour > d.scoreContre ? 'se déclare vainqueur' : 'se déclare battu'}
+                    </span>{' '}· gagnant déclaré {d.gagnantDeclareId ? nomDe(d.gagnantDeclareId) : 'nul'}
                     {d.commentaire && <span className="text-muet"> · « {d.commentaire} »</span>}
                   </span>
                   <span className="chiffres text-[12px] text-muet">{formatDateHeure(d.dateDeclaration)}</span>

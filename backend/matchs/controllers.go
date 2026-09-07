@@ -68,14 +68,36 @@ func Detail(c fiber.Ctx) error {
 	return utils.OK(c, fiber.Map{"match": m, "declarations": decls, "choixNuls": choix})
 }
 
+// entreeDeclaration : une déclaration de fin de match, la même pour TOUS les jeux.
+//
+// Le joueur désigne l'issue — `gagne`, `perdu` ou `nul` — et rien d'autre. Un score chiffré
+// n'aurait de sens que sur une partie du catalogue (un combat, une course ou une partie de
+// cartes n'en produit pas), et le demander obligeait le joueur à inventer un « 1-0 » ; une
+// forme unique évite au passage d'avoir à deviner, écran par écran, ce que le jeu attend.
+// Qui tient à noter le score de sa partie l'écrit dans le commentaire libre.
 type entreeDeclaration struct {
-	ScorePour   int    `json:"scorePour" validate:"gte=0"`
-	ScoreContre int    `json:"scoreContre" validate:"gte=0"`
+	Resultat    string `json:"resultat" validate:"required,oneof=gagne perdu nul"`
 	Commentaire string `json:"commentaire"`
 }
 
+// scores traduit l'issue déclarée en couple (pour, contre).
+//
+// Toute la machine à états — concordance, confirmation en miroir, match nul — continue de
+// raisonner sur des nombres ; un seul endroit connaît la traduction. Ces 1-0 / 0-1 / 0-0 sont
+// une convention interne : aucun écran, aucune notification ne les montre au joueur.
+func (in entreeDeclaration) scores() (pour, contre int) {
+	switch in.Resultat {
+	case "gagne":
+		return 1, 0
+	case "perdu":
+		return 0, 1
+	default:
+		return 0, 0
+	}
+}
+
 // Declarer godoc
-// @Summary Déclarer le score d'un match (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)
+// @Summary Déclarer l'issue d'un match — gagne, perdu ou nul (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)
 // @Tags matchs
 // @Security BearerAuth
 // @Router /matchs/{id}/declaration [post]
@@ -92,8 +114,10 @@ func Declarer(c fiber.Ctx) error {
 	if d := utils.Valider(in); d != nil {
 		return utils.ErreurValidation(c, "validation échouée", d)
 	}
+	pour, contre := in.scores()
+
 	return executerSurMatch(c, id, func(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) error {
-		return EnregistrerDeclaration(tx, tampon, m, userID, in.ScorePour, in.ScoreContre, in.Commentaire)
+		return EnregistrerDeclaration(tx, tampon, m, userID, pour, contre, in.Commentaire)
 	})
 }
 

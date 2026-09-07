@@ -85,12 +85,19 @@ export interface DetailMatch {
   choixNuls?: ChoixNulMatch[]
 }
 
-/** Corps de `POST /api/matchs/:id/declaration`. */
+
+/**
+ * Corps de `POST /matchs/:id/declaration`. Une seule forme, pour tous les jeux : le joueur
+ * désigne l'issue de sa partie. Aucun score chiffré n'est demandé nulle part — qui tient à
+ * noter le sien l'écrit dans le commentaire libre.
+ */
 export interface Declaration {
-  scorePour: number
-  scoreContre: number
+  resultat: ResultatDeclarable
   commentaire?: string
 }
+
+/** Issue d'un match, du point de vue du déclarant. */
+export type ResultatDeclarable = 'gagne' | 'perdu' | 'nul'
 
 /** Numéro de manche d'une ligne (match, déclaration, choix) — 1 par défaut. */
 export function numeroManche(valeur: { manche?: number } | null | undefined): number {

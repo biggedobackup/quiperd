@@ -11,10 +11,10 @@ import '../../composants/communs/message.dart';
 import '../../composants/communs/squelette.dart';
 import '../../composants/joueur/avatar_joueur.dart';
 import '../../composants/joueur/chronologie_match.dart';
-import '../../composants/joueur/confirmation_score.dart';
+import '../../composants/joueur/confirmation_resultat.dart';
 import '../../composants/joueur/envoi_preuve.dart';
 import '../../composants/joueur/feuilles/choix_nul.feuille.dart';
-import '../../composants/joueur/feuilles/declaration_score.feuille.dart';
+import '../../composants/joueur/feuilles/declaration_resultat.feuille.dart';
 import '../../composants/joueur/feuilles/litige.feuille.dart';
 import '../../composants/joueur/lecteur_preuve.dart';
 import '../../composants/joueur/panneaux_match.dart';
@@ -163,7 +163,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
         // reste UN appel provoqué par un événement, jamais une boucle.
         _charger(silencieux: true);
         if ('${e.charge['declarant']}' != moi && mounted) {
-          Message.info(context, 'Score proposé', 'Votre adversaire a déclaré le résultat.');
+          Message.info(context, 'Résultat proposé', 'Votre adversaire a déclaré le résultat.');
         }
 
       case Evenements.matchScoreConfirme:
@@ -256,26 +256,18 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     final moi = context.read<SessionEtat>().utilisateur?.id ?? '';
     if (detail == null) return;
 
-    final adverse = detail.declarationsCourantes
-        .where((d) => d.utilisateurId != moi)
-        .firstOrNull;
-
-    final saisie = await ouvrirDeclarationScore(
+    final saisie = await ouvrirDeclarationResultat(
       context,
-      nomMoi: detail.match.nomDe(moi),
       nomAdversaire: detail.match.nomAdversaireDe(moi),
       manche: detail.match.manche,
       contreProposition: contreProposition,
-      scoreInitialPour: adverse?.scoreContre ?? 0,
-      scoreInitialContre: adverse?.scorePour ?? 0,
     );
     if (saisie == null || !mounted) return;
 
     setState(() => _action = true);
     final r = await MatchsService.declarer(
       widget.matchId,
-      scorePour: saisie.scorePour,
-      scoreContre: saisie.scoreContre,
+      resultat: saisie.resultat,
       commentaire: saisie.commentaire,
     );
     if (!mounted) return;
@@ -287,7 +279,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
       _charger(silencieux: true);
       return;
     }
-    Message.succes(context, 'Score déclaré', 'En attente de votre adversaire.');
+    Message.succes(context, 'Résultat déclaré', 'En attente de votre adversaire.');
     _charger(silencieux: true);
   }
 
@@ -304,7 +296,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
       _charger(silencieux: true);
       return;
     }
-    Message.succes(context, 'Score confirmé', 'Le règlement vient d’être effectué.');
+    Message.succes(context, 'Résultat confirmé', 'Le règlement vient d’être effectué.');
     context.read<PortefeuilleEtat>().charger(avecTransactions: false);
     _charger(silencieux: true);
   }
@@ -452,7 +444,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
 
           // ── Bloc d'action prioritaire : toujours en haut de l'écran ──────────
           if (aConfirmer) ...[
-            ConfirmationScore(
+            ConfirmationResultat(
               nomMoi: nomMoi,
               nomAdversaire: nomAdversaire,
               scoreMoi: declarationAdverse.scoreContre,
@@ -520,15 +512,15 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
             const SizedBox(height: 20),
           ],
 
-          // ── Tableau de score ────────────────────────────────────────────────
+          // ── Tableau d'affichage ─────────────────────────────────────────────
           TableauScore(
             joueur1: match.joueur1Nom,
             joueur2: match.joueur2Nom,
             // Tant qu'aucun gagnant n'est désigné, le backend garde la DERNIÈRE
             // déclaration reçue dans `scoreJoueur1/2` — y compris quand les deux
             // joueurs se contredisent. L'afficher en grand ferait passer la
-            // version de l'adversaire pour le score du match : on ne montre donc
-            // un score que lorsque la plateforme a tranché.
+            // version de l'adversaire pour l'issue du match : on ne montre donc
+            // une issue que lorsque la plateforme a tranché.
             score1: match.gagnantId == null ? null : match.scoreJoueur1,
             score2: match.gagnantId == null ? null : match.scoreJoueur2,
             gagnant: match.gagnantId == null
@@ -536,7 +528,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
                 : (match.gagnantId == match.joueur1Id ? 1 : 2),
             etiquette: match.manche > 1
                 ? 'Manche ${match.manche}'
-                : (statut == 'termine' ? 'Score final' : 'Match'),
+                : (statut == 'termine' ? 'Résultat final' : 'Match'),
             sousTitre: _sousTitreScore(statut, gagne),
             enDirect: statut == 'en_cours',
           ),
@@ -617,7 +609,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
                 if (peutDeclarer && !aConfirmer) ...[
                   const SizedBox(height: 16),
                   Bouton(
-                    libelle: 'Déclarer le score',
+                    libelle: 'Déclarer le résultat',
                     bloc: true,
                     taille: TailleBouton.lg,
                     variante: VarianteBouton.volt,
@@ -734,19 +726,20 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     required bool aConfirmer,
     required String nomAdversaire,
   }) {
+    // Le joueur désigne l'issue, jamais un score : le vocabulaire de l'écran suit.
     return switch (statut) {
       'en_cours' when aConfirmer => [
           (fait: true, texte: 'Le match a été joué.'),
-          (fait: true, texte: '$nomAdversaire a déclaré le score.'),
-          (fait: false, texte: 'Confirmez ce score, ou proposez-en un autre.'),
+          (fait: true, texte: '$nomAdversaire a déclaré le résultat.'),
+          (fait: false, texte: 'Confirmez ce résultat, ou annoncez l’inverse.'),
         ],
       'en_cours' => [
           (fait: true, texte: 'Le match a été joué sur le jeu et la plateforme du défi.'),
-          (fait: aDeclare, texte: 'Déclarez le score de votre côté.'),
+          (fait: aDeclare, texte: 'Déclarez le résultat de votre côté.'),
           (
             fait: false,
             texte: aDeclare
-                ? '$nomAdversaire confirme ou propose un autre score.'
+                ? '$nomAdversaire confirme ou annonce l’inverse.'
                 : 'Les deux déclarations identiques règlent le match immédiatement.'
           ),
         ],
@@ -817,10 +810,16 @@ class _LigneDeclaration extends StatelessWidget {
               ],
             ),
           ),
+          // Les 1-0 / 0-1 rangés en base sont une convention interne du moteur de règlement.
+          // Les afficher montrerait au joueur un chiffre que personne n'a saisi.
           if (d != null)
             Text(
-              '${d.scorePour} — ${d.scoreContre}',
-              style: Typo.chiffres(taille: 18, poids: 700, couleur: Couleurs.vert),
+              d.scorePour == d.scoreContre
+                  ? 'Nul'
+                  : d.scorePour > d.scoreContre
+                      ? 'Vainqueur'
+                      : 'Battu',
+              style: Typo.legendeForte.copyWith(color: Couleurs.vert),
             ),
         ],
       ),

@@ -63,7 +63,7 @@ export function ChronologieMatch({ statut }: { statut: StatutMatch }) {
     {
       cle: 'jouer',
       libelle: 'Jouer et déclarer',
-      description: 'Jouez le match, puis déclarez le score exact.',
+      description: 'Jouez le match, puis déclarez qui l’emporte.',
       icone: icone.match,
       ton: 'attente' as const,
     },
@@ -72,7 +72,7 @@ export function ChronologieMatch({ statut }: { statut: StatutMatch }) {
       : {
           cle: 'issue',
           libelle: 'Accord des deux joueurs',
-          description: 'Votre adversaire confirme le score (ou propose le sien).',
+          description: 'Votre adversaire confirme le résultat (ou annonce l’inverse).',
           icone: icone.poigneeDeMain,
           ton: 'attente' as const,
         },

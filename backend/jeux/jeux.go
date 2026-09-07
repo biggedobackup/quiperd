@@ -29,7 +29,8 @@ type Jeu struct {
 	utils.ModeleBase
 	Nom       string `gorm:"type:varchar(100);uniqueIndex" json:"nom"`
 	Categorie string `gorm:"type:varchar(50);index;default:'sport'" json:"categorie"`
-	Statut    string `gorm:"type:varchar(20);default:'actif'" json:"statut"`
+
+	Statut string `gorm:"type:varchar(20);default:'actif'" json:"statut"`
 }
 
 func (Jeu) TableName() string { return "jeux" }

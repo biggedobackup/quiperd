@@ -3,10 +3,14 @@ import { icone } from '@/lib/icones'
 import { Button } from '@/components/partages/button/button'
 import { CompteARebours } from './compte-a-rebours'
 
-export interface ProprietesConfirmationScore {
+export interface ProprietesConfirmationResultat {
   nomMoi: string
   nomAdversaire: string
-  /** Score annoncé pour MOI par l'adversaire (déjà retourné de son point de vue au mien). */
+  /**
+   * Issue annoncée pour MOI par l'adversaire, déjà retournée de son point de vue au mien.
+   * Le serveur range l'issue en 1-0 / 0-1 / 0-0 : ces nombres sont une convention interne
+   * du moteur de règlement, jamais montrés — on en déduit une victoire, une défaite ou un nul.
+   */
   scoreMoi: number
   scoreAdversaire: number
   /** Échéance de confirmation posée par le serveur (ISO). */
@@ -19,13 +23,13 @@ export interface ProprietesConfirmationScore {
 }
 
 /**
- * Bloc de confirmation rapide : l'adversaire a déclaré, je confirme d'un geste ou je propose
- * un autre score. Confirmer suffit à tout régler — aucune preuve, aucun arbitre.
+ * Bloc de confirmation rapide : l'adversaire a déclaré, je confirme d'un geste ou j'annonce
+ * l'inverse. Confirmer suffit à tout régler — aucune preuve, aucun arbitre.
  *
  * Mobile d'abord : les deux actions sont en bas du bloc, pleine largeur, 56 px de haut
- * (atteignables au pouce), et le score reste lisible sans zoom sur 375 px.
+ * (atteignables au pouce), et le nom du vainqueur reste lisible sans zoom sur 375 px.
  */
-export function ConfirmationScore({
+export function ConfirmationResultat({
   nomMoi,
   nomAdversaire,
   scoreMoi,
@@ -35,7 +39,10 @@ export function ConfirmationScore({
   onProposer,
   chargement = false,
   surFinChrono,
-}: ProprietesConfirmationScore) {
+}: ProprietesConfirmationResultat) {
+  const jeGagne = scoreMoi > scoreAdversaire
+  const nul = scoreMoi === scoreAdversaire
+  const issue = nul ? 'un match nul' : jeGagne ? 'votre victoire' : 'sa victoire'
   return (
     <section
       aria-labelledby="titre-confirmation"
@@ -44,28 +51,27 @@ export function ConfirmationScore({
       <div className="flex flex-wrap items-center justify-between gap-2 bg-vert px-4 py-2.5 text-craie">
         <span className="etiquette flex items-center gap-2">
           <FontAwesomeIcon icon={icone.attention} aria-hidden="true" />
-          Score à confirmer
+          Résultat à confirmer
         </span>
         <CompteARebours echeance={echeance} libelle="Il reste" ton="neutre" surFin={surFinChrono} />
       </div>
 
       <div className="px-4 py-5 sm:px-6">
         <h3 id="titre-confirmation" className="text-h3">
-          <span className="font-bold">{nomAdversaire}</span> déclare ce score
+          <span className="font-bold">{nomAdversaire}</span> déclare {issue}
         </h3>
 
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-3 rounded-2xl bg-encre px-4 py-4 text-craie">
-          <ColonneScore nom={`${nomMoi} (vous)`} score={scoreMoi} alignement="left" />
-          <span className="chiffres pt-1 text-h2 text-craie/40" aria-hidden="true">
-            —
-          </span>
-          <ColonneScore nom={nomAdversaire} score={scoreAdversaire} alignement="right" />
+        <div className="mt-4 rounded-2xl bg-encre px-4 py-5 text-center text-craie">
+          <p className="etiquette text-craie/60">{nul ? 'Résultat déclaré' : 'Vainqueur déclaré'}</p>
+          <p className="mt-2 font-titre text-h2 uppercase text-volt">
+            {nul ? 'Match nul' : jeGagne ? `${nomMoi} (vous)` : nomAdversaire}
+          </p>
         </div>
 
         <p className="mt-4 text-legende">
-          Si c’est bien le résultat, confirmez : le match est <strong>réglé immédiatement</strong>, l’argent est versé,
-          sans preuve ni arbitre. Si ce n’est pas le bon score, proposez le vôtre — une divergence fera basculer le
-          match en preuve exigée.
+          Si c’est bien l’issue de la partie, confirmez : le match est <strong>réglé immédiatement</strong>, l’argent est
+          versé, sans preuve ni arbitre. Sinon, annoncez l’inverse — une divergence fera basculer le match en preuve
+          exigée.
         </p>
 
         {/* Actions en bas de bloc, pleine largeur en mobile : atteignables au pouce. */}
@@ -79,7 +85,7 @@ export function ConfirmationScore({
             chargement={chargement}
             iconeDebut={icone.valider}
           >
-            Confirmer {scoreMoi} — {scoreAdversaire}
+            {nul ? 'Confirmer le match nul' : jeGagne ? 'Confirmer : j’ai gagné' : 'Confirmer : j’ai perdu'}
           </Button>
           <Button
             variante="secondaire"
@@ -90,24 +96,15 @@ export function ConfirmationScore({
             disabled={chargement}
             iconeDebut={icone.modifier}
           >
-            Proposer un autre score
+            Déclarer un autre résultat
           </Button>
         </div>
 
         <p className="mt-3 flex items-start gap-2 text-[12px] text-muet">
           <FontAwesomeIcon icon={icone.info} className="mt-0.5 shrink-0" aria-hidden="true" />
-          <span>Sans réponse de votre part avant la fin du compte à rebours, le score déclaré fera foi.</span>
+          <span>Sans réponse de votre part avant la fin du compte à rebours, le résultat déclaré fera foi.</span>
         </p>
       </div>
     </section>
-  )
-}
-
-function ColonneScore({ nom, score, alignement }: { nom: string; score: number; alignement: 'left' | 'right' }) {
-  return (
-    <div className={`min-w-0 ${alignement === 'right' ? 'text-right' : 'text-left'}`}>
-      <p className="chiffres text-display-sm font-bold leading-none">{score}</p>
-      <p className="mt-2 truncate font-titre text-[11px] uppercase text-craie/70">{nom}</p>
-    </div>
   )
 }

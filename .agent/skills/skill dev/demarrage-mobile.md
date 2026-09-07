@@ -168,7 +168,7 @@ lancement) et déclarés dans `pubspec.yaml`. Les graisses se demandent par `fon
   sections principales — les mêmes que la barre basse du web (§3.1).
 - **Tiroir latéral** (`Drawer`) pour les écrans secondaires et les pages légales.
 - **Feuilles inférieures** (`showModalBottomSheet`) plutôt que des boîtes de dialogue centrées
-  pour toute saisie : déclaration de score, choix après un nul, ouverture de litige, dépôt,
+  pour toute saisie : déclaration du résultat, choix après un nul, ouverture de litige, dépôt,
   retrait. Le pouce atteint le bas de l'écran, pas le milieu.
 - **Cibles tactiles ≥ 48 px** (Material) — et jamais moins de 44 px, y compris pour les icônes
   d'action et les puces de filtre.
@@ -1034,7 +1034,7 @@ Un écran n'est pas terminé parce qu'il compile. Dans l'ordre, et à 100 % :
    toucher** : premier lancement et onboarding · inscription · confirmation de l'e-mail (code,
    renvoi, essais épuisés) · connexion · mot de passe oublié · dépôt Mobile Money et retour dans
    l'application · création d'un défi · annulation d'un défi · **un second compte** qui rejoint ·
-   déclaration de score des deux côtés (accord immédiat) · déclaration divergente → preuve des
+   déclaration du résultat des deux côtés (accord immédiat) · déclaration divergente → preuve des
    deux côtés → litige · match nul → rejouer, puis match nul → partager · échéance dépassée
    (abandon) · retrait · notifications · classement · profil et comptes gamers · formulaire de
    contact · déconnexion.

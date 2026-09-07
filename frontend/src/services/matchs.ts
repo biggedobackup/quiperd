@@ -1,5 +1,5 @@
 /**
- * Module `matchs` — mes matchs, détail, déclaration de score, confirmation du score adverse,
+ * Module `matchs` — mes matchs, détail, déclaration du résultat, confirmation du résultat adverse,
  * choix après un match nul, validation (admin), litige.
  */
 import { createServerFn } from '@tanstack/react-start'
@@ -47,7 +47,7 @@ export const declarerScore = createServerFn({ method: 'POST' })
   })
 
 /**
- * `POST /api/matchs/:id/confirmation` — le second joueur accepte le score proposé par son
+ * `POST /api/matchs/:id/confirmation` — le second joueur accepte le résultat annoncé par son
  * adversaire. Aucun chiffre n'est envoyé : le serveur écrit lui-même la déclaration miroir,
  * puis règle le match immédiatement (aucune preuve, aucun arbitre, quel que soit le montant).
  */

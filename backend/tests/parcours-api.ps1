@@ -716,13 +716,13 @@ Check 'GET /matchs/:id participant -> 200 {match, declarations, choixNuls}' ($r.
 Check 'match neuf: manche 1, aucun chrono, aucun score, aucune déclaration' ($r.Body.match.manche -eq 1 -and -not $r.Body.match.echeanceType -and -not $r.Body.match.echeance -and $null -eq $r.Body.match.scoreJoueur1 -and @($r.Body.declarations).Count -eq 0) ("manche=" + $r.Body.match.manche)
 $r = Api GET "/matchs/$MATCH1" -Token $TADM
 Check 'GET /matchs/:id admin -> 200' ($r.Status -eq 200)
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = -1; scoreContre = 0 } -Token $TK
-Check 'POST déclaration score négatif -> 400' ($r.Status -eq 400)
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = 3; scoreContre = 1 } -Token $TA
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'nimporte' } -Token $TK
+Check 'POST déclaration issue hors gagne/perdu/nul -> 400' ($r.Status -eq 400) $r.Raw
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'gagne' } -Token $TA
 Check 'POST déclaration par non participant -> 403' ($r.Status -eq 403)
-$r = Api POST "/matchs/$([guid]::NewGuid())/declaration" @{ scorePour = 3; scoreContre = 1 } -Token $TA
+$r = Api POST "/matchs/$([guid]::NewGuid())/declaration" @{ resultat = 'gagne' } -Token $TA
 Check 'POST déclaration match inexistant -> 404' ($r.Status -eq 404) $r.Raw
-$r = Api POST '/matchs/pas-un-uuid/declaration' @{ scorePour = 1; scoreContre = 0 } -Token $TK
+$r = Api POST '/matchs/pas-un-uuid/declaration' @{ resultat = 'gagne' } -Token $TK
 Check 'POST déclaration identifiant mal formé -> 400' ($r.Status -eq 400) $r.Raw
 $r = Api POST "/matchs/$([guid]::NewGuid())/validation" -Token $TADM
 Check 'POST validation match inexistant -> 404' ($r.Status -eq 404) $r.Raw
@@ -736,22 +736,22 @@ $r = Api POST "/matchs/$MATCH1/validation" -Token $TADM
 Check 'POST validation d''un match en_cours -> 200 état inchangé, aucun règlement' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours') "status=$($r.Status) $($r.Raw)"
 
 $wKb = Wallet $TK; $wMb = Wallet $TM
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = 3; scoreContre = 1; commentaire = 'GG' } -Token $TK
-Check 'POST déclaration Kader 3-1 -> 200, match toujours en_cours (accord attendu)' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.manche -eq 1) $r.Raw
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'gagne'; commentaire = 'GG' } -Token $TK
+Check 'POST déclaration Kader « gagne » -> 200, match toujours en_cours (accord attendu)' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.manche -eq 1) $r.Raw
 Check '1re déclaration: chrono de confirmation renvoyé (echeanceType=confirmation + echeance)' ($r.Body.echeanceType -eq 'confirmation' -and $r.Body.echeance) $r.Raw
 $ech = Sql "select echeance_type||'|'||(echeance > now() + interval '25 minutes')::text||'|'||(echeance < now() + interval '31 minutes')::text from matchs where id='$MATCH1'"
 Check 'chrono en base = delai_confirmation_minutes (30 min, aucune constante en dur)' ($ech -eq 'confirmation|true|true') $ech
 $zs = Redis "ZSCORE asynq:{default}:scheduled match-ech:${MATCH1}:confirmation:1"
 Check 'tâche Asynq match:echeance planifiée (match-ech:<id>:confirmation:1)' ($zs -match '\d{9,}') $zs.Trim()
 $r = Api GET '/notifications' -Token $TM
-Check 'notification "Score à confirmer" (type match_score) pour l''adversaire' (($r.Body | Where-Object type -eq 'match_score' | Measure-Object).Count -ge 1) (($r.Body.type | Select-Object -Unique) -join ',')
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = 3; scoreContre = 1 } -Token $TK
+Check 'notification « Résultat à confirmer » (type match_score) pour l''adversaire' (($r.Body | Where-Object type -eq 'match_score' | Measure-Object).Count -ge 1) (($r.Body.type | Select-Object -Unique) -join ',')
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'gagne' } -Token $TK
 Check 'POST déclaration en double (même joueur, même manche) -> 409' ($r.Status -eq 409) $r.Raw
 $r = Api POST "/matchs/$MATCH1/confirmation" -Token $TK
 Check 'POST /confirmation de sa PROPRE déclaration -> 409' ($r.Status -eq 409) $r.Raw
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = 1; scoreContre = 3 } -Token $TM
-Check 'POST déclaration Moussa 1-3 (concordante) -> 200 statut TERMINE (plus de verification)' ($r.Status -eq 200 -and $r.Body.statut -eq 'termine' -and $r.Body.gagnantId -eq $KID -and $r.Body.perdantId -eq $MID) $r.Raw
-Check 'accord: scores 3-1, dateFin posée, chrono effacé' ($r.Body.scoreJoueur1 -eq 3 -and $r.Body.scoreJoueur2 -eq 1 -and $r.Body.dateFin -and -not $r.Body.echeanceType -and -not $r.Body.echeance) $r.Raw
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'perdu' } -Token $TM
+Check 'POST déclaration Moussa « perdu » (concordante) -> 200 statut TERMINE (plus de verification)' ($r.Status -eq 200 -and $r.Body.statut -eq 'termine' -and $r.Body.gagnantId -eq $KID -and $r.Body.perdantId -eq $MID) $r.Raw
+Check 'accord: issue 1-0 rangée en base, dateFin posée, chrono effacé' ($r.Body.scoreJoueur1 -eq 1 -and $r.Body.scoreJoueur2 -eq 0 -and $r.Body.dateFin -and -not $r.Body.echeanceType -and -not $r.Body.echeance) $r.Raw
 $nl = Sql "select count(*) from litiges where match_id='$MATCH1'"
 $npv = Sql "select count(*) from preuves_matchs where match_id='$MATCH1'"
 Check 'accord: aucun litige, aucune preuve exigée (règlement sans arbitre)' ([int]$nl -eq 0 -and [int]$npv -eq 0) "litiges=$nl preuves=$npv"
@@ -769,7 +769,7 @@ Check 'accord: AUCUNE validation administrative (le parcours joueur ne passe plu
 $r = Api GET "/matchs/$MATCH1" -Token $TK
 Check 'GET /matchs/:id -> 2 déclarations, toutes en manche 1, aucun choix de nul' (@($r.Body.declarations).Count -eq 2 -and @($r.Body.declarations | Where-Object manche -ne 1).Count -eq 0 -and @($r.Body.choixNuls).Count -eq 0) ("n=" + @($r.Body.declarations).Count)
 Check 'déclarations sérialisées en camelCase (scorePour, manche)' ((($r.Body.declarations[0].PSObject.Properties.Name) -contains 'scorePour') -and (($r.Body.declarations[0].PSObject.Properties.Name) -contains 'manche')) (($r.Body.declarations[0].PSObject.Properties.Name) -join ',')
-$r = Api POST "/matchs/$MATCH1/declaration" @{ scorePour = 5; scoreContre = 0 } -Token $TK
+$r = Api POST "/matchs/$MATCH1/declaration" @{ resultat = 'gagne' } -Token $TK
 Check 'déclaration sur match terminé -> 409' ($r.Status -eq 409) $r.Raw
 $r = Api POST "/matchs/$MATCH1/confirmation" -Token $TM
 Check 'confirmation sur match terminé -> 409' ($r.Status -eq 409) $r.Raw
@@ -795,7 +795,7 @@ Check 'GET /matchs?tous=1&statut=termine&taille=1 -> 1 élément terminé, pages
 $r = Api GET '/matchs?tous=1' -Token $TK
 Check 'GET /matchs?tous=1 par un joueur -> tableau de ses matchs (pas d''enveloppe admin)' ($r.Status -eq 200 -and $r.Raw.StartsWith('[') -and ($r.Body.id -contains $MATCH1))
 $r = Api GET "/matchs/$MATCH1" -Token $TK
-Check 'GET /matchs/:id enrichi (joueur1Nom, joueur2Nom, jeuNom, plateformeNom)' ($r.Body.match.joueur1Nom -eq $K.nomUtilisateur -and $r.Body.match.joueur2Nom -eq $M.nomUtilisateur -and $r.Body.match.jeuNom -eq 'EA SPORTS FC 27' -and $r.Body.match.plateformeNom -eq 'PlayStation 5' -and $r.Body.match.scoreJoueur1 -eq 3) $r.Raw.Substring(0, [Math]::Min(300, $r.Raw.Length))
+Check 'GET /matchs/:id enrichi (joueur1Nom, joueur2Nom, jeuNom, plateformeNom)' ($r.Body.match.joueur1Nom -eq $K.nomUtilisateur -and $r.Body.match.joueur2Nom -eq $M.nomUtilisateur -and $r.Body.match.jeuNom -eq 'EA SPORTS FC 27' -and $r.Body.match.plateformeNom -eq 'PlayStation 5' -and $r.Body.match.scoreJoueur1 -eq 1) $r.Raw.Substring(0, [Math]::Min(300, $r.Raw.Length))
 $r = Api GET '/notifications' -Token $TK
 Check 'notification "Match terminé" (gagnant)' (($r.Body | Where-Object type -eq 'match_termine' | Measure-Object).Count -ge 1)
 $r = Api POST "/matchs/$MATCH1/litige" @{ motif = 'Trop tard' } -Token $TM
@@ -809,13 +809,13 @@ Check 'défi 500 créé et rejoint -> match en_cours' ($mc.Statut -eq 201 -and $
 $r = Api POST "/matchs/$MCONF/confirmation" -Token $TM
 Check 'confirmation avant toute déclaration -> 409' ($r.Status -eq 409) $r.Raw
 $wKb = Wallet $TK; $wMb = Wallet $TM
-$r = Api POST "/matchs/$MCONF/declaration" @{ scorePour = 0; scoreContre = 2 } -Token $TK
-Check 'Kader déclare sa propre défaite 0-2 -> en_cours + chrono de confirmation' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.echeanceType -eq 'confirmation') $r.Raw
+$r = Api POST "/matchs/$MCONF/declaration" @{ resultat = 'perdu' } -Token $TK
+Check 'Kader se déclare battu -> en_cours + chrono de confirmation' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.echeanceType -eq 'confirmation') $r.Raw
 $r = Api POST "/matchs/$MCONF/confirmation" -Token $TA
 Check 'confirmation par un non participant -> 403' ($r.Status -eq 403) $r.Raw
 $r = Api POST "/matchs/$MCONF/confirmation" -Token $TM
 Check 'confirmation par l''adversaire -> 200 termine, gagnant = Moussa' ($r.Status -eq 200 -and $r.Body.statut -eq 'termine' -and $r.Body.gagnantId -eq $MID -and $r.Body.perdantId -eq $KID) $r.Raw
-Check 'confirmation: score miroir écrit par le SERVEUR (0-2), pas par le client' ($r.Body.scoreJoueur1 -eq 0 -and $r.Body.scoreJoueur2 -eq 2 -and $r.Body.dateFin -and -not $r.Body.echeanceType) $r.Raw
+Check 'confirmation: déclaration miroir écrite par le SERVEUR (0-1), pas par le client' ($r.Body.scoreJoueur1 -eq 0 -and $r.Body.scoreJoueur2 -eq 1 -and $r.Body.dateFin -and -not $r.Body.echeanceType) $r.Raw
 $d = (Api GET "/matchs/$MCONF" -Token $TK).Body
 Check 'confirmation: 2 déclarations en manche 1, la miroir commentée par le serveur' (@($d.declarations).Count -eq 2 -and @($d.declarations | Where-Object manche -ne 1).Count -eq 0 -and @($d.declarations | Where-Object { $_.commentaire -match 'confirm' }).Count -eq 1) ("n=" + @($d.declarations).Count)
 $wK = Wallet $TK; $wM = Wallet $TM
@@ -830,16 +830,16 @@ Check 'confirmation: exactement 1 transaction gain' ([int]$ng -eq 1) "gains=$ng"
 # ------------------------------------------------------------------ 9. Match 2 : deux déclarations simultanées
 Section '9. Match 2 — déclarations concordantes SIMULTANÉES (verrou de ligne)'
 $wJb = Wallet $TJ2; $wKb = Wallet $TK
-$decls = @(@{ tok = $TK; sp = 0; sc = 2 }, @{ tok = $TJ2; sp = 2; sc = 0 })
+$decls = @(@{ tok = $TK; res = 'perdu' }, @{ tok = $TJ2; res = 'gagne' })
 $conc = 1..2 | ForEach-Object -Parallel {
   $i = $_; $base = $using:Base; $d = ($using:decls)[$i - 1]; $mid = $using:MATCH2
-  $corps = [Text.Encoding]::UTF8.GetBytes((@{ scorePour = $d.sp; scoreContre = $d.sc } | ConvertTo-Json -Compress))
+  $corps = [Text.Encoding]::UTF8.GetBytes((@{ resultat = $d.res } | ConvertTo-Json -Compress))
   $r = Invoke-WebRequest -Uri "$base/matchs/$mid/declaration" -Method Post -ContentType 'application/json' -Body $corps -Headers @{ Authorization = "Bearer $($d.tok)" } -SkipHttpErrorCheck
   [pscustomobject]@{ I = $i; Status = [int]$r.StatusCode; Raw = [Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()) }
 } -ThrottleLimit 2
 Check 'CONCURRENCE déclaration x2 simultanées -> les deux acceptées (200), aucun blocage' (@($conc | Where-Object Status -eq 200).Count -eq 2) (($conc | ForEach-Object { "$($_.I):$($_.Status)" }) -join ' ')
 $mt = (Api GET "/matchs/$MATCH2" -Token $TK).Body.match
-Check 'match 2 -> termine, gagnant = adversaire de Kader, score 0-2, chrono effacé' ($mt.statut -eq 'termine' -and $mt.gagnantId -eq $J2 -and $mt.perdantId -eq $KID -and $mt.scoreJoueur1 -eq 0 -and $mt.scoreJoueur2 -eq 2 -and -not $mt.echeanceType) ($mt | ConvertTo-Json -Compress)
+Check 'match 2 -> termine, gagnant = adversaire de Kader, issue 0-1 en base, chrono effacé' ($mt.statut -eq 'termine' -and $mt.gagnantId -eq $J2 -and $mt.perdantId -eq $KID -and $mt.scoreJoueur1 -eq 0 -and $mt.scoreJoueur2 -eq 1 -and -not $mt.echeanceType) ($mt | ConvertTo-Json -Compress)
 $nd = Sql "select count(*) from resultats_declares where match_id='$MATCH2'"
 Check 'match 2: exactement 2 déclarations enregistrées' ([int]$nd -eq 2) "n=$nd"
 $wJ = Wallet $TJ2; $wK = Wallet $TK
@@ -861,7 +861,7 @@ $mt = (Api GET "/matchs/$MVER" -Token $TK).Body.match
 Check 'ligne héritée forcée en verification (statut toujours accepté par l''API)' ($mt.statut -eq 'verification' -and $mt.gagnantId -eq $KID) $mt.statut
 $r = Api GET '/matchs?statut=verification' -Token $TK
 Check 'GET /matchs?statut=verification -> contient la ligne héritée' ($r.Status -eq 200 -and ($r.Body.id -contains $MVER))
-$r = Api POST "/matchs/$MVER/declaration" @{ scorePour = 1; scoreContre = 1 } -Token $TK
+$r = Api POST "/matchs/$MVER/declaration" @{ resultat = 'nul' } -Token $TK
 Check 'déclaration sur une ligne en verification -> 409' ($r.Status -eq 409) $r.Raw
 $wKb = Wallet $TK; $wMb = Wallet $TM
 $conc = 1..2 | ForEach-Object -Parallel {
@@ -913,9 +913,9 @@ $D5 = $r.Body.id
 $r = Api POST "/defis/$D5/rejoindre" -Token $TM
 $MATCH3 = $r.Body.id
 Check 'défi 500 créé et rejoint par Moussa -> match en_cours' ($r.Status -eq 201 -and $MATCH3) "status=$($r.Status)"
-$null = Api POST "/matchs/$MATCH3/declaration" @{ scorePour = 3; scoreContre = 0 } -Token $TK
-$r = Api POST "/matchs/$MATCH3/declaration" @{ scorePour = 5; scoreContre = 0 } -Token $TM
-Check 'déclarations divergentes (Kader 3-0, Moussa 5-0) -> PREUVE_REQUISE (plus de litige immédiat)' ($r.Status -eq 200 -and $r.Body.statut -eq 'preuve_requise' -and -not $r.Body.gagnantId) $r.Raw
+$null = Api POST "/matchs/$MATCH3/declaration" @{ resultat = 'gagne' } -Token $TK
+$r = Api POST "/matchs/$MATCH3/declaration" @{ resultat = 'gagne' } -Token $TM
+Check 'déclarations divergentes (les deux se disent vainqueurs) -> PREUVE_REQUISE (plus de litige immédiat)' ($r.Status -eq 200 -and $r.Body.statut -eq 'preuve_requise' -and -not $r.Body.gagnantId) $r.Raw
 Check 'désaccord: chrono de dépôt de preuve posé (echeanceType=preuve)' ($r.Body.echeanceType -eq 'preuve' -and $r.Body.echeance) $r.Raw
 $ech = Sql "select (echeance > now() + interval '115 minutes')::text||'|'||(echeance < now() + interval '121 minutes')::text from matchs where id='$MATCH3'"
 Check 'chrono de preuve = delai_preuve_minutes (120 min)' ($ech -eq 'true|true') $ech
@@ -929,7 +929,7 @@ $r = Api GET '/notifications' -Token $TM
 Check 'désaccord: notification match_desaccord aux deux joueurs' ((($r.Body | Where-Object type -eq 'match_desaccord' | Measure-Object).Count -ge 1) -and (((Api GET '/notifications' -Token $TK).Body | Where-Object type -eq 'match_desaccord' | Measure-Object).Count -ge 1))
 $r = Api GET '/matchs?statut=preuve_requise' -Token $TK
 Check 'GET /matchs?statut=preuve_requise -> contient le match en désaccord' ($r.Status -eq 200 -and ($r.Body.id -contains $MATCH3))
-$r = Api POST "/matchs/$MATCH3/declaration" @{ scorePour = 4; scoreContre = 0 } -Token $TK
+$r = Api POST "/matchs/$MATCH3/declaration" @{ resultat = 'gagne' } -Token $TK
 Check 'déclaration sur un match en preuve_requise -> 409' ($r.Status -eq 409) $r.Raw
 $r = Api POST "/matchs/$MATCH3/confirmation" -Token $TM
 Check 'confirmation sur un match en preuve_requise -> 409' ($r.Status -eq 409) $r.Raw
@@ -1049,7 +1049,7 @@ $zs = Redis "ZSCORE asynq:{default}:scheduled litige-relance:$LIT4"
 Check 'litige manuel: relance arbitre planifiée' ($zs -match '\d{9,}') $zs.Trim()
 $mt = (Api GET "/matchs/$MATCH4" -Token $TK).Body.match
 Check 'match 4 -> statut litige, chrono effacé' ($mt.statut -eq 'litige' -and -not $mt.echeanceType)
-$r = Api POST "/matchs/$MATCH4/declaration" @{ scorePour = 2; scoreContre = 0 } -Token $TK
+$r = Api POST "/matchs/$MATCH4/declaration" @{ resultat = 'gagne' } -Token $TK
 Check 'déclaration sur match en litige -> 409' ($r.Status -eq 409) $r.Raw
 $r = Api POST "/matchs/$MATCH4/choix-nul" @{ choix = 'partager' } -Token $TK
 Check 'choix-nul sur match en litige -> 409' ($r.Status -eq 409) $r.Raw
@@ -1071,9 +1071,9 @@ Section '10c. Match nul — rejouer (aucun mouvement d''argent) puis partage des
 $wKb = Wallet $TK; $wMb = Wallet $TM
 $mn = NouveauMatchKM 1000
 $MNUL = $mn.Match; $DNUL = $mn.Defi
-$r = Api POST "/matchs/$MNUL/declaration" @{ scorePour = 1; scoreContre = 1 } -Token $TK
-Check 'nul déclaré par Kader 1-1 -> en_cours + chrono de confirmation' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.echeanceType -eq 'confirmation') $r.Raw
-$r = Api POST "/matchs/$MNUL/declaration" @{ scorePour = 1; scoreContre = 1 } -Token $TM
+$r = Api POST "/matchs/$MNUL/declaration" @{ resultat = 'nul' } -Token $TK
+Check 'nul déclaré par Kader -> en_cours + chrono de confirmation' ($r.Status -eq 200 -and $r.Body.statut -eq 'en_cours' -and $r.Body.echeanceType -eq 'confirmation') $r.Raw
+$r = Api POST "/matchs/$MNUL/declaration" @{ resultat = 'nul' } -Token $TM
 Check 'nul déclaré des DEUX côtés -> nul_en_attente + chrono choix_nul, aucun gagnant' ($r.Status -eq 200 -and $r.Body.statut -eq 'nul_en_attente' -and $r.Body.echeanceType -eq 'choix_nul' -and $r.Body.echeance -and -not $r.Body.gagnantId) $r.Raw
 $ech = Sql "select (echeance > now() + interval '25 minutes')::text||'|'||(echeance < now() + interval '31 minutes')::text from matchs where id='$MNUL'"
 Check 'chrono de choix = delai_choix_nul_minutes (30 min)' ($ech -eq 'true|true') $ech
@@ -1104,8 +1104,8 @@ $n = Sql "select count(*) from journaux_audit where action='match:rejoue' and id
 Check 'rejeu journalisé (match:rejoue)' ([int]$n -eq 1) "entrées=$n"
 $r = Api GET '/notifications' -Token $TM
 Check 'rejeu: notification match_rejoue aux deux joueurs' ((($r.Body | Where-Object type -eq 'match_rejoue' | Measure-Object).Count -ge 1) -and (((Api GET '/notifications' -Token $TK).Body | Where-Object type -eq 'match_rejoue' | Measure-Object).Count -ge 1))
-$null = Api POST "/matchs/$MNUL/declaration" @{ scorePour = 2; scoreContre = 2 } -Token $TK
-$r = Api POST "/matchs/$MNUL/declaration" @{ scorePour = 2; scoreContre = 2 } -Token $TM
+$null = Api POST "/matchs/$MNUL/declaration" @{ resultat = 'nul' } -Token $TK
+$r = Api POST "/matchs/$MNUL/declaration" @{ resultat = 'nul' } -Token $TM
 Check 'manche 2 redéclarable par les DEUX joueurs (clé unique portant la manche) -> nul_en_attente' ($r.Status -eq 200 -and $r.Body.statut -eq 'nul_en_attente' -and $r.Body.manche -eq 2) $r.Raw
 $d = (Api GET "/matchs/$MNUL" -Token $TK).Body
 Check 'historique conservé: 4 déclarations (2 par manche) + 2 choix de nul en manche 1' (@($d.declarations).Count -eq 4 -and @($d.declarations | Where-Object manche -eq 2).Count -eq 2 -and @($d.choixNuls).Count -eq 2 -and @($d.choixNuls | Where-Object manche -ne 1).Count -eq 0) ("decl=" + @($d.declarations).Count + " choix=" + @($d.choixNuls).Count)
@@ -1149,12 +1149,12 @@ function AttendreStatut([string]$matchId, [string]$attendu, [int]$secondes = 45)
 $ma = NouveauMatchKM 500
 $MABD = $ma.Match
 $wKb = Wallet $TK; $wMb = Wallet $TM
-$r = Api POST "/matchs/$MABD/declaration" @{ scorePour = 4; scoreContre = 2 } -Token $TK
-Check 'abandon: déclaration unique de Kader 4-2, chrono de confirmation posé' ($r.Status -eq 200 -and $r.Body.echeanceType -eq 'confirmation' -and $r.Body.statut -eq 'en_cours') $r.Raw
+$r = Api POST "/matchs/$MABD/declaration" @{ resultat = 'gagne' } -Token $TK
+Check 'abandon: déclaration unique de Kader (« gagne »), chrono de confirmation posé' ($r.Status -eq 200 -and $r.Body.echeanceType -eq 'confirmation' -and $r.Body.statut -eq 'en_cours') $r.Raw
 $z = ForcerEcheance $MABD 'confirmation'
 $fin = AttendreStatut $MABD 'termine'
 Check 'WORKER match:echeance (confirmation) -> termine, victoire au déclarant' ($fin.statut -eq 'termine' -and $fin.gagnantId -eq $KID -and $fin.perdantId -eq $MID) ($fin | ConvertTo-Json -Compress)
-Check 'abandon: score déclaré appliqué (4-2), dateFin posée, chrono effacé' ($fin.scoreJoueur1 -eq 4 -and $fin.scoreJoueur2 -eq 2 -and -not $fin.echeanceType -and $fin.dateFin) ("$($fin.scoreJoueur1)-$($fin.scoreJoueur2) (zadd: $($z.Trim()))")
+Check 'abandon: issue déclarée appliquée (1-0), dateFin posée, chrono effacé' ($fin.scoreJoueur1 -eq 1 -and $fin.scoreJoueur2 -eq 0 -and -not $fin.echeanceType -and $fin.dateFin) ("$($fin.scoreJoueur1)-$($fin.scoreJoueur2) (zadd: $($z.Trim()))")
 $wK = Wallet $TK; $wM = Wallet $TM
 Check 'abandon: escrow réglé au déclarant (+900 dispo / -500 bloqué), perdant dispo inchangé / -500 bloqué' ((Dec $wK.soldeDisponible) -eq (Dec $wKb.soldeDisponible) + 900 -and (Dec $wK.soldeBloque) -eq (Dec $wKb.soldeBloque) - 500 -and (Dec $wM.soldeDisponible) -eq (Dec $wMb.soldeDisponible) -and (Dec $wM.soldeBloque) -eq (Dec $wMb.soldeBloque) - 500) "K=$($wK.soldeDisponible)/$($wK.soldeBloque) M=$($wM.soldeDisponible)/$($wM.soldeBloque)"
 $n = Sql "select count(*) from journaux_audit where action='match:abandon' and identifiant_cible='$MABD'"
@@ -1172,9 +1172,9 @@ Check 'abandon: validation admin après coup -> 200 sans second paiement' ($r.St
 # (2) échéance de dépôt de preuve dépassée -> ouverture du litige
 $mp = NouveauMatchKM 500
 $MPRV = $mp.Match
-$null = Api POST "/matchs/$MPRV/declaration" @{ scorePour = 2; scoreContre = 1 } -Token $TK
-$r = Api POST "/matchs/$MPRV/declaration" @{ scorePour = 3; scoreContre = 1 } -Token $TM
-Check 'preuve: désaccord (Kader 2-1, Moussa 3-1) -> preuve_requise' ($r.Status -eq 200 -and $r.Body.statut -eq 'preuve_requise' -and $r.Body.echeanceType -eq 'preuve') $r.Raw
+$null = Api POST "/matchs/$MPRV/declaration" @{ resultat = 'gagne' } -Token $TK
+$r = Api POST "/matchs/$MPRV/declaration" @{ resultat = 'gagne' } -Token $TM
+Check 'preuve: désaccord (les deux se disent vainqueurs) -> preuve_requise' ($r.Status -eq 200 -and $r.Body.statut -eq 'preuve_requise' -and $r.Body.echeanceType -eq 'preuve') $r.Raw
 $null = ForcerEcheance $MPRV 'preuve'
 $fin = AttendreStatut $MPRV 'litige'
 Check 'WORKER match:echeance (preuve) -> litige ouvert alors qu''AUCUNE preuve n''a été déposée' ($fin.statut -eq 'litige' -and -not $fin.echeanceType) ($fin | ConvertTo-Json -Compress)
@@ -1193,8 +1193,8 @@ Check 'arbitrage: escrow réglé au gagnant désigné (+900 dispo / -500 bloqué
 # (3) échéance de choix après un nul -> partage automatique
 $mcn = NouveauMatchKM 500
 $MCNL = $mcn.Match; $DCNL = $mcn.Defi
-$null = Api POST "/matchs/$MCNL/declaration" @{ scorePour = 0; scoreContre = 0 } -Token $TK
-$r = Api POST "/matchs/$MCNL/declaration" @{ scorePour = 0; scoreContre = 0 } -Token $TM
+$null = Api POST "/matchs/$MCNL/declaration" @{ resultat = 'nul' } -Token $TK
+$r = Api POST "/matchs/$MCNL/declaration" @{ resultat = 'nul' } -Token $TM
 Check 'choix nul: 0-0 des deux côtés -> nul_en_attente' ($r.Status -eq 200 -and $r.Body.statut -eq 'nul_en_attente') $r.Raw
 $wKb = Wallet $TK; $wMb = Wallet $TM
 $null = Api POST "/matchs/$MCNL/choix-nul" @{ choix = 'rejouer' } -Token $TK
@@ -1216,6 +1216,55 @@ $nb = Sql "select count(*) from mises where statut='bloquee' and defi_id in ('$(
 Check 'échéances: plus aucune mise bloquée sur les trois matchs' ([int]$nb -eq 0) "bloquees=$nb"
 
 # ------------------------------------------------------------------ 11. Notifications
+Section '10e. Déclaration standardisée — « gagne / perdu / nul », quel que soit le jeu'
+# Un match ne se déclare plus en points : le joueur désigne l'issue, et c'est la MÊME forme
+# pour toutes les catégories. Un combat, une course ou une partie de cartes ne produit pas de
+# score ; demander deux nombres revenait à faire inventer un « 1-0 » dans le grand livre
+# d'une plateforme où l'on mise de l'argent. Le serveur n'accepte donc plus que `resultat`.
+$rJeux = Api GET '/jeux'
+$JEU_COMBAT = ($rJeux.Body | Where-Object categorie -ne 'sport' | Select-Object -First 1)
+$JEU_SPORT = ($rJeux.Body | Where-Object categorie -eq 'sport' | Select-Object -First 1)
+Check 'GET /jeux : le catalogue n''expose plus de drapeau avecScore' (-not ($rJeux.Body[0].PSObject.Properties.Name -contains 'avecScore')) (($rJeux.Body[0].PSObject.Properties.Name) -join ',')
+Check 'catalogue : au moins un jeu hors sport et un jeu de sport' ([bool]$JEU_COMBAT -and [bool]$JEU_SPORT) "hors sport=$($JEU_COMBAT.nom) sport=$($JEU_SPORT.nom)"
+
+# --- Jeu sans score (combat, course, cartes…) : la déclaration passe par l'issue.
+$r = Api POST '/defis' @{ jeuId = $JEU_COMBAT.id; plateformeId = $PLAT_PS; montantMise = 1000 } -Token $TK
+Check 'POST /defis sur un jeu hors sport -> 201' ($r.Status -eq 201) $r.Raw
+$DEFI_SS = $r.Body.id
+$r = Api POST "/defis/$DEFI_SS/rejoindre" -Token $TM
+Check 'POST /defis/:id/rejoindre -> 201' ($r.Status -eq 201) $r.Raw
+$MATCH_SS = $r.Body.id
+
+$r = Api POST "/matchs/$MATCH_SS/declaration" @{ scorePour = 3; scoreContre = 1 } -Token $TK
+Check 'déclarer un score chiffré -> refusé (resultat manquant), message explicite' ($r.Status -eq 400 -and $r.Body.details.resultat) $r.Raw
+$r = Api POST "/matchs/$MATCH_SS/declaration" @{ resultat = 'nimporte' } -Token $TK
+Check 'résultat hors des trois valeurs -> 400' ($r.Status -eq 400) $r.Raw
+$r = Api POST "/matchs/$MATCH_SS/declaration" @{ resultat = 'gagne' } -Token $TK
+Check 'déclarer « gagne » -> 200' ($r.Status -eq 200) $r.Raw
+Check 'aucun score chiffré n''est inventé : l''issue est rangée en 1-0' ($r.Body.scoreJoueur1 -eq $null -or $r.Body.gagnantId -eq $null) 'le match reste en attente de confirmation'
+$r = Api POST "/matchs/$MATCH_SS/declaration" @{ resultat = 'perdu' } -Token $TM
+Check 'l''adversaire déclare « perdu » -> 200' ($r.Status -eq 200) $r.Raw
+$m = (Api GET "/matchs/$MATCH_SS" -Token $TK).Body.match
+Check 'déclarations concordantes : match réglé, victoire au déclarant « gagne »' ($m.statut -eq 'termine' -and $m.gagnantId -eq $KID) "statut=$($m.statut)"
+Check 'le match ne porte plus de drapeau avecScore' (-not ($m.PSObject.Properties.Name -contains 'avecScore')) (($m.PSObject.Properties.Name) -join ',')
+
+# --- Jeu de sport : EXACTEMENT la même forme, aucune exception.
+$r = Api POST '/defis' @{ jeuId = $JEU_SPORT.id; plateformeId = $PLAT_PS; montantMise = 1000 } -Token $TK
+$DEFI_AS = $r.Body.id
+Check 'GET /defis : la ligne ne porte plus avecScore' (-not ((Api GET "/defis/$DEFI_AS" -Token $TK).Body.defi.PSObject.Properties.Name -contains 'avecScore')) 'plus de drapeau par jeu'
+$MATCH_AS = (Api POST "/defis/$DEFI_AS/rejoindre" -Token $TM).Body.id
+$r = Api POST "/matchs/$MATCH_AS/declaration" @{ scorePour = 2; scoreContre = 0 } -Token $TK
+Check 'un score chiffré est refusé AUSSI sur un jeu de sport -> 400' ($r.Status -eq 400 -and $r.Body.details.resultat) $r.Raw
+$r = Api POST "/matchs/$MATCH_AS/declaration" @{ resultat = 'gagne' } -Token $TK
+Check 'déclarer « gagne » sur un jeu de sport -> 200' ($r.Status -eq 200) $r.Raw
+# On règle ce match : la section 16 vérifie en fin de parcours qu'aucune mise ne reste
+# bloquée et que le grand livre s'équilibre. Un match laissé en cours ferait échouer ces
+# invariants — et masquerait une vraie anomalie comptable derrière un faux positif.
+$r = Api POST "/matchs/$MATCH_AS/confirmation" -Token $TM
+Check 'l''adversaire confirme -> 200, match réglé' ($r.Status -eq 200) $r.Raw
+$m = (Api GET "/matchs/$MATCH_AS" -Token $TK).Body.match
+Check 'jeu de sport : issue rangée en 1-0, victoire au déclarant' ($m.statut -eq 'termine' -and $m.gagnantId -eq $KID -and $m.scoreJoueur1 -eq 1 -and $m.scoreJoueur2 -eq 0) "statut=$($m.statut) $($m.scoreJoueur1)-$($m.scoreJoueur2)"
+
 Section '11. Notifications'
 $r = Api GET '/notifications' -Token $TK
 Check 'GET /notifications Kader -> 200 liste non vide' ($r.Status -eq 200 -and @($r.Body).Count -ge 3) ("n=" + @($r.Body).Count + " types: " + (($r.Body.type | Select-Object -Unique) -join ','))
@@ -1360,15 +1409,16 @@ $tot = Sql "select sum(solde_disponible)||'|'||sum(solde_bloque) from portefeuil
 # 30000 déposés - retrait réussi 505 (500 + frais 5)
 # - commissions des matchs réglés à un gagnant : accord 400 + concurrence 200 + confirmation 100
 #   + 2 lignes héritées en verification (100 + 100) + litige gagnant 100 + abandon sur échéance 100
-#   + litige né de l'échéance de preuve 100 = 1200
+#   + litige né de l'échéance de preuve 100
+#   + les deux matchs de la section 10e (jeu hors sport 200 + jeu de sport 200) = 1600
 # - commissions sur les mises rendues : annulation 70 + expiration 60 + litige remboursé (50 + 50)
 #   + partage du nul (100 + 100) + partage sur échéance (50 + 50) = 530
-# => 30000 - 505 - 1200 - 530 = 27765 ; bloqué = 0 (tous les escrows sont soldés)
-Check 'somme des portefeuilles = 30000 - 505 - 1200 - 530 = 27765, bloqué = 0' ($tot -eq '27765.00|0.00' -or $tot -eq '27765|0') $tot
+# => 30000 - 505 - 1600 - 530 = 27365 ; bloqué = 0 (tous les escrows sont soldés)
+Check 'somme des portefeuilles = 30000 - 505 - 1600 - 530 = 27365, bloqué = 0' ($tot -eq '27365.00|0.00' -or $tot -eq '27365|0') $tot
 $neg = Sql "select count(*) from portefeuilles where solde_disponible < 0 or solde_bloque < 0"
 Check 'aucun solde négatif' ([int]$neg -eq 0)
 $comm = Sql "select sum(montant) from transactions_portefeuilles t join portefeuilles p on p.id=t.portefeuille_id where t.type='commission' and t.statut='valide' and p.utilisateur_id in ($ids)"
-Check 'commissions validées = 1735 (1200 matchs + 530 mises rendues + 5 frais de retrait)' ((Dec $comm) -eq 1735) $comm
+Check 'commissions validées = 2135 (1600 matchs + 530 mises rendues + 5 frais de retrait)' ((Dec $comm) -eq 2135) $comm
 # crédits : dépôts, gains, remboursements (nets de commission) ; débits : mises bloquées, retraits et frais de
 # retrait (les lignes annulées d'un retrait échoué restent des débits, compensés par la ligne de remboursement) ;
 # la commission d'un match (match_id) ou d'une mise rendue (mise_id) est informative : le joueur n'a jamais

@@ -109,7 +109,7 @@ export function SectionCommentCaMarche({
       icone: icone.jeu,
       titre: 'Jouez le match',
       texte:
-        'Sur le jeu et la plateforme du défi, en ligne, avec vos identifiants de joueur. Chacun déclare ensuite le score et envoie sa preuve (capture + vidéo).',
+        'Sur le jeu et la plateforme du défi, en ligne, avec vos identifiants de joueur. Chacun déclare ensuite le résultat et envoie sa preuve (capture + vidéo).',
     },
     {
       icone: icone.trophee,

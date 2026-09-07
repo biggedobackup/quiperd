@@ -116,7 +116,7 @@ export const typesNotification: Record<string, string> = {
   defi_expire: 'Défi expiré',
   match_a_valider: 'Match à valider',
   // Nouveau parcours de fin de match (confirmation, désaccord, nul, rejeu, abandon).
-  match_score: 'Score à confirmer',
+  match_score: 'Résultat à confirmer',
   match_desaccord: 'Déclarations divergentes',
   match_nul: 'Match nul',
   match_rejoue: 'Nouvelle manche',

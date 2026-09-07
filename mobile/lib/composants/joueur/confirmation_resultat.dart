@@ -7,12 +7,12 @@ import 'compte_a_rebours.dart';
 
 /// Bloc d'action prioritaire : l'adversaire a déclaré, à moi de répondre.
 ///
-/// Deux actions claires, et une seule qui engage : **« Confirmer 3-1 »**
-/// (`POST /matchs/:id/confirmation`, sans corps — le score confirmé est celui
-/// que détient le serveur, le client ne peut donc rien falsifier) ou « Proposer
-/// un autre score », qui ouvre la feuille de déclaration.
-class ConfirmationScore extends StatelessWidget {
-  const ConfirmationScore({
+/// Deux actions claires, et une seule qui engage : **« Confirmer : j'ai gagné »**
+/// (`POST /matchs/:id/confirmation`, sans corps — l'issue confirmée est celle que détient le
+/// serveur, le client ne peut donc rien falsifier) ou « Annoncer l'inverse », qui rouvre la
+/// feuille de déclaration.
+class ConfirmationResultat extends StatelessWidget {
+  const ConfirmationResultat({
     super.key,
     required this.nomMoi,
     required this.nomAdversaire,
@@ -28,7 +28,8 @@ class ConfirmationScore extends StatelessWidget {
   final String nomMoi;
   final String nomAdversaire;
 
-  /// Score vu de MON côté (miroir de la déclaration adverse).
+  /// Issue vue de MON côté (miroir de la déclaration adverse). Le serveur la range en
+  /// 1-0 / 0-1 / 0-0 : convention interne, jamais montrée telle quelle au joueur.
   final int scoreMoi;
   final int scoreAdversaire;
 
@@ -38,20 +39,21 @@ class ConfirmationScore extends StatelessWidget {
   final VoidCallback? surFinChrono;
   final bool chargement;
 
+
+  bool get _jeGagne => scoreMoi > scoreAdversaire;
+  bool get _nul => scoreMoi == scoreAdversaire;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Couleurs.encre,
-        borderRadius: BorderRadius.circular(20),
-      ),
+      decoration: BoxDecoration(color: Couleurs.encre, borderRadius: BorderRadius.circular(20)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'SCORE À CONFIRMER',
+            'RÉSULTAT À CONFIRMER',
             style: Typo.etiquette.copyWith(color: Couleurs.volt, fontSize: 10),
           ),
           const SizedBox(height: 10),
@@ -61,8 +63,7 @@ class ConfirmationScore extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Si c’est bien le score du match, confirmez : le règlement est immédiat, '
-            'sans preuve ni arbitre.',
+            'Si c’est bien l’issue du match, confirmez : le règlement est immédiat, sans preuve ni arbitre.',
             style: Typo.legende.copyWith(color: Couleurs.craie.withValues(alpha: 0.75)),
           ),
           const SizedBox(height: 16),
@@ -76,8 +77,9 @@ class ConfirmationScore extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  '$scoreMoi — $scoreAdversaire',
-                  style: Typo.chiffres(taille: 34, poids: 700, couleur: Couleurs.craie),
+                  _nul ? 'MATCH NUL' : (_jeGagne ? nomMoi : nomAdversaire),
+                  textAlign: TextAlign.center,
+                  style: Typo.h3.copyWith(color: Couleurs.volt),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -98,7 +100,9 @@ class ConfirmationScore extends StatelessWidget {
           ],
           const SizedBox(height: 18),
           Bouton(
-            libelle: 'Confirmer $scoreMoi-$scoreAdversaire',
+            libelle: _nul
+                ? 'Confirmer le match nul'
+                : (_jeGagne ? 'Confirmer : j’ai gagné' : 'Confirmer : j’ai perdu'),
             bloc: true,
             taille: TailleBouton.lg,
             variante: VarianteBouton.volt,
@@ -117,7 +121,7 @@ class ConfirmationScore extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               child: Text(
-                'PROPOSER UN AUTRE SCORE',
+                'ANNONCER L’INVERSE',
                 style: Typo.etiquette.copyWith(color: Couleurs.craie, fontSize: 12),
               ),
             ),

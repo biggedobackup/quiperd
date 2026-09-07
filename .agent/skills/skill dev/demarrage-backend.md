@@ -415,7 +415,7 @@ backend/
   `score_joueur_1`. Tout champ dont le nom généré diffère de l'annexe porte un tag
   `gorm:"column:<nom_annexe>"`, et toute requête SQL brute (`Where`, `Select`, `Updates` par
   map, sous-requêtes) utilise les noms de l'annexe. Leçon retenue : ce décalage a rendu la
-  2ᵉ déclaration de score impossible (colonne `score_joueur_1` inexistante → transaction
+  2ᵉ déclaration impossible (colonne `score_joueur_1` inexistante → transaction
   PostgreSQL annulée, SQLSTATE 25P02) et `GET /api/litiges` en erreur 500 ;
 - toute action métier notable (création défi, validation match, décision litige, dépôt,
   retrait) écrit une entrée dans `journaux_audit` ;
@@ -466,7 +466,7 @@ pseudo : on joue de l'argent contre quelqu'un, on doit pouvoir voir son visage.
 | DELETE | `/api/defis/:id` | Connecté | Annulation (si encore ouvert) — rend la mise moins la commission |
 | GET | `/api/matchs` | Connecté | Mes matchs en tableau (`?statut=en_cours|preuve_requise|nul_en_attente|litige|termine`, `verification` pour les lignes héritées) ; admin `?tous=1` → **page** `{ elements, total, page, taille, pages }` de tous les matchs (`?page&taille`, même filtre `statut`) — chaque match porte `joueur1Nom`, `joueur2Nom`, `jeuNom`, `plateformeNom` |
 | GET | `/api/matchs/:id` | Connecté | Détail du match enrichi (mêmes libellés) + `declarations` (**toutes** les manches, chaque ligne portant sa `manche`) + `choixNuls` |
-| POST | `/api/matchs/:id/declaration` | Connecté | Déclaration du score par un joueur (§5) — 409 si le match n'est pas `en_cours` ou si ce joueur a déjà déclaré cette manche |
+| POST | `/api/matchs/:id/declaration` | Connecté | Déclaration de l'issue par un joueur — `{ resultat: gagne|perdu|nul, commentaire? }`, aucun score chiffré (§5) — 409 si le match n'est pas `en_cours` ou si ce joueur a déjà déclaré cette manche |
 | POST | `/api/matchs/:id/confirmation` | Connecté | **Sans corps.** Le second joueur confirme le score proposé : le serveur écrit lui-même la déclaration miroir (le client n'envoie aucun chiffre, il ne peut donc pas falsifier ce qu'il confirme) → règlement immédiat, ou `nul_en_attente` si le score proposé était une égalité. 409 si rien n'est en attente ou si c'est sa propre déclaration |
 | POST | `/api/matchs/:id/choix-nul` | Connecté | `{ choix: "rejouer" \| "partager" }` après un nul déclaré des deux côtés. 400 valeur inconnue, 409 hors `nul_en_attente` ou choix déjà exprimé pour la manche |
 | POST | `/api/matchs/:id/preuves` | Connecté | Upload preuve (multipart → disque local) ; en `preuve_requise`, le dépôt de la **seconde** preuve (une par joueur) ouvre le litige |
@@ -973,8 +973,32 @@ Ce que chaque joueur déclare après le match (distinct du résultat final valid
 > chaque joueur redéclare la nouvelle manche sans que l'historique de la précédente soit détruit.
 > `GET /api/matchs/:id` renvoie **toutes** les manches ; le client filtre sur `match.manche`.
 
-Exemple : `Kader225` déclare 3-1 (gagnant : Kader225) ; `Moussa10` déclare 1-3 (gagnant :
+Exemple : `Kader225` déclare `gagne` (gagnant : Kader225) ; `Moussa10` déclare `perdu` (gagnant :
 Kader225) → déclarations cohérentes, match réglé immédiatement.
+
+> ### Une seule forme de déclaration, pour TOUS les jeux
+>
+> Un match se déclare en **désignant l'issue** — `gagne`, `perdu` ou `nul` — et jamais par un
+> score chiffré. Demande explicite de l'utilisateur : « je me demande si ce n'est pas mieux de le
+> standardiser pour tous les types… si les deux réponses sont correctes le vainqueur est payé
+> directement, si les deux ne sont pas correctes alors on passe en litige et il envoie une preuve ».
+> La moitié du catalogue (combat, course, cartes, arcade) ne produit aucun score, et le demander
+> obligeait le joueur à inventer un « 1-0 » dans le grand livre d'une plateforme où l'on mise de
+> l'argent.
+>
+> - `POST /matchs/:id/declaration` n'accepte que `{ resultat, commentaire? }`, `resultat` étant
+>   **obligatoire** et valant `gagne | perdu | nul`. Un corps portant `scorePour`/`scoreContre`
+>   est refusé en 400 (`details.resultat`) — y compris sur un jeu de sport.
+> - Le serveur traduit l'issue en `1-0` / `0-1` / `0-0` (`entreeDeclaration.scores()`) pour que la
+>   machine à états continue de raisonner sur des nombres. **Ces chiffres sont une convention
+>   interne** : ils ne doivent apparaître ni à l'écran, ni dans une notification, ni dans un texte
+>   marketing. On affiche une coche, une croix ou un signe égal — et rien du tout tant que la
+>   plateforme n'a pas désigné de gagnant, sinon on annonce un vainqueur que personne n'a tranché.
+> - Le **nul reste une issue à part entière** : `nul_en_attente` et le choix rejouer / partager ne
+>   changent pas. « Vainqueur ou perdant » ne veut pas dire supprimer l'égalité.
+> - Ne jamais réintroduire de drapeau par jeu (un `avecScore` sur `jeux` a existé une journée, il a
+>   été retiré, colonne comprise, par `retirerAvecScore()` dans `migrations/migrate.go`).
+> - Qui tient à noter le score de sa partie l'écrit dans le **commentaire libre** de la déclaration.
 
 ### 9. `preuves_matchs`
 
@@ -1181,11 +1205,11 @@ administrateurs (module `contact/`). JSON : `id`, `dateCreation`, `nom`, `email`
 3. Moussa rejoint                    → MATCH créé
    MISE Kader 2 000 + MISE Moussa 2 000 → 4 000 FCFA bloqués (escrow)
 
-4. Ils jouent : Kader 3 - 1 Moussa
+4. Ils jouent : Kader l'emporte
 
-5. Kader déclare 3-1               → RESULTATS_DECLARES (manche 1)
+5. Kader déclare « gagne »          → RESULTATS_DECLARES (manche 1)
    MATCH reste en_cours + échéance « confirmation » (delai_confirmation_minutes)
-   Moussa reçoit en direct match.score_propose : « Confirmer 1-3 » ou « Proposer un autre score »
+   Moussa reçoit en direct match.score_propose : « Confirmer : j'ai perdu » ou « Annoncer l'inverse »
 
 6. Moussa confirme (POST /confirmation, sans corps — le serveur écrit la déclaration miroir)
    → MATCH (gagnant: Kader, statut: termine)  ← RÈGLEMENT IMMÉDIAT, ni preuve ni arbitre

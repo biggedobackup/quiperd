@@ -3,6 +3,11 @@ import { Badge } from '../badge/badge'
 export interface ProprietesTableauScore {
   joueur1: string
   joueur2: string
+  /**
+   * Issue rangée par le serveur (1-0, 0-1, 0-0). Convention interne du moteur de règlement :
+   * on n'en montre jamais les chiffres — un match se déclare en désignant le vainqueur, pas
+   * en comptant des points — mais une coche, une croix ou un signe égal.
+   */
   score1?: number | null
   score2?: number | null
   /** Identité du gagnant : `1`, `2` ou `null` (indécis). */
@@ -16,8 +21,8 @@ export interface ProprietesTableauScore {
 }
 
 /**
- * Tableau d'affichage : deux noms, deux grands chiffres mono sur fond encre, gagnant
- * souligné en volt. Utilisé dans le hero, le détail de match et l'arbitrage.
+ * Tableau d'affichage : deux noms, deux grandes marques sur fond encre, gagnant souligné en
+ * volt. Utilisé dans le hero, le détail de match et l'arbitrage.
  */
 export function TableauScore({
   joueur1,
@@ -31,8 +36,16 @@ export function TableauScore({
   compact = false,
   className = '',
 }: ProprietesTableauScore) {
-  const s1 = score1 ?? '–'
-  const s2 = score2 ?? '–'
+  // Tant que la plateforme n'a pas tranché, on ne montre RIEN. Les colonnes `scoreJoueur1/2`
+  // gardent la dernière déclaration reçue, y compris quand les deux joueurs se contredisent :
+  // en tirer une coche afficherait un vainqueur que personne n'a désigné.
+  const symbole = (moi?: number | null, lui?: number | null) => {
+    if (gagnant == null || moi == null || lui == null) return '–'
+    if (moi === lui) return '='
+    return moi > lui ? '✓' : '✗'
+  }
+  const s1 = symbole(score1, score2)
+  const s2 = symbole(score2, score1)
   const tailleScore = compact ? 'text-display-sm' : 'text-display-md md:text-display'
   const tailleNom = compact ? 'text-[11px]' : 'text-[12px] md:text-[13px]'
   return (
@@ -50,7 +63,7 @@ export function TableauScore({
       <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 px-4 py-5 md:gap-4 md:px-6">
         <Joueur nom={joueur1} score={s1} gagnant={gagnant === 1} tailleScore={tailleScore} tailleNom={tailleNom} alignement="left" />
         <span className="chiffres text-h2 text-craie/40" aria-hidden="true">
-          —
+          vs
         </span>
         <Joueur nom={joueur2} score={s2} gagnant={gagnant === 2} tailleScore={tailleScore} tailleNom={tailleNom} alignement="right" />
       </div>

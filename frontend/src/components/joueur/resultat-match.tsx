@@ -130,8 +130,8 @@ function decrire({ match, moiId, nomAdversaire, gain, partage, abandon }: Propri
     return {
       titre: parAbandon ? 'Victoire — délai écoulé' : 'Vous avez gagné',
       message: abandon
-        ? `${nomAdversaire} n’a ni confirmé ni contredit le score dans le délai imparti : votre déclaration fait foi. Votre gain est déjà crédité sur votre solde disponible.`
-        : 'Le score est validé par les deux joueurs. Votre gain est déjà crédité sur votre solde disponible — rien d’autre à faire.',
+        ? `${nomAdversaire} n’a ni confirmé ni contredit votre déclaration dans le délai imparti : votre déclaration fait foi. Votre gain est déjà crédité sur votre solde disponible.`
+        : 'Le résultat est validé par les deux joueurs. Votre gain est déjà crédité sur votre solde disponible — rien d’autre à faire.',
       icone: icone.trophee,
       cadre: 'border-gain bg-gain-fond',
       pastille: 'border-gain bg-gain text-papier',
@@ -147,8 +147,8 @@ function decrire({ match, moiId, nomAdversaire, gain, partage, abandon }: Propri
   return {
     titre: parAbandon ? 'Match perdu — délai écoulé' : 'Match perdu',
     message: abandon
-      ? 'Le délai de confirmation s’est écoulé sans réponse : le score déclaré par votre adversaire fait foi et le match a été réglé en sa faveur. Votre mise a été débitée.'
-      : 'Le score est validé par les deux joueurs. Votre mise a été débitée ; le règlement est définitif.',
+      ? 'Le délai de confirmation s’est écoulé sans réponse : le résultat déclaré par votre adversaire fait foi et le match a été réglé en sa faveur. Votre mise a été débitée.'
+      : 'Le résultat est validé par les deux joueurs. Votre mise a été débitée ; le règlement est définitif.',
     icone: icone.point,
     cadre: 'border-trait bg-papier',
     pastille: 'border-trait bg-gris text-muet',

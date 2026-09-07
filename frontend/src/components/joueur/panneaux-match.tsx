@@ -27,7 +27,7 @@ export function PanneauAttente({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-legende font-semibold">
           <FontAwesomeIcon icon={icone.sablier} className="animate-pulsation text-muet" aria-hidden="true" />
-          Score déclaré — en attente de {nomAdversaire}
+          Résultat déclaré — en attente de {nomAdversaire}
         </p>
         <CompteARebours echeance={echeance} libelle="Il lui reste" ton="neutre" surFin={surFinChrono} />
       </div>

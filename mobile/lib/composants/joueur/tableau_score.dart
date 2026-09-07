@@ -3,8 +3,10 @@ import 'package:flutter/material.dart';
 import '../../theme/couleurs.dart';
 import '../../theme/typographie.dart';
 
-/// Tableau de score — le motif signature du site : gros chiffres monospace sur
-/// fond encre, gagnant souligné en volt.
+/// Tableau d'affichage — le motif signature du site : grande marque monospace sur
+/// fond encre, gagnant souligné en volt. Un match se déclare en désignant le vainqueur :
+/// on montre donc une coche, une croix ou un signe égal, jamais un chiffre — les 1-0 rangés
+/// en base sont une convention interne du moteur de règlement.
 class TableauScore extends StatelessWidget {
   const TableauScore({
     super.key,
@@ -28,6 +30,14 @@ class TableauScore extends StatelessWidget {
   final String? etiquette;
   final String? sousTitre;
   final bool enDirect;
+
+
+  /// Symbole affiché pour chaque camp, déduit de l'issue rangée par le serveur.
+  String _symbole(int? moi, int? lui) {
+    if (moi == null || lui == null) return '–';
+    if (moi == lui) return '=';
+    return moi > lui ? '✓' : '✗';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,11 +67,17 @@ class TableauScore extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Expanded(child: _Cote(nom: joueur1, score: score1, gagnant: gagnant == 1)),
+              Expanded(
+                child: _Cote(
+                  nom: joueur1,
+                  texte: _symbole(score1, score2),
+                  gagnant: gagnant == 1,
+                ),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Text(
-                  '—',
+                  'vs',
                   style: Typo.chiffres(
                     taille: 24,
                     poids: 400,
@@ -69,7 +85,13 @@ class TableauScore extends StatelessWidget {
                   ),
                 ),
               ),
-              Expanded(child: _Cote(nom: joueur2, score: score2, gagnant: gagnant == 2)),
+              Expanded(
+                child: _Cote(
+                  nom: joueur2,
+                  texte: _symbole(score2, score1),
+                  gagnant: gagnant == 2,
+                ),
+              ),
             ],
           ),
           if (sousTitre != null) ...[
@@ -87,10 +109,11 @@ class TableauScore extends StatelessWidget {
 }
 
 class _Cote extends StatelessWidget {
-  const _Cote({required this.nom, required this.score, required this.gagnant});
+  const _Cote({required this.nom, required this.texte, required this.gagnant});
 
   final String nom;
-  final int? score;
+  /// Déjà mis en forme par le parent : un chiffre, ou un symbole pour un jeu sans score.
+  final String texte;
   final bool gagnant;
 
   @override
@@ -116,7 +139,7 @@ class _Cote extends StatelessWidget {
               : null,
           padding: const EdgeInsets.only(bottom: 4),
           child: Text(
-            score?.toString() ?? '–',
+            texte,
             style: Typo.chiffres(
               taille: 44,
               poids: 700,

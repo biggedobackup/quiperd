@@ -27,7 +27,7 @@ import {
   numeroManche,
   type ChoixNulMatch,
   type ChoixNulValeur,
-  type Declaration as SaisieScore,
+  type Declaration as SaisieResultat,
   type DetailMatch as DonneesMatch,
   type MatchEnrichi,
 } from '@/models/match'
@@ -46,14 +46,14 @@ import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { ChronologieMatch } from '@/components/joueur/chronologie-match'
 import { CompteARebours } from '@/components/joueur/compte-a-rebours'
-import { ConfirmationScore } from '@/components/joueur/confirmation-score'
+import { ConfirmationResultat } from '@/components/joueur/confirmation-resultat'
 import { AvatarJoueur } from '@/components/joueur/avatar-joueur'
 import { PresenceAdversaire } from '@/components/joueur/presence-adversaire'
 import { ResultatMatch, type DetailAbandon, type DetailPartage } from '@/components/joueur/resultat-match'
 import { PanneauAttente, PanneauNul, PanneauPreuveRequise } from '@/components/joueur/panneaux-match'
 import { UploadPreuve } from '@/components/joueur/upload-preuve'
 import { ChoixNulModal } from '@/components/joueur/modals/choix-nul-modal'
-import { DeclarationScoreModal } from '@/components/joueur/modals/declaration-score-modal'
+import { DeclarationResultatModal } from '@/components/joueur/modals/declaration-resultat-modal'
 import { LitigeModal } from '@/components/joueur/modals/litige-modal'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
@@ -232,9 +232,15 @@ function EcranMatch() {
           dateDeclaration: evenement.horodatage,
         })
         if (c.declarant !== moi.id) {
+          // On annonce l'issue déclarée, pas le 1-0 que le serveur range en base : le joueur
+          // n'a jamais saisi de nombre, en montrer un serait lui présenter une invention.
           toastInfo(
-            'Score à confirmer',
-            `${nomAdversaire} déclare ${c.scoreContre} — ${c.scorePour}. Confirmez, ou proposez un autre score.`,
+            'Résultat à confirmer',
+            c.scorePour === c.scoreContre
+              ? `${nomAdversaire} annonce un match nul. Confirmez, ou annoncez l’inverse.`
+              : c.scorePour > c.scoreContre
+                ? `${nomAdversaire} se déclare vainqueur. Confirmez, ou annoncez l’inverse.`
+                : `${nomAdversaire} vous déclare vainqueur. Confirmez, ou annoncez l’inverse.`,
           )
         }
         return
@@ -448,7 +454,7 @@ function EcranMatch() {
   }, [queryClient])
 
   const mutDeclarer = useMutation({
-    mutationFn: (d: SaisieScore) => declarer({ data: { matchId, ...d } }),
+    mutationFn: (d: SaisieResultat) => declarer({ data: { matchId, ...d } }),
     onSuccess: (r) => {
       setModalScore(false)
       if (!r.ok) {
@@ -458,7 +464,7 @@ function EcranMatch() {
       }
       remplacerMatch(queryClient, r.donnees)
       if (r.donnees.statut === 'en_cours') {
-        toastSucces('Score déclaré', `En attente de la réponse de ${nomAdversaire}.`)
+        toastSucces('Résultat déclaré', `En attente de la réponse de ${nomAdversaire}.`)
       }
       // Les autres issues (règlement, désaccord, nul) sont annoncées par leur propre
       // événement : pas de second message qui dirait la même chose.
@@ -474,7 +480,7 @@ function EcranMatch() {
         return
       }
       remplacerMatch(queryClient, r.donnees)
-      toastSucces('Score confirmé', 'Le match est réglé : l’argent est versé immédiatement.')
+      toastSucces('Résultat confirmé', 'Le match est réglé : l’argent est versé immédiatement.')
     },
   })
 
@@ -528,7 +534,7 @@ function EcranMatch() {
             </LienBouton>
             {peutDeclarer && !aConfirmer && (
               <Button variante="volt" onClick={() => setModalScore(true)} iconeDebut={icone.match}>
-                Déclarer le score
+                Déclarer le résultat
               </Button>
             )}
             {peutOuvrirLitige && (
@@ -544,7 +550,7 @@ function EcranMatch() {
         {/* Bloc d'action prioritaire : d'abord dans le flux, donc en haut de l'écran mobile. */}
         {aConfirmer && declarationAdverse && (
           <div>
-            <ConfirmationScore
+            <ConfirmationResultat
               nomMoi={nomMoi}
               nomAdversaire={nomAdversaire}
               scoreMoi={declarationAdverse.scoreContre}
@@ -613,7 +619,7 @@ function EcranMatch() {
             score1={match.scoreJoueur1 ?? null}
             score2={match.scoreJoueur2 ?? null}
             gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null}
-            etiquette={manche > 1 ? `Manche ${manche}` : statut === 'termine' ? 'Score final' : 'Match'}
+            etiquette={manche > 1 ? `Manche ${manche}` : statut === 'termine' ? 'Résultat final' : 'Match'}
             enDirect={statut === 'en_cours'}
             sousTitre={sousTitreScore(statut, gagne)}
           />
@@ -655,7 +661,7 @@ function EcranMatch() {
             </ul>
             {peutDeclarer && !aConfirmer && (
               <Button variante="volt" bloc taille="lg" className="mt-4" onClick={() => setModalScore(true)} iconeDebut={icone.match}>
-                Déclarer le score
+                Déclarer le résultat
               </Button>
             )}
           </div>
@@ -717,20 +723,14 @@ function EcranMatch() {
         </p>
       </div>
 
-      <DeclarationScoreModal
+      <DeclarationResultatModal
         ouvert={modalScore}
         onFermer={() => setModalScore(false)}
         onDeclarer={async (d) => mutDeclarer.mutateAsync(d).then(() => undefined)}
-        moi={nomMoi}
         adversaire={nomAdversaire}
         chargement={mutDeclarer.isPending}
         manche={manche}
         contreProposition={aConfirmer}
-        valeursInitiales={
-          declarationAdverse
-            ? { scorePour: declarationAdverse.scoreContre, scoreContre: declarationAdverse.scorePour }
-            : undefined
-        }
       />
       <ChoixNulModal
         ouvert={modalNul}
@@ -792,8 +792,14 @@ function LigneDeclaration({
       <div className="flex items-center justify-between gap-3">
         <span className="min-w-0 truncate font-semibold">{nom}</span>
         {declaration ? (
-          <span className="chiffres shrink-0 text-h3 font-bold">
-            {declaration.scorePour} — {declaration.scoreContre}
+          // Les 1-0 / 0-1 stockés sont une convention interne du moteur de règlement. Les
+          // afficher reviendrait à montrer au joueur un chiffre que personne n'a saisi.
+          <span className="etiquette shrink-0 font-bold">
+            {declaration.scorePour === declaration.scoreContre
+              ? 'Match nul'
+              : declaration.scorePour > declaration.scoreContre
+                ? 'Se déclare vainqueur'
+                : 'Se déclare battu'}
           </span>
         ) : (
           <span className="etiquette flex shrink-0 items-center gap-1 text-muet">
@@ -827,7 +833,7 @@ function consignes({
 }): Array<{ texte: string; fait: boolean }> {
   if (statut === 'termine') {
     return [
-      { texte: 'Jouer le match et déclarer le score.', fait: true },
+      { texte: 'Jouer le match et déclarer le résultat.', fait: true },
       { texte: 'Accord des deux joueurs sur le résultat.', fait: true },
       { texte: 'Règlement automatique : l’argent est versé.', fait: true },
     ]
@@ -848,7 +854,7 @@ function consignes({
   }
   if (statut === 'litige' || statut === 'verification') {
     return [
-      { texte: 'Jouer le match et déclarer le score.', fait: true },
+      { texte: 'Jouer le match et déclarer le résultat.', fait: true },
       { texte: 'Envoyer vos preuves : capture et, si possible, vidéo.', fait: false },
       { texte: 'Attendre la décision : le règlement suit automatiquement.', fait: false },
     ]
@@ -856,7 +862,7 @@ function consignes({
   return [
     { texte: 'Jouer le match sur le jeu et la plateforme du défi.', fait: maDeclaration },
     {
-      texte: aConfirmer ? `Confirmer le score de ${nomAdversaire}, ou proposer le vôtre.` : 'Déclarer le score exact.',
+      texte: aConfirmer ? `Confirmer le résultat annoncé par ${nomAdversaire}, ou annoncer l’inverse.` : 'Déclarer qui a gagné.',
       fait: maDeclaration,
     },
     {

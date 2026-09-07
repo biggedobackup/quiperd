@@ -69,8 +69,8 @@ class PanneauAttente extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Panneau(
       etiquette: 'En attente',
-      titre: 'Votre score est déclaré',
-      texte: '$nomAdversaire doit maintenant confirmer ou proposer un autre score.',
+      titre: 'Votre résultat est déclaré',
+      texte: '$nomAdversaire doit maintenant confirmer ou annoncer l’inverse.',
       couleur: Couleurs.info,
       fond: Couleurs.infoFond,
       enfants: [

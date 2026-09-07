@@ -25,7 +25,7 @@ export function questionsFrequentes(regles: ReglesFinancieres): QuestionReponse[
       reponse: `Les deux mises additionnées, moins la commission de la plateforme (${formatPourcentage(regles.commissionDefi)} du total). Exemple : deux mises de ${formatMontant(2000)} donnent un total de ${formatMontant(4000)}, le gagnant reçoit ${formatMontant(4000 - 4000 * regles.commissionDefi)}.`,
     },
     {
-      question: 'Que se passe-t-il si les deux joueurs déclarent des scores différents ?',
+      question: 'Que se passe-t-il si les deux joueurs déclarent des résultats contraires ?',
       reponse:
         'Le match passe automatiquement en litige. Les mises restent bloquées, un arbitre examine les preuves (captures, vidéos) et tranche : règlement au gagnant qu’il désigne, ou remboursement des deux joueurs (chaque mise rendue moins la commission).',
     },

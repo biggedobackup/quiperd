@@ -101,7 +101,7 @@ export function CadreAuth({
 }
 
 /**
- * Ticket illustratif d'un défi terminé : score réel sur bandeau noir (gagnant en volt),
+ * Ticket illustratif d'un défi terminé : l'issue sur bandeau noir (vainqueur en volt),
  * « tampon » vert décalé derrière la carte (mêmes coins arrondis, aucun dégradé).
  */
 function TicketIllustratif() {
@@ -118,16 +118,16 @@ function TicketIllustratif() {
 
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 bg-encre px-5 py-4 text-craie">
           <div className="min-w-0">
-            <p className="chiffres text-display-sm font-bold leading-none text-volt">3</p>
+            <p className="chiffres text-display-sm font-bold leading-none text-volt">✓</p>
             <p className="mt-2 truncate font-titre text-[11px] font-bold uppercase text-volt">
               <span className="border-b border-volt pb-0.5">Vous</span>
             </p>
           </div>
           <span className="chiffres text-h2 text-craie" aria-hidden="true">
-            —
+            vs
           </span>
           <div className="min-w-0 text-right">
-            <p className="chiffres text-display-sm font-bold leading-none text-craie">1</p>
+            <p className="chiffres text-display-sm font-bold leading-none text-craie">✗</p>
             <p className="mt-2 truncate font-titre text-[11px] font-bold uppercase text-craie">Adversaire</p>
           </div>
         </div>

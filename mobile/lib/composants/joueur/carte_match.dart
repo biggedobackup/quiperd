@@ -93,8 +93,8 @@ class CarteMatch extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // Même règle que l'écran de match : un score contesté ne
-                  // s'affiche pas comme s'il était acquis.
+                  // Même règle que l'écran de match : une issue contestée ne
+                  // s'affiche pas comme si elle était acquise.
                   if (match.gagnantId != null &&
                       match.scoreJoueur1 != null &&
                       match.scoreJoueur2 != null)
@@ -133,10 +133,21 @@ class _Score extends StatelessWidget {
             ? Couleurs.gain
             : Couleurs.perte;
 
+    // Les chiffres rangés en base (1-0, 0-0) sont une convention interne du moteur de
+    // règlement : on montre la même marque que le tableau d'affichage, jamais un nombre
+    // que personne n'a saisi.
+    String marque(int? moi, int? lui) {
+      if (moi == null || lui == null) return '–';
+      if (moi == lui) return '=';
+      return moi > lui ? '✓' : '✗';
+    }
+
+    final affichage = '${marque(scoreMoi, scoreLui)} — ${marque(scoreLui, scoreMoi)}';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text('$scoreMoi — $scoreLui', style: Typo.chiffres(taille: 20, poids: 700, couleur: couleur)),
+        Text(affichage, style: Typo.chiffres(taille: 20, poids: 700, couleur: couleur)),
         if (gagne != null)
           Text(
             gagne! ? 'Gagné' : 'Perdu',

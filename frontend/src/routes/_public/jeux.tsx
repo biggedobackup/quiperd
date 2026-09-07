@@ -35,7 +35,7 @@ function PageJeux() {
           fond="noir"
           surtitre="Catalogue"
           titre="Jeux & plateformes."
-          intro="Vous jouez avec vos propres identifiants sur PC, console ou mobile ; QUI PERD ne fait que tenir le score et l’argent."
+          intro="Vous jouez avec vos propres identifiants sur PC, console ou mobile ; QUI PERD ne fait que tenir les comptes et l’argent."
         >
           {connecte ? (
             <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>

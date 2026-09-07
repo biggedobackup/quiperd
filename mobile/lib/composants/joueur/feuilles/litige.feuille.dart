@@ -57,7 +57,7 @@ class _FeuilleLitigeState extends State<_FeuilleLitige> {
               style: Typo.corps,
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                hintText: 'Expliquez le désaccord : score annoncé, déconnexion, '
+                hintText: 'Expliquez le désaccord : résultat annoncé, déconnexion, '
                     'refus de jouer…',
               ),
             ),

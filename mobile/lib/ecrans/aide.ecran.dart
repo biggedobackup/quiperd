@@ -79,7 +79,7 @@ class _AideEcranState extends State<AideEcran> {
               'reçoit ${formatMontant(4000 - 4000 * regles.commissionDefi)}.',
         ),
         (
-          question: 'Que se passe-t-il si les deux joueurs déclarent des scores différents ?',
+          question: 'Que se passe-t-il si les deux joueurs déclarent des résultats contraires ?',
           reponse: 'Le match passe automatiquement en litige. Les mises restent bloquées, un '
               'arbitre examine les preuves (captures, vidéos) et tranche : règlement au gagnant '
               'qu’il désigne, ou remboursement des deux joueurs (chaque mise rendue moins la '

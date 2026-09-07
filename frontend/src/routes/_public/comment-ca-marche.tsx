@@ -14,7 +14,7 @@ export const Route = createFileRoute('/_public/comment-ca-marche')({
   head: () => ({
     meta: [
       { title: 'Comment ça marche — QUI PERD' },
-      { name: 'description', content: 'Créer un défi, rejoindre, jouer, déclarer le score, envoyer une preuve : le parcours complet d’un défi QUI PERD et le règlement des mises.' },
+      { name: 'description', content: 'Créer un défi, rejoindre, jouer, déclarer le résultat, envoyer une preuve : le parcours complet d’un défi QUI PERD et le règlement des mises.' },
     ],
   }),
   component: CommentCaMarche,
@@ -65,7 +65,7 @@ function CommentCaMarche() {
               Défi annulé ou expiré sans adversaire : la mise est rendue moins la commission de la plateforme ({formatPourcentage(regles.commissionDefi)}), toujours prélevée quand une mise est restituée.
             </p>
           </div>
-          <TableauScore joueur1="Kader225" joueur2="Moussa10" score1={3} score2={1} gagnant={1} etiquette={`Défi · mise ${formatMontant(mise)}`} sousTitre={`Kader225 remporte ${formatMontant(gain)}`} />
+          <TableauScore joueur1="Kader225" joueur2="Moussa10" score1={1} score2={0} gagnant={1} etiquette={`Défi · mise ${formatMontant(mise)}`} sousTitre={`Kader225 remporte ${formatMontant(gain)}`} />
         </Conteneur>
       </section>
       <SectionSecurite numero="03" />

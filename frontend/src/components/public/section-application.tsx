@@ -21,7 +21,7 @@ export function SectionApplication({ liens, numero = '02' }: { liens: LiensAppli
         <EnTeteSection
           numero={numero}
           titre="L’application QUI PERD"
-          intro="Vos défis, vos matchs et votre solde dans la poche. Les notifications vous préviennent dès qu’un adversaire rejoint, déclare un score ou qu’un gain est crédité."
+          intro="Vos défis, vos matchs et votre solde dans la poche. Les notifications vous préviennent dès qu’un adversaire rejoint, déclare un résultat ou qu’un gain est crédité."
         />
         {/*
           Rangée centrée, et non une grille à deux colonnes : la grille donnait à chaque

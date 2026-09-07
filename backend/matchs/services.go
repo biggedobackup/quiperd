@@ -53,7 +53,7 @@ var (
 	// ErrDejaDeclare : ce joueur a déjà déclaré la manche courante (409).
 	ErrDejaDeclare = errors.New("vous avez déjà déclaré cette manche")
 	// ErrRienAConfirmer : aucun score adverse en attente de confirmation (409).
-	ErrRienAConfirmer = errors.New("aucun score de votre adversaire n'est en attente de confirmation")
+	ErrRienAConfirmer = errors.New("aucune déclaration de votre adversaire n'est en attente de confirmation")
 	// ErrPasEnNul : le match n'attend pas de choix après un nul (409).
 	ErrPasEnNul = errors.New("ce match n'attend pas de choix après un match nul")
 	// ErrDejaChoisi : ce joueur a déjà fait son choix pour la manche (409).
@@ -388,7 +388,7 @@ func ConfirmerScore(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi, userID 
 		MatchID: m.ID, UtilisateurID: userID, Manche: m.Manche,
 		ScorePour: proposee.ScoreContre, ScoreContre: proposee.ScorePour,
 		GagnantDeclareID: gagnantDeclare,
-		Commentaire:      "Score confirmé par l'adversaire",
+		Commentaire:      "Résultat confirmé par l'adversaire",
 	}
 	if err := tx.Create(&miroir).Error; err != nil {
 		return ErrDejaDeclare
@@ -435,9 +435,18 @@ func attendreConfirmation(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi, p
 
 	if NotifierJoueurs != nil {
 		adversaire := m.Adversaire(proposee.UtilisateurID)
-		NotifierJoueurs(tx, tampon, []uuid.UUID{adversaire}, "Score à confirmer",
-			fmt.Sprintf("Votre adversaire a déclaré %d-%d. Confirmez ou proposez un autre score avant %s, sans quoi la victoire lui sera accordée.",
-				proposee.ScoreContre, proposee.ScorePour, echeance.Format("15:04")),
+		// Le 1-0 rangé en base est une convention interne : on nomme l'issue déclarée, jamais
+		// les nombres — personne n'a saisi de chiffre.
+		issue := "se déclare vainqueur"
+		switch {
+		case proposee.ScorePour == proposee.ScoreContre:
+			issue = "annonce un match nul"
+		case proposee.ScorePour < proposee.ScoreContre:
+			issue = "vous déclare vainqueur"
+		}
+		NotifierJoueurs(tx, tampon, []uuid.UUID{adversaire}, "Résultat à confirmer",
+			fmt.Sprintf("Votre adversaire %s. Confirmez ou annoncez l'inverse avant %s, sans quoi sa déclaration fera foi.",
+				issue, echeance.Format("15:04")),
 			"match_score")
 	}
 	return nil
@@ -509,7 +518,7 @@ func passerEnPreuveRequise(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) 
 
 	if NotifierJoueurs != nil {
 		NotifierJoueurs(tx, tampon, m.Joueurs(), "Déclarations divergentes",
-			"Vos déclarations de score ne concordent pas. Envoyez chacun une preuve (capture ou vidéo) avant l'échéance : passé ce délai, un arbitre tranchera.",
+			"Vos déclarations ne concordent pas. Envoyez chacun une preuve (capture ou vidéo) avant l'échéance : passé ce délai, un arbitre tranchera.",
 			"match_desaccord")
 	}
 	administration.Journaliser(tx, administration.ParamsAudit{
@@ -733,10 +742,10 @@ func TerminerParAbandon(tx *gorm.DB, tampon *tempsreel.Tampon, m *MatchDefi) err
 
 	if NotifierJoueurs != nil {
 		NotifierJoueurs(tx, tampon, []uuid.UUID{gagnant}, "Match gagné — délai écoulé",
-			"Le délai de confirmation est écoulé sans réponse : le score déclaré fait foi, la victoire vous est accordée et votre gain a été crédité.",
+			"Le délai de confirmation est écoulé sans réponse : votre déclaration fait foi, la victoire vous est accordée et votre gain a été crédité.",
 			"match_abandon")
 		NotifierJoueurs(tx, tampon, []uuid.UUID{perdant}, "Match perdu — délai écoulé",
-			"Le délai de confirmation est écoulé : le score déclaré fait foi et la victoire a été accordée à votre adversaire.",
+			"Le délai de confirmation est écoulé : la déclaration de votre adversaire fait foi et la victoire lui a été accordée.",
 			"match_abandon")
 	}
 	return nil

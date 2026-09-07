@@ -301,11 +301,11 @@ try {
   [void](Check 'salon du match refusé à un tiers' (@($aboVM.charge.refuses) -contains "match:$MatchId") (@($aboVM.charge.refuses) -join ','))
   [void](Abonner $C1 @("match:$MatchId")); [void](Abonner $C2 @("match:$MatchId"))
 
-  Section '5. Score déclaré puis confirmé — règlement immédiat, sans preuve ni arbitre'
+  Section '5. Résultat déclaré puis confirmé — règlement immédiat, sans preuve ni arbitre'
   $avantJ1 = Soldes $J1.Id
-  $r = Api POST "/matchs/$MatchId/declaration" @{ scorePour = 3; scoreContre = 1 } $J1.Jeton
+  $r = Api POST "/matchs/$MatchId/declaration" @{ resultat = 'gagne' } $J1.Jeton
   [void](Check 'POST /matchs/:id/declaration -> 200' ($r.Status -eq 200) "statut=$($r.Status) $($r.Raw)")
-  $prop = CheckEvenement $C2 'l''adversaire voit le score proposé en direct (« match.score_propose »)' 'match.score_propose' { param($c) $c.matchId -eq $MatchId } 8000 { param($c) "$($c.scorePour)-$($c.scoreContre)" }
+  $prop = CheckEvenement $C2 'l''adversaire voit le résultat proposé en direct (« match.score_propose »)' 'match.score_propose' { param($c) $c.matchId -eq $MatchId } 8000 { param($c) "$($c.scorePour)-$($c.scoreContre)" }
   if ($prop) { [void](Check '« match.score_propose » porte une échéance de confirmation' ([bool]$prop.charge.echeanceConfirmation) $prop.charge.echeanceConfirmation) }
   [void](CheckEvenement $C1 'une échéance de confirmation est poussée (« match.chrono »)' 'match.chrono' { param($c) $c.matchId -eq $MatchId -and $c.type -eq 'confirmation' } 8000 { param($c) "échéance=$($c.echeance)" })
 
@@ -331,7 +331,7 @@ try {
   $MatchA = $mA.charge.id
   [void](Abonner $C1 @("match:$MatchA")); [void](Abonner $C2 @("match:$MatchA"))
   $dispoAvantAbandon = (Soldes $J1.Id).Disponible
-  [void](Api POST "/matchs/$MatchA/declaration" @{ scorePour = 5; scoreContre = 0 } $J1.Jeton)
+  [void](Api POST "/matchs/$MatchA/declaration" @{ resultat = 'gagne' } $J1.Jeton)
   [void](Attendre $C1 'match.chrono' { param($c) $c.matchId -eq $MatchA -and $c.type -eq 'confirmation' })
 
   # Garde-fou : tant que l'échéance n'est pas atteinte, la tâche ne doit RIEN faire, même si
@@ -359,8 +359,8 @@ try {
   $mB = Attendre $C2 'match.cree' { param($c) $c.defiId -eq $DefiB.id }
   $MatchB = $mB.charge.id
   [void](Abonner $C1 @("match:$MatchB")); [void](Abonner $C2 @("match:$MatchB"))
-  [void](Api POST "/matchs/$MatchB/declaration" @{ scorePour = 2; scoreContre = 0 } $J1.Jeton)
-  [void](Api POST "/matchs/$MatchB/declaration" @{ scorePour = 4; scoreContre = 1 } $J2.Jeton)
+  [void](Api POST "/matchs/$MatchB/declaration" @{ resultat = 'gagne' } $J1.Jeton)
+  [void](Api POST "/matchs/$MatchB/declaration" @{ resultat = 'gagne' } $J2.Jeton)
   [void](CheckEvenement $C1 'désaccord poussé aux deux joueurs (« match.desaccord »)' 'match.desaccord' { param($c) $c.matchId -eq $MatchB } 8000 { param($c) "échéance preuve=$($c.echeancePreuve)" })
   $statutB = Sql "select statut from matchs where id = '$MatchB'"
   [void](Check 'désaccord : match en « preuve_requise »' ($statutB -eq 'preuve_requise') "statut=$statutB")
@@ -373,8 +373,8 @@ try {
   $MatchC = $mC.charge.id
   [void](Abonner $C1 @("match:$MatchC")); [void](Abonner $C2 @("match:$MatchC"))
   $bloqueAvantNul = (Soldes $J1.Id).Bloque
-  [void](Api POST "/matchs/$MatchC/declaration" @{ scorePour = 2; scoreContre = 2 } $J1.Jeton)
-  [void](Api POST "/matchs/$MatchC/declaration" @{ scorePour = 2; scoreContre = 2 } $J2.Jeton)
+  [void](Api POST "/matchs/$MatchC/declaration" @{ resultat = 'nul' } $J1.Jeton)
+  [void](Api POST "/matchs/$MatchC/declaration" @{ resultat = 'nul' } $J2.Jeton)
   [void](CheckEvenement $C1 'nul constaté, choix demandé aux deux (« match.nul »)' 'match.nul' { param($c) $c.matchId -eq $MatchC } 8000 { param($c) "manche=$($c.manche)" })
   $r = Api POST "/matchs/$MatchC/choix-nul" @{ choix = 'rejouer' } $J1.Jeton
   [void](Check 'POST /matchs/:id/choix-nul -> 200' ($r.Status -eq 200) "statut=$($r.Status) $($r.Raw)")
@@ -386,8 +386,8 @@ try {
   [void](Check 'revanche : AUCUN mouvement d''argent, la mise reste bloquée' ((Soldes $J1.Id).Bloque -eq $bloqueAvantNul) "bloqué=$((Soldes $J1.Id).Bloque) (avant $bloqueAvantNul)")
 
   $dispoAvantPartage = (Soldes $J1.Id).Disponible
-  [void](Api POST "/matchs/$MatchC/declaration" @{ scorePour = 1; scoreContre = 1 } $J1.Jeton)
-  [void](Api POST "/matchs/$MatchC/declaration" @{ scorePour = 1; scoreContre = 1 } $J2.Jeton)
+  [void](Api POST "/matchs/$MatchC/declaration" @{ resultat = 'nul' } $J1.Jeton)
+  [void](Api POST "/matchs/$MatchC/declaration" @{ resultat = 'nul' } $J2.Jeton)
   [void](Attendre $C1 'match.nul' { param($c) $c.matchId -eq $MatchC -and $c.manche -eq 2 })
   [void](Api POST "/matchs/$MatchC/choix-nul" @{ choix = 'rejouer' } $J1.Jeton)
   [void](Api POST "/matchs/$MatchC/choix-nul" @{ choix = 'partager' } $J2.Jeton)
