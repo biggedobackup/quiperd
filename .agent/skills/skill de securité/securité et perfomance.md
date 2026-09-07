@@ -105,6 +105,36 @@ Vérifier et corriger :
 * Queues pour les traitements lourds
 * Monitoring des temps de réponse API
 
+### Montée en charge (WebSocket et défis simultanés)
+
+Outillage du dépôt : `backend/tests/charge.ps1` (pilote) + `backend/tests/outils/charge` (moteur Go,
+client pur). Deux cibles : `-Cible local` démarre une instance dédiée et mesure ce que le code
+encaisse ; `-Cible production` n'ouvre que des sockets « visiteur » et n'écrit rien.
+
+À vérifier à chaque campagne :
+
+* **Ne jamais laisser une goroutine écrire sur un socket après le retour du gestionnaire
+  d'upgrade.** fasthttp recycle la connexion détournée dès que le gestionnaire rend la main : il
+  remet le `hijackConn` au pool et met à nil le `net.Conn` enveloppé. Une écriture retardataire
+  (trame de fermeture, ping) déréférence alors un pointeur nul, et **une panique dans une goroutine
+  n'est rattrapée par aucun `recover` de Fiber : tout le processus tombe, API comprise**. Le
+  gestionnaire doit donc ATTENDRE la fin de la pompe d'écriture avant de rendre la main (cf.
+  `tempsreel.servir` et le test `TestFermetureBrutaleMassive`). La course est invisible à quelques
+  sockets et quasi certaine quand des milliers de joueurs se déconnectent ensemble.
+* Mesurer la **diffusion**, pas seulement le nombre de connexions : à N sockets abonnés, quel
+  pourcentage reçoit l'événement et en combien de temps (p50/p95/p99). Un socket ouvert qui ne reçoit
+  rien ne vaut rien.
+* Vérifier que les connexions **survivent au repos** : le ping serveur de 30 s doit garder vivante
+  une connexion inactive derrière le proxy (Cloudflare coupe à 100 s sans trafic).
+* Sur les écritures concurrentes, tester la **ruée** : N joueurs sur le MÊME défi doivent produire
+  exactement un 201 et N−1 refus 409. Contrôler ensuite en base qu'aucun solde n'est négatif,
+  qu'aucune mise n'est enregistrée deux fois et que `solde_bloque` égale la somme des mises bloquées.
+* Toute mesure d'écriture doit respecter les **bornes de `configurations_financieres`** : une mise
+  sous `mise_minimale` fait répondre 400 à toutes les créations et la campagne ne mesure plus que le
+  rejet de validation. Lire la valeur en base, ne pas la coder en dur.
+* Un palier où **100 % des opérations échouent doit être signalé comme anomalie**, jamais rapporté
+  comme « aucune anomalie » parce qu'aucune assertion métier n'a été violée.
+
 ---
 
 # 3. Base de données

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"sync"
 	"testing"
 	"time"
 
@@ -339,4 +340,80 @@ func TestAppartenanceMatchSQL(t *testing.T) {
 	if autoriserSalon(uuid.New(), RoleJoueur, SalonMatch(ligne.ID)) {
 		t.Fatal("un tiers ne doit pas pouvoir rejoindre le salon du match")
 	}
+}
+
+// TestFermetureBrutaleMassive rejoue la course qui a fait tomber tout le backend
+// pendant une montée en charge : le client raccroche à l'instant même où le
+// serveur lui écrit, `servir` rend la main, fasthttp recycle la connexion
+// détournée (le `net.Conn` enveloppé passe à nil) et la pompe d'écriture écrit
+// dans le vide. La panique arrive dans une goroutine : aucun `recover` de Fiber
+// ne la rattrape, le processus meurt en entier.
+//
+// Le test ouvre des sockets et les ferme sans ménagement, à répétition. S'il
+// passe, il ne prouve rien à lui seul (c'est une course) ; s'il tombe, c'est que
+// l'attente de la pompe d'écriture a été retirée de `servir`.
+func TestFermetureBrutaleMassive(t *testing.T) {
+	_ = godotenv.Load("../.env")
+	cfg := config.Charger()
+	if err := config.ConnecterRedis(cfg); err != nil {
+		t.Skip("Redis indisponible: " + err.Error())
+	}
+	Demarrer()
+
+	app := fiber.New()
+	app.Use(recover.New())
+	api := app.Group("/api")
+	Enregistrer(api, func(c fiber.Ctx) error { return c.Next() })
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { _ = app.Listener(ln, fiber.ListenConfig{DisableStartupMessage: true}) }()
+	defer func() { _ = app.Shutdown() }()
+	time.Sleep(300 * time.Millisecond)
+	adresse := "ws://" + ln.Addr().String() + "/api/temps-reel"
+
+	const vagues, parVague = 6, 60
+	for v := 0; v < vagues; v++ {
+		sockets := make([]*websocket.Conn, 0, parVague)
+		for i := 0; i < parVague; i++ {
+			c, _, err := websocket.DefaultDialer.Dial(adresse, nil)
+			if err != nil {
+				t.Fatalf("vague %d, socket %d : ouverture impossible (%v) — le serveur a-t-il paniqué ?", v, i, err)
+			}
+			// Abonnement demandé sans lire la réponse : la pompe d'écriture a donc
+			// des trames en attente au moment où le client raccroche.
+			_ = c.WriteMessage(websocket.TextMessage, []byte(`{"action":"abonner","salons":["`+SalonDefisPublics+`"]}`))
+			sockets = append(sockets, c)
+		}
+		// Fermeture brutale et simultanée : pas de trame de fermeture, on coupe.
+		var groupe sync.WaitGroup
+		for _, c := range sockets {
+			groupe.Add(1)
+			go func(c *websocket.Conn) {
+				defer groupe.Done()
+				_ = c.UnderlyingConn().Close()
+			}(c)
+		}
+		groupe.Wait()
+	}
+
+	// Le serveur doit toujours répondre : c'est la preuve qu'aucune goroutine
+	// d'écriture n'a emporté le processus.
+	time.Sleep(500 * time.Millisecond)
+	temoin, _, err := websocket.DefaultDialer.Dial(adresse, nil)
+	if err != nil {
+		t.Fatalf("le serveur ne répond plus après %d fermetures brutales : %v", vagues*parVague, err)
+	}
+	_ = temoin.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, donnees, err := temoin.ReadMessage()
+	if err != nil {
+		t.Fatalf("le socket témoin n'a rien reçu : %v", err)
+	}
+	var env Enveloppe
+	if json.Unmarshal(donnees, &env) != nil || env.Evenement != EvtConnexionPrete {
+		t.Fatalf("premier événement inattendu sur le socket témoin : %s", donnees)
+	}
+	_ = temoin.Close()
 }
