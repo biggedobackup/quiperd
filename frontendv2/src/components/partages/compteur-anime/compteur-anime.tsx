@@ -9,15 +9,6 @@ export interface ProprietesCompteurAnime {
   devise?: string
   dureeMs?: number
   className?: string
-  /**
-   * Compter depuis zéro à l'affichage. Mettre `false` là où l'arrivée sur la page ne doit
-   * rien animer : le tableau de bord est le premier écran après la connexion et celui sur
-   * lequel on revient sans cesse, et un solde qui repart de « 0 FCFA » à chaque passage se
-   * lit comme une donnée fausse avant d'être la bonne. Les variations ULTÉRIEURES restent
-   * animées dans les deux cas — c'est là que le mouvement dit quelque chose : l'argent
-   * vient de bouger.
-   */
-  animerAuMontage?: boolean
 }
 
 function easeOut(t: number) {
@@ -29,12 +20,11 @@ function easeOut(t: number) {
  * les changements de valeur ultérieurs s'animent depuis la valeur précédente.
  * Affiche directement la valeur si `prefers-reduced-motion`.
  */
-export function CompteurAnime({ valeur, format = 'montant', devise = 'XOF', dureeMs = 600, className = '', animerAuMontage = true }: ProprietesCompteurAnime) {
+export function CompteurAnime({ valeur, format = 'montant', devise = 'XOF', dureeMs = 600, className = '' }: ProprietesCompteurAnime) {
   const cible = versNombre(valeur)
   const reduit = useReducedMotion()
-  const depart = reduit || !animerAuMontage ? cible : 0
-  const [affiche, setAffiche] = useState(depart)
-  const precedent = useRef(depart)
+  const [affiche, setAffiche] = useState(reduit ? cible : 0)
+  const precedent = useRef(reduit ? cible : 0)
 
   useEffect(() => {
     const arriverDirectement = () => {

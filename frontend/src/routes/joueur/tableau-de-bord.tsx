@@ -16,8 +16,17 @@ const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/tableau-de-bord')({
   head: () => ({ meta: [{ title: 'Tableau de bord — QUI PERD' }] }),
+  // Toutes les données affichées sont attendues ici, et pas seulement le solde.
+  // Sinon chaque section (matchs en cours, défis ouverts, notifications) se peint
+  // d'abord en squelette puis se remplace : c'est le clignotement qu'on voit en
+  // arrivant sur la page. Les quatre appels partent en parallèle.
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(optionsPortefeuille)
+    await Promise.all([
+      context.queryClient.ensureQueryData(optionsPortefeuille),
+      context.queryClient.ensureQueryData(optionsMatchs('en_cours')),
+      context.queryClient.ensureQueryData(optionsDefis()),
+      context.queryClient.ensureQueryData(optionsNotifications),
+    ])
   },
   component: TableauDeBord,
 })
@@ -64,11 +73,11 @@ function TableauDeBord() {
               <span className="etiquette text-craie/60">Solde disponible</span>
               <FontAwesomeIcon icon={icone.portefeuille} className="text-volt" />
             </div>
-            <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} animerAuMontage={false} className="mt-4 text-display-sm font-bold text-volt md:text-display-md" />
+            <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} className="mt-4 text-display-sm font-bold text-volt md:text-display-md" />
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-craie/15 pt-4 text-legende text-craie/70">
               <span>
                 Bloqué en séquestre :{' '}
-                <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} animerAuMontage={false} className="font-bold text-craie" />
+                <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} className="font-bold text-craie" />
               </span>
               <Link to="/joueur/portefeuille" className="etiquette ml-auto flex min-h-11 items-center gap-1 text-volt hover:underline">
                 Historique <FontAwesomeIcon icon={icone.suivant} />

@@ -826,20 +826,25 @@ l'ancienne. Deux réglages ferment ce trou, et il faut les deux :
   navigation coûtait 3 appels RPC, puis 1, puis **0**. La sécurité ne bouge pas — le backend
   refuse tout jeton invalide (401 → redirection) et la déconnexion vide le cache.
 
-### Où les animations ont leur place, et où elles n'en ont pas
+### Aucun squelette ne doit clignoter à l'arrivée sur une page
 
-Décision de l'utilisateur sur le **tableau de bord joueur** : plus aucune animation à
-l'arrivée sur la page. Ni cascade des blocs, ni solde qui repart de « 0 FCFA » pour
-compter jusqu'à sa valeur.
+Demande explicite de l'utilisateur : « retire le flash animation » sur le tableau de bord,
+les défis, les matchs, le portefeuille, les litiges, les notifications et le profil.
 
-La raison tient au rôle de cet écran : c'est le premier après la connexion et celui sur
-lequel on revient sans cesse. Des blocs qui se remettent en place à chaque passage donnent
-l'impression que la page se recharge, et un solde qui affiche brièvement zéro se lit comme
-une donnée fausse avant d'être la bonne — sur une plateforme d'argent, c'est le pire
-endroit pour ça.
+Ce « flash » n'est pas une animation décorative, c'est un **squelette de chargement qui
+apparaît puis disparaît aussitôt**. Il se produit dès qu'une section est peinte par un
+`useQuery` dont le `loader` de la route n'a pas attendu les données : la page s'affiche,
+la section montre son squelette, puis le contenu le remplace. Sur un réseau rapide, cela
+donne exactement un clignotement.
 
-Le mouvement reste là où il **dit** quelque chose : un défi qui entre dans la liste en
-direct, une ligne d'historique qui arrive avec sa pastille « Nouveau », un solde qui vient
-de bouger. `CompteurAnime` garde donc son animation sur les changements de valeur ; c'est
-seulement l'animation *au montage* qui est coupée, par `animerAuMontage={false}`. Le même
-raisonnement s'applique partout où l'on affiche de l'argent au premier rendu.
+**Règle : tout ce qu'une route affiche est attendu dans son `loader`**, en parallèle avec
+`Promise.all` et `ensureQueryData` — jamais `prefetchQuery` pour une donnée effectivement
+rendue à l'écran, car le préchargement n'attend pas. C'est ce qui manquait au tableau de
+bord (matchs, défis, notifications), au profil (comptes gamers) et aux litiges (matchs).
+Si le réseau est lent, c'est le squelette de navigation qui prend le relais, une fois pour
+toute la page — un seul état d'attente, pas un clignotement par section.
+
+Ce qui reste animé, parce que le mouvement y dit quelque chose : la cascade a été retirée
+du tableau de bord (blocs qui se remettent en place à chaque passage), mais **le compteur
+du solde garde son animation** — l'utilisateur l'a demandé explicitement — comme les
+entrées qui arrivent en direct (« Nouveau », « Mis à jour »).

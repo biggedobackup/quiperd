@@ -34,7 +34,8 @@ export const Route = createFileRoute('/joueur/profil')({
     await Promise.all([
       context.queryClient.ensureQueryData(optionsJeux()),
       context.queryClient.ensureQueryData(optionsPlateformes()),
-      context.queryClient.prefetchQuery(optionsComptesGamers),
+      // Attendu, non préchargé : la section des identifiants de jeu clignotait sinon.
+      context.queryClient.ensureQueryData(optionsComptesGamers),
     ])
   },
   component: PageProfil,

@@ -28,7 +28,7 @@ const MAX_SALONS_MATCHS = 30
 export const Route = createFileRoute('/joueur/litiges')({
   head: () => ({ meta: [{ title: 'Mes litiges — QUI PERD' }] }),
   loader: async ({ context }) => {
-    await Promise.all([context.queryClient.ensureQueryData(optionsLitiges()), context.queryClient.prefetchQuery(optionsMatchs())])
+    await Promise.all([context.queryClient.ensureQueryData(optionsLitiges()), context.queryClient.ensureQueryData(optionsMatchs())])
   },
   component: PageLitiges,
 })
