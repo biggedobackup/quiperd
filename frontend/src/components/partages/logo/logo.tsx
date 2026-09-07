@@ -32,18 +32,18 @@ const TAILLES = { sm: 'text-[15px]', md: 'text-[19px]', lg: 'text-[26px]' }
  * Logotype : le « D » couronné à la manette, puis « Défis en » dans la couleur du texte et
  * « Ligne » en vert.
  *
- * L'image est le calque avant de l'icône d'application (`ic_launcher_foreground`), en PNG
- * transparent : le même dessin sur l'écran d'accueil du téléphone, dans l'application mobile
- * et ici, et il se pose aussi bien sur fond craie que sur fond encre. Ce calque réserve la
- * marge de sécurité des icônes adaptatives Android : le dessin n'occupe que les deux tiers de
- * son carré, d'où une échelle par défaut de 2.4 — sans quoi il paraîtrait rachitique à côté
- * du texte.
+ * L'image est le calque avant de l'icône d'application, en PNG transparent : le même dessin sur
+ * l'écran d'accueil du téléphone, dans l'application mobile et ici, et il se pose aussi bien sur
+ * fond craie que sur fond encre. Le fichier a été ROGNÉ de la marge de sécurité que réservent
+ * les icônes adaptatives Android : le dessin n'occupait que 59 % de son carré, ce qui obligeait
+ * à lui réserver une boîte deux fois plus grande que ce qu'on en voyait — et faisait enfler la
+ * barre du header. Les échelles ci-dessous sont calibrées sur le fichier rogné.
  */
 export function Logo({
   ton = 'encre',
   taille = 'md',
   variante = 'complet',
-  echelleMarque = 2.4,
+  echelleMarque = 1.55,
   marquePx,
   lien = true,
   className = '',
