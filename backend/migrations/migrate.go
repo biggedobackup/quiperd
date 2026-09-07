@@ -91,6 +91,13 @@ func indexComposites() error {
 		// Suivi des paiements côté administration (filtres type + statut, page 1 en tête).
 		`CREATE INDEX IF NOT EXISTS idx_paiements_type_statut_date
 		   ON paiements (type, statut, date_creation DESC)`,
+		// Classement : les deux agrégats balaient les matchs terminés et les gains
+		// validés sur une période. Sans ces index, chaque recalcul lit les tables
+		// entières — invisible aujourd'hui, décisif à cent mille matchs.
+		`CREATE INDEX IF NOT EXISTS idx_matchs_termines_date_fin
+		   ON matchs (statut, date_fin) WHERE date_fin IS NOT NULL`,
+		`CREATE INDEX IF NOT EXISTS idx_tx_gains_date
+		   ON transactions_portefeuilles (type, statut, date_creation)`,
 	}
 	for _, sql := range instructions {
 		if err := config.DB.Exec(sql).Error; err != nil {

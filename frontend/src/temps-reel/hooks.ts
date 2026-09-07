@@ -284,6 +284,46 @@ function formaterDuree(restant: number): string {
  * <span className="chiffres">{chrono.texte}</span>
  * ```
  */
+/**
+ * Horloge partagée : **une seule** minuterie pour toute l'application.
+ *
+ * Chaque compte à rebours avait la sienne. Sur une liste de vingt défis, cela faisait
+ * vingt `setInterval` et vingt `setState` par seconde, donc vingt rendus React par
+ * seconde là où un seul suffit — c'est ce qui rend une liste poisseuse au défilement.
+ * Ici, une minuterie unique démarre au premier abonné, s'arrête au dernier, et React
+ * regroupe les mises à jour en un seul rendu.
+ */
+const abonnesHorloge = new Set<() => void>()
+let minuterieHorloge: ReturnType<typeof setInterval> | null = null
+let instantHorloge = 0
+
+function abonnerHorloge(prevenir: () => void): () => void {
+  abonnesHorloge.add(prevenir)
+  if (minuterieHorloge === null) {
+    instantHorloge = Date.now()
+    minuterieHorloge = setInterval(() => {
+      instantHorloge = Date.now()
+      for (const abonne of abonnesHorloge) abonne()
+    }, 1000)
+  }
+  return () => {
+    abonnesHorloge.delete(prevenir)
+    if (abonnesHorloge.size === 0 && minuterieHorloge !== null) {
+      clearInterval(minuterieHorloge)
+      minuterieHorloge = null
+    }
+  }
+}
+
+/** Instantané lu par `useSyncExternalStore` (0 au rendu serveur : aucune horloge n'y tourne). */
+function lireHorloge(): number {
+  return instantHorloge
+}
+
+function lireHorlogeServeur(): number {
+  return 0
+}
+
 export function useChrono(echeance: string | null | undefined, options: { surFin?: () => void } = {}): EtatChrono {
   const cible = useMemo(() => {
     if (!echeance) return null
@@ -291,32 +331,29 @@ export function useChrono(echeance: string | null | undefined, options: { surFin
     return Number.isFinite(instant) ? instant : null
   }, [echeance])
 
-  const [maintenant, setMaintenant] = useState<number | null>(null)
+  // `useSyncExternalStore` plutôt qu'un état local : le composant se réabonne à
+  // l'horloge commune et React regroupe tous les comptes à rebours d'un même écran
+  // dans un seul rendu par seconde.
+  const tic = useSyncExternalStore(abonnerHorloge, lireHorloge, lireHorlogeServeur)
   const refFin = useRef(options.surFin)
   useEffect(() => {
     refFin.current = options.surFin
   })
 
+  const maintenant = cible === null || tic === 0 ? null : tic
+
+  // `surFin` est un effet de bord : il ne peut pas partir pendant le rendu.
+  const finSignalee = useRef(false)
   useEffect(() => {
-    if (cible === null) {
-      setMaintenant(null)
-      return
-    }
-    setMaintenant(Date.now())
-    if (Date.now() >= cible) {
-      refFin.current?.()
-      return
-    }
-    const minuterie = setInterval(() => {
-      const instant = Date.now()
-      setMaintenant(instant)
-      if (instant >= cible) {
-        clearInterval(minuterie)
-        refFin.current?.()
-      }
-    }, 1000)
-    return () => clearInterval(minuterie)
+    finSignalee.current = false
   }, [cible])
+  useEffect(() => {
+    if (cible === null || maintenant === null || finSignalee.current) return
+    if (maintenant >= cible) {
+      finSignalee.current = true
+      refFin.current?.()
+    }
+  }, [cible, maintenant])
 
   const pret = cible !== null && maintenant !== null
   const restant = pret ? Math.max(0, cible - maintenant) : 0

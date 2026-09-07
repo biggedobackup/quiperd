@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../noyau/format.dart';
+import '../../noyau/horloge.dart';
 import '../../theme/couleurs.dart';
 import '../../theme/typographie.dart';
 
@@ -35,7 +34,6 @@ class CompteARebours extends StatefulWidget {
 }
 
 class _CompteAReboursState extends State<CompteARebours> {
-  Timer? _minuterie;
   Duration _restant = Duration.zero;
   bool _finSignalee = false;
 
@@ -43,7 +41,8 @@ class _CompteAReboursState extends State<CompteARebours> {
   void initState() {
     super.initState();
     _recalculer();
-    _minuterie = Timer.periodic(const Duration(seconds: 1), (_) => _recalculer());
+    // Abonnement à l'horloge commune plutôt qu'une minuterie par carte.
+    Horloge.instance.addListener(_recalculer);
   }
 
   @override
@@ -59,17 +58,13 @@ class _CompteAReboursState extends State<CompteARebours> {
 
   void _recalculer() {
     final cible = DateTime.tryParse(widget.echeance)?.toUtc();
-    if (cible == null) {
-      _minuterie?.cancel();
-      return;
-    }
+    if (cible == null) return;
     final restant = cible.difference(DateTime.now().toUtc());
     if (!mounted) return;
     setState(() => _restant = restant);
 
     if (restant.inSeconds <= 0 && !_finSignalee) {
       _finSignalee = true;
-      _minuterie?.cancel();
       // Hors de la phase de construction : `surFin` déclenche souvent un appel API.
       WidgetsBinding.instance.addPostFrameCallback((_) => widget.surFin?.call());
     }
@@ -77,7 +72,7 @@ class _CompteAReboursState extends State<CompteARebours> {
 
   @override
   void dispose() {
-    _minuterie?.cancel();
+    Horloge.instance.removeListener(_recalculer);
     super.dispose();
   }
 

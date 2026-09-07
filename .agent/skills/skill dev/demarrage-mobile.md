@@ -904,3 +904,11 @@ Mesures faites sur cette base de code (émulateur x86_64, build release) :
 - Le catalogue, le portefeuille et les notifications sont chargés **en parallèle** au
   montage de la coquille (`Future.wait`) : ne pas les enchaîner, chaque appel séquentiel
   s'ajoute au temps avant premier écran utile.
+
+### Une seule horloge pour tous les comptes à rebours
+
+`CompteARebours` s'abonne à `Horloge.instance` (`noyau/horloge.dart`) au lieu de créer son
+propre `Timer.periodic`. Sur une liste de vingt défis, vingt minuteries provoquaient vingt
+`setState` par seconde — autant de sous-arbres reconstruits, ce qui se sent au défilement
+sur un téléphone modeste. L'horloge unique démarre au premier auditeur et s'arrête au
+dernier : un écran sans compte à rebours ne fait tourner aucune minuterie.

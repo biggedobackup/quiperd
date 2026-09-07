@@ -797,3 +797,13 @@ Mesures sur le build de production, et ce qu'elles imposent :
   `/classement`, `/paiements/prestataires`) est renvoyé par l'API avec
   `Cache-Control: public, max-age=60, stale-while-revalidate=300` et `Vary: Authorization` :
   navigateur et CDN évitent l'aller-retour, la variante administrateur reste distincte.
+
+### Une seule horloge pour tous les comptes à rebours
+
+`useChrono` s'abonne à une **horloge partagée** (`temps-reel/hooks.ts`) via
+`useSyncExternalStore`, et non à une minuterie par composant. Chaque carte de défi et
+chaque carte de match affiche une échéance : avec une minuterie chacune, une liste de
+vingt éléments produisait vingt `setInterval` et vingt `setState` par seconde, donc vingt
+rendus React par seconde. Une minuterie unique démarre au premier abonné, s'arrête au
+dernier, et React regroupe toutes les mises à jour en un seul rendu. Même règle pour
+toute future donnée égrenée au temps : un producteur, N lecteurs.

@@ -9,6 +9,8 @@
 package classement
 
 import (
+	"context"
+	"encoding/json"
 	"strconv"
 	"time"
 
@@ -141,12 +143,9 @@ func Lister(c fiber.Ctx) error {
 		depuis = &d
 	}
 
-	lignes := []Ligne{}
-	if err := config.DB.Raw(requete, depuis).Scan(&lignes).Error; err != nil {
+	lignes, err := classementDeLaPeriode(periode, depuis)
+	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "lecture du classement impossible")
-	}
-	for i := range lignes {
-		lignes[i].Rang = i + 1
 	}
 
 	reponse := Reponse{Periode: periode, Elements: lignes}
@@ -168,6 +167,46 @@ func Lister(c fiber.Ctx) error {
 		reponse.Elements = reponse.Elements[:limite]
 	}
 	return utils.OK(c, reponse)
+}
+
+// dureeCacheClassement : le classement est le même pour tout le monde et n'a aucun
+// besoin d'être à la seconde près. Une minute suffit à ce qu'un joueur voie sa
+// progression après un match, et évite de refaire l'agrégat à chaque visiteur.
+const dureeCacheClassement = 60 * time.Second
+
+func cleCacheClassement(periode string) string { return "classement:" + periode }
+
+// classementDeLaPeriode renvoie le tableau complet, depuis Redis quand il y est.
+//
+// La requête agrège TOUS les matchs terminés et TOUTES les transactions de gain :
+// son coût grandit avec l'historique, pas avec le nombre de lignes affichées. La
+// mettre en cache une minute est ce qui empêche le classement de devenir la page
+// la plus lourde du site le jour où il y aura cent mille matchs. La ligne « moi »
+// est calculée après coup, à partir du même tableau : elle ne dépend d'aucune
+// requête supplémentaire, donc le cache reste commun à tous les visiteurs.
+func classementDeLaPeriode(periode string, depuis *time.Time) ([]Ligne, error) {
+	ctx, annuler := context.WithTimeout(context.Background(), 2*time.Second)
+	defer annuler()
+	cle := cleCacheClassement(periode)
+
+	if brut, err := config.Redis.Get(ctx, cle).Bytes(); err == nil && len(brut) > 0 {
+		var lignes []Ligne
+		if json.Unmarshal(brut, &lignes) == nil {
+			return lignes, nil
+		}
+	}
+
+	lignes := []Ligne{}
+	if err := config.DB.Raw(requete, depuis).Scan(&lignes).Error; err != nil {
+		return nil, err
+	}
+	for i := range lignes {
+		lignes[i].Rang = i + 1
+	}
+	if brut, err := json.Marshal(lignes); err == nil {
+		config.Redis.Set(ctx, cle, brut, dureeCacheClassement)
+	}
+	return lignes, nil
 }
 
 // Enregistrer monte la route publique du classement. `auth.Optionnel()` : un visiteur
