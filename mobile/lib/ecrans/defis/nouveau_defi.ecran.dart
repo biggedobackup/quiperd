@@ -154,7 +154,7 @@ class _NouveauDefiEcranState extends State<NouveauDefiEcran> {
                       surtitre: 'Arène',
                       titre: 'Nouveau défi',
                       description: 'Votre mise est bloquée dès la création ; si personne ne '
-                          'rejoint, elle vous est rendue moins la commission de la plateforme.',
+                          'rejoint, elle vous est rendue en totalité, sans commission.',
                     ),
                     const SizedBox(height: 24),
                     ListeDeroulante(
@@ -220,8 +220,8 @@ class _NouveauDefiEcranState extends State<NouveauDefiEcran> {
                       label: 'Durée d’ouverture',
                       valeur: _duree,
                       options: _durees.map((d) => OptionListe(d.valeur, d.libelle)).toList(),
-                      aide: 'Sans adversaire à l’échéance, le défi expire et la mise est '
-                          'rendue, moins la commission.',
+                      aide: 'Sans adversaire à l’échéance, le défi expire et la mise vous '
+                          'est rendue en totalité, sans commission.',
                       onChanged: (v) => setState(() => _duree = v ?? '24'),
                     ),
                     const SizedBox(height: 18),

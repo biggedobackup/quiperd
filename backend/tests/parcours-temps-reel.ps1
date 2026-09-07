@@ -284,11 +284,11 @@ try {
   [void](Check 'expiration déclenchée depuis un processus séparé' ($exp.Code -eq 0) $exp.Sortie)
   [void](CheckEvenement $Visiteur 'le défi expiré disparaît en direct chez le visiteur (« defi.expire »)' 'defi.expire' { param($c) $c.defiId -eq $DefiExpire.id } 15000)
   [void](CheckEvenement $C2 'le défi expiré disparaît aussi chez le joueur 2' 'defi.expire' { param($c) $c.defiId -eq $DefiExpire.id } 15000)
-  [void](CheckEvenement $C1 'créateur : mise rendue poussée en direct après expiration' 'portefeuille.maj' { param($c) [double]$c.soldeDisponible -ge ($dispoAvantExpiration + 629.99) } 15000 { param($c) "dispo=$($c.soldeDisponible)" })
+  [void](CheckEvenement $C1 'créateur : mise rendue poussée en direct après expiration' 'portefeuille.maj' { param($c) [double]$c.soldeDisponible -ge ($dispoAvantExpiration + 699.99) } 15000 { param($c) "dispo=$($c.soldeDisponible)" })
   $statutExpire = Sql "select statut from defis where id = '$($DefiExpire.id)'"
   [void](Check 'défi expiré en base' ($statutExpire -eq 'expire') "statut=$statutExpire")
-  # Règle produit : toute mise rendue = mise x (1 - commission). 700 -> 630, la plateforme garde 70.
-  [void](Check 'expiration : mise rendue moins la commission (700 -> 630)' ([math]::Abs((Soldes $J1.Id).Disponible - ($dispoAvantExpiration + 630)) -lt 0.01) "avant=$dispoAvantExpiration après=$((Soldes $J1.Id).Disponible)")
+  # Règle produit : personne n'a rejoint le défi, la mise revient EN TOTALITÉ (700, sans retenue).
+  [void](Check 'expiration : mise rendue intégralement, sans commission (700)' ([math]::Abs((Soldes $J1.Id).Disponible - ($dispoAvantExpiration + 700)) -lt 0.01) "avant=$dispoAvantExpiration après=$((Soldes $J1.Id).Disponible)")
 
   Section '4. Défi rejoint — les deux joueurs basculent ensemble'
   $r = Api POST "/defis/$($Defi.id)/rejoindre" @{} $J2.Jeton

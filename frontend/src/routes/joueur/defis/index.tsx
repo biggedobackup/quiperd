@@ -230,7 +230,7 @@ function MesDefis({ defis }: { defis: DefiListe[] }) {
         toastErreur('Annulation impossible', r.message)
         return
       }
-      toastSucces('Défi annulé', 'Votre mise vous a été rendue sur votre solde disponible, moins la commission.')
+      toastSucces('Défi annulé', 'Votre mise vous a été rendue en totalité sur votre solde disponible.')
       setAAnnuler(null)
       // Écriture directe : le serveur diffusera `defi.annule`, inutile de rappeler l'API.
       sortirDeLArene(queryClient, id, 'annule')
@@ -291,7 +291,7 @@ function MesDefis({ defis }: { defis: DefiListe[] }) {
       >
         <p>
           Le défi de <strong className="chiffres">{aAnnuler && formatMontant(aAnnuler.montantMise)}</strong> sera retiré de l’arène et votre mise sera
-          remboursée, moins la commission de la plateforme.
+          rendue <strong>en totalité</strong>, sans commission.
         </p>
       </ConfirmModal>
     </>

@@ -354,7 +354,7 @@ l'essentiel sous la ligne de flottaison.
   rebours d'expiration.
 - **Onglet « Mes défis »** : badge de statut, mise, « jeu · plateforme · créé il y a … », compte
   à rebours « expire dans », bouton **Détail** et bouton **Annuler** (feuille de confirmation
-  qui rappelle que « votre mise sera remboursée, moins la commission de la plateforme »).
+  qui rappelle que « votre mise vous sera rendue en totalité, sans commission »).
 - **Indicateur « en direct »** visible, et quand un adversaire rejoint **mon** défi : une
   **invitation** apparaît (« X a rejoint votre défi », boutons « Voir le match » / « Plus
   tard »). **Jamais de navigation forcée** : le joueur peut être en train de faire autre chose.
@@ -368,7 +368,7 @@ Formulaire + **récapitulatif** :
   rappelant le solde disponible ; **puces de mise rapide** 500 / 1 000 / 2 000 / 5 000 / 10 000
   (filtrées par les bornes).
 - « Durée d'ouverture » : 6 h, 12 h, **24 h (défaut)**, 48 h, 72 h — « sans adversaire à
-  l'échéance, le défi expire et la mise est rendue, moins la commission ».
+  l'échéance, le défi expire et la mise vous est rendue en totalité, sans commission ».
 - « Règles du match (optionnel) », 500 caractères maximum.
 - **Récapitulatif** (bloc noir) : votre mise (bloquée), mise de l'adversaire, total en séquestre,
   commission (taux lu sur l'API), **gain estimé si vous gagnez** — avec la mention que le montant

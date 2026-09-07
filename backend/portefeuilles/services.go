@@ -126,16 +126,19 @@ func CommissionSurMise(montant, taux decimal.Decimal) (rendu, commission decimal
 	return rendu, commission
 }
 
-// rendreMise restitue une mise `bloquee` à son joueur, MOINS la commission de la plateforme
-// (annulation, expiration, litige remboursé — tous les chemins passent ici) :
+// rendreMise restitue une mise `bloquee` à son joueur, moins le `taux` que lui passe l'appelant
+// (annulation, expiration, partage d'un nul, litige remboursé — tous les chemins passent ici) :
 //   - `solde_bloque -= mise`, `solde_disponible += mise × (1 − taux)` ;
 //   - mise → `remboursee` par transition atomique (`WHERE statut = bloquee`, RowsAffected) :
 //     idempotence garantie même si deux appels concurrents ont lu la mise encore bloquée ;
-//   - une transaction `remboursement` du montant net, libellée « (moins la commission) » ;
+//   - une transaction `remboursement` du montant net ;
 //   - une transaction `commission` (mise × taux, statut `valide`) — même mécanique de ledger que
 //     ReglerEscrow : la ligne est informative (le joueur n'a jamais détenu la part prélevée) et
 //     elle entre dans le KPI admin des commissions. Les deux lignes portent `mise_id` (et
 //     `match_id` s'il existe) pour être distinguées des frais de retrait.
+//
+// Le taux est NUL sur un défi que personne n'a rejoint (cf. `RembourserMise`) : aucune ligne de
+// commission n'est alors écrite, et le libellé du remboursement ne parle pas de retenue.
 //
 // Le portefeuille `p` doit déjà être verrouillé (SELECT ... FOR UPDATE) par l'appelant.
 func rendreMise(tx *gorm.DB, p *Portefeuille, mise *Mise, taux decimal.Decimal, matchID *uuid.UUID, prefixe, motif string) (rendu, commission decimal.Decimal, err error) {
@@ -170,14 +173,24 @@ func rendreMise(tx *gorm.DB, p *Portefeuille, mise *Mise, taux decimal.Decimal, 
 	}
 
 	miseID := mise.ID
+	// Retenue nulle : le grand livre ne porte QUE l'écriture de remboursement. Écrire une
+	// ligne de commission à 0 ferait apparaître une commission dans l'historique du joueur
+	// et dans les états de la plateforme là où il ne s'est rien prélevé.
+	libelle := fmt.Sprintf("Remboursement de mise — %s, mise %s %s",
+		motif, mise.Montant.StringFixed(2), mise.Devise)
+	if commission.GreaterThan(decimal.Zero) {
+		libelle = fmt.Sprintf("Remboursement de mise (moins la commission) — %s, mise %s %s, commission %s %s",
+			motif, mise.Montant.StringFixed(2), mise.Devise, commission.StringFixed(2), mise.Devise)
+	}
 	txRemb := TransactionPortefeuille{
 		PortefeuilleID: p.ID, MiseID: &miseID, MatchID: matchID, Type: TxRemboursement, Montant: rendu,
-		Statut: "valide", Reference: reference(prefixe),
-		Description: fmt.Sprintf("Remboursement de mise (moins la commission) — %s, mise %s %s, commission %s %s",
-			motif, mise.Montant.StringFixed(2), mise.Devise, commission.StringFixed(2), mise.Devise),
+		Statut: "valide", Reference: reference(prefixe), Description: libelle,
 	}
 	if err = tx.Create(&txRemb).Error; err != nil {
 		return rendu, commission, err
+	}
+	if commission.IsZero() {
+		return rendu, commission, nil
 	}
 	txComm := TransactionPortefeuille{
 		PortefeuilleID: p.ID, MiseID: &miseID, MatchID: matchID, Type: TxCommission, Montant: commission,
@@ -190,12 +203,21 @@ func rendreMise(tx *gorm.DB, p *Portefeuille, mise *Mise, taux decimal.Decimal, 
 	return rendu, commission, nil
 }
 
-// RembourserMise rend au joueur sa mise bloquée sur un défi (annulation par le créateur,
-// expiration sans adversaire), moins la commission `commission_defi` : `taux` est lu par
-// l'appelant via administration.CommissionActuelle (même convention que ReglerEscrow) et
-// `motif` alimente les libellés du grand livre (« défi annulé », « défi expiré »).
-// Renvoie le montant net crédité et la commission retenue.
-func RembourserMise(tx *gorm.DB, defiID, userID uuid.UUID, taux decimal.Decimal, motif string) (rendu, commission decimal.Decimal, err error) {
+// RembourserMise rend au joueur sa mise bloquée sur un défi que PERSONNE N'A REJOINT :
+// annulation par le créateur, ou expiration à l'échéance. Le montant revient **intégralement**,
+// sans retenue.
+//
+// Règle produit, posée par l'utilisateur : la commission ne se prélève que si un match a
+// réellement eu lieu. Un joueur dont le défi expire n'a consommé aucun service — ni adversaire,
+// ni arbitrage — et lui retenir un pourcentage pour avoir attendu vingt-quatre heures en vain
+// serait la seule ligne rouge de sa journée. Les mises rendues APRÈS un match (partage d'un nul,
+// remboursement croisé décidé par un arbitre) restent commissionnées : elles passent par
+// `rendreMise` avec un `matchID`, jamais par ici.
+//
+// `motif` alimente les libellés du grand livre (« défi annulé », « défi expiré »). Renvoie le
+// montant crédité et la commission retenue — nulle par construction, mais l'appelant la
+// journalise pour que l'audit dise explicitement qu'il n'a rien été prélevé.
+func RembourserMise(tx *gorm.DB, defiID, userID uuid.UUID, motif string) (rendu, commission decimal.Decimal, err error) {
 	p, err := verrouiller(tx, userID)
 	if err != nil {
 		return decimal.Zero, decimal.Zero, err
@@ -206,7 +228,7 @@ func RembourserMise(tx *gorm.DB, defiID, userID uuid.UUID, taux decimal.Decimal,
 		First(&mise).Error; err != nil {
 		return decimal.Zero, decimal.Zero, err
 	}
-	return rendreMise(tx, p, &mise, taux, nil, "RB", motif)
+	return rendreMise(tx, p, &mise, decimal.Zero, nil, "RB", motif)
 }
 
 // MiseDuDefi renvoie la mise d'un joueur sur un défi, quel que soit son statut. Sert aux

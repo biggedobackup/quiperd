@@ -62,7 +62,7 @@ function CommentCaMarche() {
             </dl>
             <p className="mt-4 flex items-start gap-2 text-legende text-muet">
               <FontAwesomeIcon icon={icone.info} className="mt-0.5" />
-              Défi annulé ou expiré sans adversaire : la mise est rendue moins la commission de la plateforme ({formatPourcentage(regles.commissionDefi)}), toujours prélevée quand une mise est restituée.
+              Défi annulé ou expiré sans adversaire : personne n’a joué, la mise est rendue <strong>en totalité</strong>, sans commission.
             </p>
           </div>
           <TableauScore joueur1="Kader225" joueur2="Moussa10" score1={1} score2={0} gagnant={1} etiquette={`Défi · mise ${formatMontant(mise)}`} sousTitre={`Kader225 remporte ${formatMontant(gain)}`} />

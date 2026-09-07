@@ -166,7 +166,7 @@ function PageDefisPublics() {
               description={
                 filtreActif
                   ? 'Élargissez la recherche ou créez le défi que vous cherchez : un adversaire le trouvera ici.'
-                  : 'Soyez le premier à lancer un défi : votre mise reste en séquestre et vous est rendue, moins la commission, si personne ne rejoint.'
+                  : 'Soyez le premier à lancer un défi : votre mise reste en séquestre et vous est rendue en totalité si personne ne rejoint.'
               }
               action={
                 connecte ? (

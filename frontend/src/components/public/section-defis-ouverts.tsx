@@ -31,7 +31,7 @@ export function SectionDefisOuverts({ defis, connecte, numero = '01' }: { defis:
           <EmptyState
             icone={icone.defi}
             titre="Aucun défi en attente pour le moment"
-            description="Soyez le premier à lancer un défi : votre mise reste bloquée en séquestre et vous est rendue, moins la commission, si personne ne rejoint."
+            description="Soyez le premier à lancer un défi : votre mise reste bloquée en séquestre et vous est rendue en totalité si personne ne rejoint."
             action={
               connecte ? (
                 <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>

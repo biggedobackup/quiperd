@@ -537,12 +537,12 @@ Check 'DELETE /defis/:id par un autre joueur -> 409' ($r.Status -eq 409)
 $r = Api DELETE "/defis/$D3" -Token $TK
 Check 'DELETE /defis/:id (créateur, ouvert) -> 204' ($r.Status -eq 204)
 $wa = Wallet $TK
-# règle produit : toute mise rendue = mise × (1 − commission) → 700 - 10 % = 630 crédités, 70 de commission
-Check 'annulation: mise rendue moins la commission 10 % (+630 dispo, -700 bloqué)' ((Dec $wa.soldeDisponible) -eq (Dec $wb.soldeDisponible) + 630 -and (Dec $wa.soldeBloque) -eq (Dec $wb.soldeBloque) - 700) "avant=$($wb.soldeDisponible)/$($wb.soldeBloque) après=$($wa.soldeDisponible)/$($wa.soldeBloque)"
+# Règle produit : personne n'a rejoint ce défi, la mise revient EN TOTALITÉ (700, aucune retenue).
+Check 'annulation: mise rendue intégralement, sans commission (+700 dispo, -700 bloqué)' ((Dec $wa.soldeDisponible) -eq (Dec $wb.soldeDisponible) + 700 -and (Dec $wa.soldeBloque) -eq (Dec $wb.soldeBloque) - 700) "avant=$($wb.soldeDisponible)/$($wb.soldeBloque) après=$($wa.soldeDisponible)/$($wa.soldeBloque)"
 $mise = Sql "select statut from mises where defi_id='$D3'"
 Check 'annulation: mise -> remboursee' ($mise -eq 'remboursee') $mise
-$txa = Sql "select type||'='||montant||':'||statut||':'||(description like '%(moins la commission)%')::text from transactions_portefeuilles where mise_id=(select id from mises where defi_id='$D3') and type in ('remboursement','commission') order by type"
-Check 'annulation: transactions liées à la mise = commission 70 valide + remboursement 630 « (moins la commission) »' ($txa -match 'commission=70\.00:valide' -and $txa -match 'remboursement=630\.00:valide:true' -and @($txa -split "`n").Count -eq 2) $txa
+$txa = Sql "select type||'='||montant||':'||statut||':'||(description like '%commission%')::text from transactions_portefeuilles where mise_id=(select id from mises where defi_id='$D3') and type in ('remboursement','commission') order by type"
+Check 'annulation: UNE SEULE écriture — remboursement 700, aucune ligne de commission, aucun mot « commission » dans le libellé' ($txa -match 'remboursement=700\.00:valide:false' -and $txa -notmatch 'commission=' -and @($txa -split "`n").Count -eq 1) $txa
 $r = Api DELETE "/defis/$D3" -Token $TK
 Check 'DELETE /defis/:id déjà annulé -> 409' ($r.Status -eq 409)
 $r = Api GET "/defis/$D3" -Token $TK
@@ -563,9 +563,9 @@ for ($i = 0; $i -lt 30; $i++) {
 }
 Check 'WORKER defi:expiration -> défi expiré par le worker Asynq' ($statutD4 -eq 'expire') "statut=$statutD4 après $($i+1)s (zadd: $($z.Trim()))"
 $wa = Wallet $TK
-Check 'expiration: mise rendue au créateur moins la commission (+540 dispo, -600 bloqué)' ((Dec $wa.soldeDisponible) -eq (Dec $wb.soldeDisponible) + 540 -and (Dec $wa.soldeBloque) -eq (Dec $wb.soldeBloque) - 600) "avant=$($wb.soldeDisponible)/$($wb.soldeBloque) après=$($wa.soldeDisponible)/$($wa.soldeBloque)"
+Check 'expiration: mise rendue intégralement au créateur (+600 dispo, -600 bloqué)' ((Dec $wa.soldeDisponible) -eq (Dec $wb.soldeDisponible) + 600 -and (Dec $wa.soldeBloque) -eq (Dec $wb.soldeBloque) - 600) "avant=$($wb.soldeDisponible)/$($wb.soldeBloque) après=$($wa.soldeDisponible)/$($wa.soldeBloque)"
 $txe = Sql "select type||'='||montant||':'||statut from transactions_portefeuilles where mise_id=(select id from mises where defi_id='$D4') and type in ('remboursement','commission') order by type"
-Check 'expiration: transactions commission=60 + remboursement=540 (valide, liées à la mise)' ($txe -match 'commission=60\.00:valide' -and $txe -match 'remboursement=540\.00:valide') $txe
+Check 'expiration: UNE SEULE écriture — remboursement 600, aucune commission prélevée sans adversaire' ($txe -match 'remboursement=600\.00:valide' -and $txe -notmatch 'commission=' -and @($txe -split "`n").Count -eq 1) $txe
 $mise = Sql "select statut from mises where defi_id='$D4'"
 Check 'expiration: mise -> remboursee' ($mise -eq 'remboursee') $mise
 $r = Api GET '/notifications' -Token $TK
@@ -1411,14 +1411,15 @@ $tot = Sql "select sum(solde_disponible)||'|'||sum(solde_bloque) from portefeuil
 #   + 2 lignes héritées en verification (100 + 100) + litige gagnant 100 + abandon sur échéance 100
 #   + litige né de l'échéance de preuve 100
 #   + les deux matchs de la section 10e (jeu hors sport 200 + jeu de sport 200) = 1600
-# - commissions sur les mises rendues : annulation 70 + expiration 60 + litige remboursé (50 + 50)
-#   + partage du nul (100 + 100) + partage sur échéance (50 + 50) = 530
-# => 30000 - 505 - 1600 - 530 = 27365 ; bloqué = 0 (tous les escrows sont soldés)
-Check 'somme des portefeuilles = 30000 - 505 - 1600 - 530 = 27365, bloqué = 0' ($tot -eq '27365.00|0.00' -or $tot -eq '27365|0') $tot
+# - commissions sur les mises rendues APRÈS un match : litige remboursé (50 + 50)
+#   + partage du nul (100 + 100) + partage sur échéance (50 + 50) = 400. L'annulation et
+#   l'expiration n'en produisent plus AUCUNE : sans adversaire, la mise revient entière.
+# => 30000 - 505 - 1600 - 400 = 27495 ; bloqué = 0 (tous les escrows sont soldés)
+Check 'somme des portefeuilles = 30000 - 505 - 1600 - 400 = 27495, bloqué = 0' ($tot -eq '27495.00|0.00' -or $tot -eq '27495|0') $tot
 $neg = Sql "select count(*) from portefeuilles where solde_disponible < 0 or solde_bloque < 0"
 Check 'aucun solde négatif' ([int]$neg -eq 0)
 $comm = Sql "select sum(montant) from transactions_portefeuilles t join portefeuilles p on p.id=t.portefeuille_id where t.type='commission' and t.statut='valide' and p.utilisateur_id in ($ids)"
-Check 'commissions validées = 2135 (1600 matchs + 530 mises rendues + 5 frais de retrait)' ((Dec $comm) -eq 2135) $comm
+Check 'commissions validées = 2005 (1600 matchs + 400 mises rendues après match + 5 frais de retrait)' ((Dec $comm) -eq 2005) $comm
 # crédits : dépôts, gains, remboursements (nets de commission) ; débits : mises bloquées, retraits et frais de
 # retrait (les lignes annulées d'un retrait échoué restent des débits, compensés par la ligne de remboursement) ;
 # la commission d'un match (match_id) ou d'une mise rendue (mise_id) est informative : le joueur n'a jamais
@@ -1428,9 +1429,17 @@ $soldes = Sql "select sum(solde_disponible)+sum(solde_bloque) from portefeuilles
 Check 'grand livre: somme des mouvements = somme des soldes (cohérence comptable)' ((Dec $ledger) -eq (Dec $soldes)) "mouvements=$ledger soldes=$soldes"
 $blq = Sql "select count(*) from mises where statut='bloquee' and utilisateur_id in ($ids)"
 Check 'aucune mise encore bloquée (tous les défis réglés/annulés/expirés)' ([int]$blq -eq 0) "bloquees=$blq"
-# toute mise rendue = mise × (1 − commission) : exactement 1 remboursement + 1 commission valides par mise remboursee, jamais deux fois
-$sansComm = Sql "select count(*) from mises m where m.statut='remboursee' and m.utilisateur_id in ($ids) and (select count(*) from transactions_portefeuilles t where t.mise_id=m.id and t.type='commission' and t.statut='valide') <> 1"
-Check 'chaque mise rendue porte exactement une commission validée (aucun remboursement intégral)' ([int]$sansComm -eq 0) "mises sans commission unique=$sansComm"
+# Une mise rendue APRÈS un match (partage d'un nul, remboursement croisé d'un litige) porte
+# exactement une commission validée — jamais zéro, jamais deux. Ces remboursements-là passent par
+# `rendreMise` avec un match_id : c'est ce qui les distingue d'un défi que personne n'a rejoint.
+$sansComm = Sql "select count(*) from mises m where m.statut='remboursee' and m.utilisateur_id in ($ids) and exists (select 1 from transactions_portefeuilles t2 where t2.mise_id=m.id and t2.type='remboursement' and t2.match_id is not null) and (select count(*) from transactions_portefeuilles t where t.mise_id=m.id and t.type='commission' and t.statut='valide') <> 1"
+Check 'mise rendue après un match : exactement une commission validée' ([int]$sansComm -eq 0) "mises sans commission unique=$sansComm"
+# Le miroir : une mise rendue SANS match (défi annulé ou expiré) ne porte AUCUNE commission et
+# revient au centime près. C'est la garantie que personne n'est facturé faute d'adversaire.
+$commSansMatch = Sql "select count(*) from mises m where m.statut='remboursee' and m.utilisateur_id in ($ids) and exists (select 1 from transactions_portefeuilles t2 where t2.mise_id=m.id and t2.type='remboursement' and t2.match_id is null) and exists (select 1 from transactions_portefeuilles t where t.mise_id=m.id and t.type='commission')"
+Check 'défi sans adversaire : AUCUNE commission écrite sur la mise rendue' ([int]$commSansMatch -eq 0) "mises facturées à tort=$commSansMatch"
+$partiel = Sql "select count(*) from mises m join transactions_portefeuilles t on t.mise_id=m.id and t.type='remboursement' and t.match_id is null where m.statut='remboursee' and m.utilisateur_id in ($ids) and t.montant <> m.montant"
+Check 'défi sans adversaire : la mise est rendue au centime près (remboursement = montant misé)' ([int]$partiel -eq 0) "remboursements amputés=$partiel"
 $dblr = Sql "select count(*) from (select mise_id from transactions_portefeuilles where type='remboursement' and mise_id is not null group by mise_id having count(*)>1) x"
 Check 'aucune mise rendue deux fois' ([int]$dblr -eq 0) "doublons=$dblr"
 $colonnes = Sql "select string_agg(column_name, ',' order by column_name) from information_schema.columns where table_name='matchs' and column_name in ('joueur_1_id','joueur_2_id','score_joueur_1','score_joueur_2','joueur1_id','score_joueur1')"

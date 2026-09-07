@@ -43,7 +43,7 @@ function PageCgu() {
                 La mise par joueur est comprise entre {formatMontant(regles.miseMinimale)} et {formatMontant(regles.miseMaximale)}. À la création ou
                 au rejoindre d’un défi, elle passe du solde disponible au solde bloqué et n’est plus utilisable.
               </p>
-              <p>Un défi non rejoint expire à l’échéance choisie et la mise est rendue au joueur, moins la commission de la plateforme (elle est toujours prélevée lorsqu’une mise est restituée). Un défi encore ouvert peut être annulé par son créateur.</p>
+              <p>Un défi non rejoint expire à l’échéance choisie et la mise est rendue au joueur <strong>en totalité</strong> : aucune commission n’est prélevée tant qu’aucun adversaire n’a rejoint le défi. Un défi encore ouvert peut être annulé par son créateur, aux mêmes conditions.</p>
             </>
           ),
         },

@@ -233,7 +233,7 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
    gestion admin.
 6. **defis/** — création, liste connectée (filtres jeu/plateforme/catégorie/famille/mise),
    **liste publique des défis ouverts** (`GET /api/defis/ouverts`, sans jeton, pour la page
-   « Défis » du site vitrine), annulation d'un défi ouvert (mise rendue moins la commission).
+   « Défis » du site vitrine), annulation d'un défi ouvert (mise rendue intégralement, sans commission).
 7. **matchs/** — créé quand un deuxième joueur rejoint un défi ; porte **toute la machine à
    états** (§5.3) : déclaration (`resultats_declares`, une par joueur **et par manche**),
    confirmation du score par l'adversaire, désaccord, nul (choix `rejouer` / `partager`,
@@ -463,7 +463,7 @@ pseudo : on joue de l'argent contre quelqu'un, on doit pouvoir voir son visage.
 | POST | `/api/defis` | Connecté | Création — bloque la mise du créateur |
 | GET | `/api/defis/:id` | Connecté | Détail enrichi (`createurNom`, `jeuNom`, `plateformeNom`) + `match` enrichi s'il existe |
 | POST | `/api/defis/:id/rejoindre` | Connecté | Rejoindre — bloque la mise, crée le `match` |
-| DELETE | `/api/defis/:id` | Connecté | Annulation (si encore ouvert) — rend la mise moins la commission |
+| DELETE | `/api/defis/:id` | Connecté | Annulation (si encore ouvert) — rend la mise INTÉGRALEMENT : sans adversaire, aucune commission |
 | GET | `/api/matchs` | Connecté | Mes matchs en tableau (`?statut=en_cours|preuve_requise|nul_en_attente|litige|termine`, `verification` pour les lignes héritées) ; admin `?tous=1` → **page** `{ elements, total, page, taille, pages }` de tous les matchs (`?page&taille`, même filtre `statut`) — chaque match porte `joueur1Nom`, `joueur2Nom`, `jeuNom`, `plateformeNom` |
 | GET | `/api/matchs/:id` | Connecté | Détail du match enrichi (mêmes libellés) + `declarations` (**toutes** les manches, chaque ligne portant sa `manche`) + `choixNuls` |
 | POST | `/api/matchs/:id/declaration` | Connecté | Déclaration de l'issue par un joueur — `{ resultat: gagne|perdu|nul, commentaire? }`, aucun score chiffré (§5) — 409 si le match n'est pas `en_cours` ou si ce joueur a déjà déclaré cette manche |
@@ -574,34 +574,43 @@ pays) ; un administrateur peut modifier n'importe quel profil, y compris `email`
    - deux `transactions_portefeuilles` créées (gain, commission) ;
    - `journaux_audit` : ancien statut, nouveau statut, gagnant.
 5. **Annulation d'un défi ouvert** (`DELETE /api/defis/:id`) ou **expiration** (job Asynq
-   `defi:expiration`) : rend la mise **uniquement au créateur, moins la commission** (voir la
-   règle « toute mise rendue » ci-dessous) : transition atomique du défi (`ouvert → annule` /
+   `defi:expiration`) : rend la mise **uniquement au créateur, et en totalité** (voir la
+   règle « la commission ne se prélève que si un match a eu lieu » ci-dessous) : transition atomique du défi (`ouvert → annule` /
    `ouvert → expire`, `RowsAffected == 0` → 409 ou no-op), puis
-   `portefeuilles.RembourserMise(tx, defiID, createurID, taux, motif)` avec
-   `taux = administration.CommissionActuelle(tx)`.
+   `portefeuilles.RembourserMise(tx, defiID, createurID, motif)` avec
+   la commission forcée à zéro par construction.
 6. **Litige** : les deux mises restent `bloquee` tant que la décision n'est pas prise.
    `PATCH /api/litiges/:id` applique soit le règlement normal (étape 4) au gagnant désigné par
    l'arbitre, soit un remboursement croisé des deux joueurs
    (`portefeuilles.RemboursementCroise(tx, defiID, matchID, joueur1, joueur2, taux)` :
-   **chaque mise rendue moins la commission**, portefeuilles verrouillés par `ORDER BY id`,
+   **chaque mise rendue moins la commission** (un match a eu lieu), portefeuilles verrouillés par `ORDER BY id`,
    transactions liées à `match_id` et `mise_id`) — toujours dans une transaction unique,
    jamais un règlement partiel. Un match nul déclaré des deux côtés n'ouvre **pas** de litige :
    il passe en `nul_en_attente` et les joueurs choisissent rejouer ou partager (point 3).
 
-> **Règle transversale — toute mise rendue = mise × (1 − commission).** Décision produit :
-> la plateforme prélève `commission_defi` **chaque fois qu'elle rend une mise** (annulation
-> par le créateur, expiration sans adversaire, litige tranché « remboursement »), et pas
-> seulement sur les matchs joués. Pour chaque mise rendue : `commission = mise × taux`
-> (arrondi `decimal` à 2 décimales), `rendu = mise − commission`, `solde_bloque -= mise`,
-> `solde_disponible += rendu`, `mise.statut = remboursee` (transition atomique
-> `WHERE statut = bloquee` : une mise n'est jamais rendue deux fois), une transaction
-> `remboursement` de `rendu` libellée « (moins la commission) » et une transaction `commission`
-> de `commission` en statut `valide` — même mécanique que la commission de match : ligne
-> informative (le joueur n'a jamais détenu la part prélevée), comptée par le KPI admin
-> `commissionCumulee`, portant `mise_id` (et `match_id` s'il existe) pour la distinguer des
-> frais de retrait. Toute cette logique vit dans un seul point (`portefeuilles.rendreMise`,
-> appelé par `RembourserMise` / `RemboursementCroise`) : **un nouveau chemin qui rend une
-> mise passe par ces fonctions, jamais par un crédit direct de `solde_disponible`.**
+> **Règle transversale — la commission ne se prélève QUE si un match a eu lieu.** Décision
+> produit tranchée par l'utilisateur (« on ne doit pas le facturer si personne n'a accepté le
+> défi ») :
+>
+> - **Aucune retenue** quand le défi n'a jamais trouvé preneur — annulation par le créateur,
+>   expiration à l'échéance. La mise revient **intégralement**, le grand livre ne porte QUE
+>   l'écriture de `remboursement` (aucune ligne `commission`, aucun mot « commission » dans le
+>   libellé), et la notification annonce une restitution en totalité. Le joueur n'a consommé
+>   aucun service : ni adversaire, ni arbitrage.
+> - **Commission prélevée** quand la mise revient APRÈS un match : partage d'un nul, partage à
+>   l'expiration du choix après un nul, remboursement croisé décidé par un arbitre. Ces
+>   chemins-là portent un `match_id`, c'est exactement ce qui les distingue.
+>
+> Mécanique commune : `commission = mise × taux` (arrondi `decimal` à 2 décimales),
+> `rendu = mise − commission`, `solde_bloque -= mise`, `solde_disponible += rendu`,
+> `mise.statut = remboursee` (transition atomique `WHERE statut = bloquee` : une mise n'est
+> jamais rendue deux fois), une transaction `remboursement` de `rendu` et — seulement si la
+> commission est non nulle — une transaction `commission` en statut `valide`, ligne informative
+> comptée par le KPI admin `commissionCumulee`, portant `mise_id` (et `match_id` s'il existe)
+> pour la distinguer des frais de retrait. Toute cette logique vit dans un seul point
+> (`portefeuilles.rendreMise`, appelé par `RembourserMise` — qui force le taux à zéro par
+> construction — et par `RemboursementCroise`) : **un nouveau chemin qui rend une mise passe par
+> ces fonctions, jamais par un crédit direct de `solde_disponible`.**
 > Leçon retenue : la première version remboursait intégralement et chacun des trois chemins
 > (annulation, expiration, litige) avait son propre code de remboursement ; changer la règle a
 > demandé de retoucher les trois et la recette — d'où la centralisation. Les textes
@@ -743,7 +752,7 @@ connexion : `connexion.refusee` puis bascule en visiteur (salons publics seuleme
    taille maximale imposée, formats acceptés limités (image/vidéo), `empreinte_fichier` (hash)
    calculée pour détecter les doublons/réutilisations entre matchs.
 4. **Jobs Asynq :** `defi:expiration` (enfilée à la création du défi, `TaskID defi-exp:<id>`,
-   rend la mise au créateur, moins la commission, si le défi est encore `ouvert`),
+   rend la mise au créateur en totalité si le défi est encore `ouvert`),
    `paiement:reverification` (polling de
    secours LigdiCash/MoneyFusion, enfilée à chaque dépôt initié), `notification:push` (FCM,
    enfilée par `notifications.Creer`), `litige:relance` (enfilée à **chaque** ouverture de

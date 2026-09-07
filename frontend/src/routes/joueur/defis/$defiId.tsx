@@ -135,7 +135,7 @@ function DetailDefi() {
         invalider()
         return
       }
-      toastSucces('Défi annulé', 'Votre mise vous a été rendue, moins la commission.')
+      toastSucces('Défi annulé', 'Votre mise vous a été rendue en totalité.')
       invalider()
       await navigate({ to: '/joueur/defis', search: { onglet: 'mes' } })
     },
@@ -284,7 +284,7 @@ function DetailDefi() {
         libelleAnnuler="Garder"
         chargement={mutAnnuler.isPending}
       >
-        <p>Le défi sera retiré et votre mise de <strong className="chiffres">{formatMontant(mise)}</strong> remboursée, moins la commission de la plateforme.</p>
+        <p>Le défi sera retiré et votre mise de <strong className="chiffres">{formatMontant(mise)}</strong> rendue <strong>en totalité</strong>, sans commission.</p>
       </ConfirmModal>
     </>
   )
@@ -319,7 +319,7 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
             icone: icone.interdire,
             cadre: 'border-trait bg-gris',
             titre: 'Ce défi vient d’être annulé',
-            texte: mien ? 'Votre mise vous a été rendue, moins la commission.' : 'Son créateur l’a retiré de l’arène.',
+            texte: mien ? 'Votre mise vous a été rendue en totalité.' : 'Son créateur l’a retiré de l’arène.',
             action: (
               <LienBouton to="/joueur/defis" variante="secondaire" iconeDebut={icone.precedent}>
                 Retour aux défis
@@ -330,7 +330,7 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
             icone: icone.horloge,
             cadre: 'border-alerte bg-alerte-fond',
             titre: 'Ce défi vient d’expirer',
-            texte: mien ? 'Aucun adversaire ne l’a rejoint : votre mise vous est rendue, moins la commission.' : 'Personne ne l’a rejoint à temps.',
+            texte: mien ? 'Aucun adversaire ne l’a rejoint : votre mise vous est rendue en totalité.' : 'Personne ne l’a rejoint à temps.',
             action: (
               <LienBouton to="/joueur/defis" variante="secondaire" iconeDebut={icone.precedent}>
                 Retour aux défis

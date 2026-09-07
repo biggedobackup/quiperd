@@ -58,7 +58,8 @@ class DefisService {
       (await ClientApi.post('/defis/$id/rejoindre'))
           .vers((corps) => MatchDefi.depuisJson(objet(corps)));
 
-  /// Annuler rend la mise moins la commission de la plateforme.
+  /// Annuler rend la mise EN TOTALITÉ : personne n'a rejoint le défi, la plateforme ne
+  /// prélève rien.
   static Future<Resultat<void>> annuler(String id) async =>
       (await ClientApi.delete('/defis/$id')).versRien();
 }

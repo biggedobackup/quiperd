@@ -124,7 +124,7 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
     final ok = await confirmer(
       context,
       titre: 'Annuler ce défi ?',
-      message: 'Votre mise sera remboursée, moins la commission de la plateforme.',
+      message: 'Votre mise vous sera rendue en totalité, sans commission.',
       libelleConfirmer: 'Annuler le défi',
       libelleAnnuler: 'Garder',
       destructif: true,
@@ -141,7 +141,7 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
       return;
     }
     context.read<PortefeuilleEtat>().charger(avecTransactions: false);
-    Message.succes(context, 'Défi annulé', 'Votre mise vous a été rendue, moins la commission.');
+    Message.succes(context, 'Défi annulé', 'Votre mise vous a été rendue en totalité.');
     Navigator.of(context).pop();
   }
 

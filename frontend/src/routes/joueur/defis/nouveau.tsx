@@ -123,7 +123,7 @@ function NouveauDefi() {
 
   return (
     <>
-      <EnTetePage surtitre="Arène" titre="Nouveau défi" description="Votre mise est bloquée dès la création ; si personne ne rejoint, elle vous est rendue moins la commission de la plateforme." />
+      <EnTetePage surtitre="Arène" titre="Nouveau défi" description="Votre mise est bloquée dès la création ; si personne ne rejoint, elle vous est rendue en totalité, sans commission." />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <form onSubmit={soumettre} className="space-y-5 rounded-2xl border border-trait bg-papier p-6" noValidate>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -164,7 +164,7 @@ function NouveauDefi() {
                 <MiseRapide key={m} montant={m} />
               ))}
           </div>
-          <Select label="Durée d’ouverture" options={DUREES} {...register('dureeHeures')} aide="Sans adversaire à l’échéance, le défi expire et la mise est rendue, moins la commission." />
+          <Select label="Durée d’ouverture" options={DUREES} {...register('dureeHeures')} aide="Sans adversaire à l’échéance, le défi expire et la mise vous est rendue en totalité, sans commission." />
           <Textarea label="Règles du match (optionnel)" placeholder="Ex. 2 × 6 min, pas d’équipes légendes, connexion stable exigée." {...register('regles')} erreur={errors.regles?.message} />
           {erreurGlobale && (
             <p className="rounded-xl border border-perte bg-perte-fond px-3.5 py-2.5 text-legende font-semibold text-perte" role="alert">

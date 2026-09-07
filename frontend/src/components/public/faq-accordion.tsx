@@ -36,7 +36,7 @@ export function questionsFrequentes(regles: ReglesFinancieres): QuestionReponse[
     {
       question: 'Personne ne rejoint mon défi, que devient ma mise ?',
       reponse:
-        'Un défi ouvert expire à la fin de la durée choisie (24 h par défaut). Votre mise vous est alors rendue sur votre solde disponible, moins la commission de la plateforme. Vous pouvez aussi annuler un défi encore ouvert à tout moment.',
+        'Un défi ouvert expire à la fin de la durée choisie (24 h par défaut). Votre mise vous est alors rendue en totalité sur votre solde disponible : sans adversaire, aucune commission n’est prélevée. Vous pouvez aussi annuler un défi encore ouvert à tout moment.',
     },
     {
       question: 'Puis-je jouer sur mobile ?',

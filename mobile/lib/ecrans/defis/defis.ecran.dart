@@ -193,7 +193,7 @@ class _DefisEcranState extends State<DefisEcran> {
       context,
       titre: 'Annuler ce défi ?',
       message: 'Le défi de ${formatMontant(defi.montantMise, defi.devise)} sera retiré de '
-          'l’arène et votre mise sera remboursée, moins la commission de la plateforme.',
+          'l’arène et votre mise vous sera rendue en totalité, sans commission.',
       libelleConfirmer: 'Annuler le défi',
       libelleAnnuler: 'Garder',
       destructif: true,
@@ -209,7 +209,7 @@ class _DefisEcranState extends State<DefisEcran> {
     Message.succes(
       context,
       'Défi annulé',
-      'Votre mise vous a été rendue sur votre solde disponible, moins la commission.',
+      'Votre mise vous a été rendue en totalité sur votre solde disponible.',
     );
     setState(() {
       _mes = _mes.map((d) => d.id == defi.id ? d.copieAvec(statut: 'annule') : d).toList();

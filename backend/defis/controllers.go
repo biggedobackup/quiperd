@@ -360,16 +360,15 @@ func Annuler(c fiber.Ctx) error {
 		if res.RowsAffected == 0 {
 			return errIndisponible
 		}
-		// Règle produit : toute mise rendue = mise × (1 − commission), même sur annulation.
-		taux := administration.CommissionActuelle(tx)
-		rendu, commission, err := portefeuilles.RembourserMise(tx, id, userID, taux, "défi annulé")
+		// Personne n'a rejoint ce défi : la mise revient intégralement, sans commission.
+		rendu, commission, err := portefeuilles.RembourserMise(tx, id, userID, "défi annulé")
 		if err != nil {
 			return err
 		}
 		administration.Journaliser(tx, administration.ParamsAudit{
 			UtilisateurID: &userID, Action: "defi:annulation", TableCible: "defis",
 			IdentifiantCible: &id, AdresseIP: c.IP(),
-			Nouvelle: fiber.Map{"statut": StatutAnnule, "rendu": rendu, "commission": commission, "taux": taux},
+			Nouvelle: fiber.Map{"statut": StatutAnnule, "rendu": rendu, "commission": commission},
 		})
 		tampon.Ajouter(tempsreel.EvtDefiAnnule, ChargeDefiID{DefiID: id}, tempsreel.SalonDefisPublics)
 		if mise, e := portefeuilles.MiseDuDefi(tx, id, userID); e == nil {
