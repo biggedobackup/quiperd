@@ -4,6 +4,7 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { routeTree } from './routeTree.gen'
 import { preparerEntetesSecurite } from '@/server/csp'
 import { PageErreur, PageIntrouvable } from '@/components/partages/etats/pages-erreur'
+import { SqueletteNavigation } from '@/components/partages/etats/squelette-navigation'
 
 export function getRouter() {
   const queryClient = new QueryClient({
@@ -35,6 +36,18 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: PageIntrouvable,
     defaultErrorComponent: PageErreur,
+    // Pendant qu'une route charge, le routeur continue par défaut d'afficher la page
+    // PRÉCÉDENTE : on voit les données de l'écran qu'on vient de quitter, puis elles
+    // sont remplacées d'un coup. On montre l'ossature de la page à venir à la place.
+    //
+    // Les deux seuils comptent autant que le squelette lui-même :
+    //   - `defaultPendingMs` : en dessous, la navigation est jugée instantanée et rien
+    //     ne clignote (la grande majorité des cas, les données étant en cache) ;
+    //   - `defaultPendingMinMs` : une fois affiché, le squelette reste assez longtemps
+    //     pour ne pas produire un battement d'œil.
+    defaultPendingComponent: SqueletteNavigation,
+    defaultPendingMs: 150,
+    defaultPendingMinMs: 350,
   })
 
   // Hydratation SSR du cache TanStack Query + <QueryClientProvider> (wrapQueryClient par défaut).

@@ -807,3 +807,21 @@ vingt éléments produisait vingt `setInterval` et vingt `setState` par seconde,
 rendus React par seconde. Une minuterie unique démarre au premier abonné, s'arrête au
 dernier, et React regroupe toutes les mises à jour en un seul rendu. Même règle pour
 toute future donnée égrenée au temps : un producteur, N lecteurs.
+
+### Pendant qu'une page charge, ne jamais laisser la précédente à l'écran
+
+Par défaut, le routeur continue d'afficher la route PRÉCÉDENTE tant que la nouvelle n'est
+pas résolue. Le joueur voit alors les données de l'écran qu'il vient de quitter, puis
+elles sont remplacées d'un coup : on croit lire la nouvelle page alors qu'on lit encore
+l'ancienne. Deux réglages ferment ce trou, et il faut les deux :
+
+- `defaultPendingComponent: SqueletteNavigation`, avec `defaultPendingMs: 150` (en dessous,
+  la navigation est jugée instantanée et rien ne clignote) et `defaultPendingMinMs: 350`
+  (une fois affiché, le squelette ne bat pas de l'œil) ;
+- **et surtout, aucune attente réseau dans le `beforeLoad` d'un gabarit**. La garde de
+  l'espace joueur appelait `/auth/moi` à chaque navigation interne : le gabarit étant déjà
+  monté, le routeur n'avait rien d'autre à montrer pendant ce temps que la page précédente,
+  et aucun squelette ne s'affiche dans ce cas-là. La session passe maintenant par
+  `optionsSessionJoueur` / `optionsSessionAdmin` (cache d'une minute) : mesuré, une
+  navigation coûtait 3 appels RPC, puis 1, puis **0**. La sécurité ne bouge pas — le backend
+  refuse tout jeton invalide (401 → redirection) et la déconnexion vide le cache.

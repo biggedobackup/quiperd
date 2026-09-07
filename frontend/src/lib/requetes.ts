@@ -17,6 +17,7 @@ import { listerNotifications } from '@/services/notifications'
 import { listerComptesGamers } from '@/services/comptes-gamers'
 import { detailUtilisateur, listerUtilisateurs } from '@/services/utilisateurs'
 import { listerPaiements, listerPrestataires } from '@/services/paiements'
+import { obtenirSessionAdmin, obtenirSessionJoueur } from '@/server/session-fns'
 import type { FiltresDefis, FiltresDefisPublics } from '@/models/defi'
 
 export const TAILLE_PAGE = 20
@@ -31,6 +32,30 @@ export const optionsDefisOuverts = (filtres: FiltresDefisPublics = {}) =>
     queryFn: () => listerDefisOuverts({ data: filtres }),
     staleTime: 10_000,
   })
+
+/**
+ * Session courante, **mise en cache**.
+ *
+ * La garde de l'espace joueur s'exécute dans le `beforeLoad` du gabarit, donc à CHAQUE
+ * navigation interne. Sans cache, chaque changement de page payait un aller-retour
+ * `/auth/moi` avant d'afficher quoi que ce soit — et comme le gabarit est déjà monté, le
+ * routeur n'a rien d'autre à montrer pendant ce temps que la page qu'on vient de quitter.
+ * C'est exactement le « flash des données de la page précédente ».
+ *
+ * Une minute de fraîcheur suffit : la session reste vérifiée par le backend à chaque appel
+ * d'API (401 → redirection), et la déconnexion vide tout le cache (`queryClient.clear()`).
+ */
+export const optionsSessionJoueur = queryOptions({
+  queryKey: cles.session,
+  queryFn: () => obtenirSessionJoueur(),
+  staleTime: 60_000,
+})
+
+export const optionsSessionAdmin = queryOptions({
+  queryKey: cles.sessionAdmin,
+  queryFn: () => obtenirSessionAdmin(),
+  staleTime: 60_000,
+})
 
 export const optionsRegles = queryOptions({
   queryKey: cles.regles,

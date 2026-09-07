@@ -1,6 +1,5 @@
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
-import { gardeJoueur } from '@/server/gardes'
-import { optionsNotifications, optionsPortefeuille } from '@/lib/requetes'
+import { optionsNotifications, optionsPortefeuille, optionsSessionJoueur } from '@/lib/requetes'
 import { LayoutJoueur } from '@/components/joueur/layout-joueur'
 import { emailNonConfirme } from '@/components/joueur/email-non-verifie'
 
@@ -9,8 +8,12 @@ const OUVERT_SANS_CONFIRMATION = ['/joueur/confirmation-email', '/joueur/profil'
 
 /** Espace joueur : garde de rôle dans beforeLoad, session partagée via le contexte de route. */
 export const Route = createFileRoute('/joueur')({
-  beforeLoad: async ({ location }) => {
-    const session = await gardeJoueur()
+  beforeLoad: async ({ context, location }) => {
+    // Session lue depuis le cache de requêtes : ce `beforeLoad` s'exécute à chaque
+    // navigation interne, et un aller-retour réseau ici retarde l'affichage de TOUTES
+    // les pages de l'espace joueur.
+    const session = await context.queryClient.ensureQueryData(optionsSessionJoueur)
+    if (!session) throw redirect({ to: '/connexion' })
     // Adresse non confirmée : l'espace joueur est fermé, le tableau de bord compris. Le joueur
     // est renvoyé sur la saisie du code ; `vers` conserve la page qu'il voulait, rouverte une
     // fois la confirmation faite. Seuls la confirmation elle-même et le profil restent ouverts.
