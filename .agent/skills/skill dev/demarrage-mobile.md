@@ -912,3 +912,20 @@ propre `Timer.periodic`. Sur une liste de vingt défis, vingt minuteries provoqu
 `setState` par seconde — autant de sous-arbres reconstruits, ce qui se sent au défilement
 sur un téléphone modeste. L'horloge unique démarre au premier auditeur et s'arrête au
 dernier : un écran sans compte à rebours ne fait tourner aucune minuterie.
+
+### Photo de profil : un fichier, jamais une adresse
+
+Le profil acceptait autrefois une URL. Trois défauts : la photo pouvait disparaître du
+jour au lendemain, le navigateur des autres joueurs allait chercher une ressource chez un
+tiers (traceur, contenu quelconque), et rien ne garantissait que c'était une image.
+
+Le joueur **téléverse** désormais un fichier :
+
+- `POST /api/utilisateurs/moi/photo` (multipart, champ `fichier`), `DELETE` pour retirer,
+  `GET /api/utilisateurs/{id}/photo` pour lire — route **protégée**, jamais un dossier
+  statique ouvert ;
+- côté application, `image_picker` réduit l'image à 512 px avant l'envoi : une photo d'appareil récent pèse plusieurs mégaoctets pour finir dans un rond de 40 pixels ;
+- le backend vérifie le contenu réel (pas seulement l'extension), plafonne à 3 Mo, range
+  le fichier sous `STOCKAGE_PHOTOS_DIR/<id joueur>/<uuid>.<ext>` et efface l'ancienne ;
+- `PATCH /api/utilisateurs/{id}` **n'accepte plus** `photoProfil` : laisser passer une
+  adresse rouvrirait exactement la porte qu'on vient de fermer.

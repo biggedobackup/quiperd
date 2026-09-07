@@ -48,13 +48,17 @@ func Lister(c fiber.Ctx) error {
 }
 
 // EntreeModification est le corps de PATCH /utilisateurs/:id. Un joueur ne modifie que
-// nomUtilisateur, telephone, photoProfil et pays de son propre profil ; email, statut et
-// motDePasse sont réservés à l'administrateur (403 sinon).
+// nomUtilisateur, telephone et pays de son propre profil ; email, statut et motDePasse
+// sont réservés à l'administrateur (403 sinon).
+//
+// La photo de profil ne passe PAS par ici : elle s'envoie en fichier sur
+// `POST /utilisateurs/moi/photo`. Accepter une adresse arbitraire reviendrait à laisser
+// un joueur faire charger au navigateur des autres n'importe quelle URL — traceur,
+// contenu illicite, ou simplement lien mort.
 type EntreeModification struct {
 	NomUtilisateur string `json:"nomUtilisateur" validate:"omitempty,min=3,max=50"`
 	Email          string `json:"email" validate:"omitempty,email"`
 	Telephone      string `json:"telephone"`
-	PhotoProfil    string `json:"photoProfil"`
 	Pays           string `json:"pays"`
 	Statut         string `json:"statut" validate:"omitempty,oneof=actif suspendu en_attente"`
 	MotDePasse     string `json:"motDePasse" validate:"omitempty,min=6"`
@@ -117,10 +121,6 @@ func Modifier(c fiber.Ctx) error {
 	if in.Telephone != "" {
 		maj["telephone"] = in.Telephone
 		journal["telephone"] = in.Telephone
-	}
-	if in.PhotoProfil != "" {
-		maj["photo_profil"] = in.PhotoProfil
-		journal["photoProfil"] = in.PhotoProfil
 	}
 	if in.Pays != "" {
 		maj["pays"] = in.Pays
@@ -230,4 +230,10 @@ func Enregistrer(api fiber.Router) {
 	grp.Patch("/:id", Modifier)
 	grp.Delete("/:id", auth.AdminSeul(), Supprimer)
 	grp.Patch("/:id/statut", auth.AdminSeul(), ChangerStatut)
+
+	// Photo de profil : téléversement de fichier, jamais une adresse. Aucun conflit avec
+	// `/:id` — ces chemins ont deux segments là où `/:id` n'en a qu'un.
+	grp.Post("/moi/photo", TeleverserPhoto)
+	grp.Delete("/moi/photo", SupprimerPhoto)
+	grp.Get("/:id/photo", Photo)
 }

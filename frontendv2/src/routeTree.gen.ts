@@ -50,6 +50,7 @@ import { Route as AdminPriveMatchsIndexRouteImport } from './routes/admin/_prive
 import { Route as AdminPriveMatchsMatchIdRouteImport } from './routes/admin/_prive/matchs/$matchId'
 import { Route as ApiMatchsMatchIdPreuvesRouteImport } from './routes/api/matchs/$matchId/preuves'
 import { Route as ApiPreuvesPreuveIdFichierRouteImport } from './routes/api/preuves/$preuveId/fichier'
+import { Route as ApiUtilisateursUtilisateurIdPhotoRouteImport } from './routes/api/utilisateurs/$utilisateurId/photo'
 
 const PublicRoute = PublicRouteImport.update({
   id: '/_public',
@@ -260,6 +261,12 @@ const ApiPreuvesPreuveIdFichierRoute =
     path: '/api/preuves/$preuveId/fichier',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiUtilisateursUtilisateurIdPhotoRoute =
+  ApiUtilisateursUtilisateurIdPhotoRouteImport.update({
+    id: '/api/utilisateurs/$utilisateurId/photo',
+    path: '/api/utilisateurs/$utilisateurId/photo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof PublicIndexRoute
@@ -300,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/admin/matchs/$matchId': typeof AdminPriveMatchsMatchIdRoute
   '/api/matchs/$matchId/preuves': typeof ApiMatchsMatchIdPreuvesRoute
   '/api/preuves/$preuveId/fichier': typeof ApiPreuvesPreuveIdFichierRoute
+  '/api/utilisateurs/$utilisateurId/photo': typeof ApiUtilisateursUtilisateurIdPhotoRoute
   '/admin/litiges/': typeof AdminPriveLitigesIndexRoute
   '/admin/matchs/': typeof AdminPriveMatchsIndexRoute
 }
@@ -342,6 +350,7 @@ export interface FileRoutesByTo {
   '/admin/matchs/$matchId': typeof AdminPriveMatchsMatchIdRoute
   '/api/matchs/$matchId/preuves': typeof ApiMatchsMatchIdPreuvesRoute
   '/api/preuves/$preuveId/fichier': typeof ApiPreuvesPreuveIdFichierRoute
+  '/api/utilisateurs/$utilisateurId/photo': typeof ApiUtilisateursUtilisateurIdPhotoRoute
   '/admin/litiges': typeof AdminPriveLitigesIndexRoute
   '/admin/matchs': typeof AdminPriveMatchsIndexRoute
 }
@@ -386,6 +395,7 @@ export interface FileRoutesById {
   '/admin/_prive/matchs/$matchId': typeof AdminPriveMatchsMatchIdRoute
   '/api/matchs/$matchId/preuves': typeof ApiMatchsMatchIdPreuvesRoute
   '/api/preuves/$preuveId/fichier': typeof ApiPreuvesPreuveIdFichierRoute
+  '/api/utilisateurs/$utilisateurId/photo': typeof ApiUtilisateursUtilisateurIdPhotoRoute
   '/admin/_prive/litiges/': typeof AdminPriveLitigesIndexRoute
   '/admin/_prive/matchs/': typeof AdminPriveMatchsIndexRoute
 }
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/admin/matchs/$matchId'
     | '/api/matchs/$matchId/preuves'
     | '/api/preuves/$preuveId/fichier'
+    | '/api/utilisateurs/$utilisateurId/photo'
     | '/admin/litiges/'
     | '/admin/matchs/'
   fileRoutesByTo: FileRoutesByTo
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/matchs/$matchId'
     | '/api/matchs/$matchId/preuves'
     | '/api/preuves/$preuveId/fichier'
+    | '/api/utilisateurs/$utilisateurId/photo'
     | '/admin/litiges'
     | '/admin/matchs'
   id:
@@ -515,6 +527,7 @@ export interface FileRouteTypes {
     | '/admin/_prive/matchs/$matchId'
     | '/api/matchs/$matchId/preuves'
     | '/api/preuves/$preuveId/fichier'
+    | '/api/utilisateurs/$utilisateurId/photo'
     | '/admin/_prive/litiges/'
     | '/admin/_prive/matchs/'
   fileRoutesById: FileRoutesById
@@ -527,6 +540,7 @@ export interface RootRouteChildren {
   AdminConnexionRoute: typeof AdminConnexionRoute
   ApiMatchsMatchIdPreuvesRoute: typeof ApiMatchsMatchIdPreuvesRoute
   ApiPreuvesPreuveIdFichierRoute: typeof ApiPreuvesPreuveIdFichierRoute
+  ApiUtilisateursUtilisateurIdPhotoRoute: typeof ApiUtilisateursUtilisateurIdPhotoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -818,6 +832,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPreuvesPreuveIdFichierRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/utilisateurs/$utilisateurId/photo': {
+      id: '/api/utilisateurs/$utilisateurId/photo'
+      path: '/api/utilisateurs/$utilisateurId/photo'
+      fullPath: '/api/utilisateurs/$utilisateurId/photo'
+      preLoaderRoute: typeof ApiUtilisateursUtilisateurIdPhotoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -925,6 +946,8 @@ const rootRouteChildren: RootRouteChildren = {
   AdminConnexionRoute: AdminConnexionRoute,
   ApiMatchsMatchIdPreuvesRoute: ApiMatchsMatchIdPreuvesRoute,
   ApiPreuvesPreuveIdFichierRoute: ApiPreuvesPreuveIdFichierRoute,
+  ApiUtilisateursUtilisateurIdPhotoRoute:
+    ApiUtilisateursUtilisateurIdPhotoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

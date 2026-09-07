@@ -91,6 +91,7 @@ function Fichier([string]$nom, [int]$taille = 2048) {
 function ViderLimiteurs {
   foreach ($motif in @('limite:*', 'echecs:*')) {
     foreach ($cle in ([regex]::Matches((Redis "KEYS $motif"), '(limite|echecs):[^
+
 ]+') | ForEach-Object { $_.Value })) {
       Redis "DEL $cle" | Out-Null
     }
@@ -247,7 +248,28 @@ Check 'GET /utilisateurs?recherche= -> filtre (total = 1, pages = 1)' ($r.Status
 $r = Api GET '/utilisateurs?statut=actif&taille=3' -Token $TADM
 Check 'GET /utilisateurs?statut=actif&taille=3 -> 3 éléments tous actifs, total >= 3' ($r.Status -eq 200 -and @($r.Body.elements).Count -eq 3 -and (@($r.Body.elements | Where-Object statut -ne 'actif').Count -eq 0) -and $r.Body.total -ge 3) ("total=" + $r.Body.total)
 $r = Api PATCH "/utilisateurs/$KID" @{ pays = 'Burkina Faso'; telephone = '+22670000000'; photoProfil = 'https://cdn.test/kader.png' } -Token $TK
-Check 'PATCH /utilisateurs/:id (propriétaire) -> 200 champs modifiés' ($r.Status -eq 200 -and $r.Body.pays -eq 'Burkina Faso' -and $r.Body.telephone -eq '+22670000000' -and $r.Body.photoProfil -eq 'https://cdn.test/kader.png') $r.Raw
+Check 'PATCH /utilisateurs/:id (propriétaire) -> 200 champs modifiés' ($r.Status -eq 200 -and $r.Body.pays -eq 'Burkina Faso' -and $r.Body.telephone -eq '+22670000000') $r.Raw
+# La photo de profil ne se pose plus par une adresse : le champ est ignoré ici, et
+# seul un fichier téléversé sur /utilisateurs/moi/photo la renseigne.
+Check 'PATCH : une adresse de photo est ignorée (téléversement obligatoire)' ($r.Body.photoProfil -ne 'https://cdn.test/kader.png') "photoProfil=$($r.Body.photoProfil)"
+
+# ---- Photo de profil : téléversement, lecture, refus, retrait -------------------------
+$imgOK = Fichier "avatar_$Suffix.png" 1024
+$r = Api POST '/utilisateurs/moi/photo' -Token $TK -Form @{ fichier = Get-Item $imgOK }
+Check 'POST /utilisateurs/moi/photo -> 200 et chemin stocké' ($r.Status -eq 200 -and $r.Body.photoProfil -match '\.png$') $r.Raw
+$chemin = $r.Body.photoProfil
+$r = Api GET "/utilisateurs/$KID/photo" -Token $TK
+Check 'GET /utilisateurs/:id/photo (connecté) -> 200' ($r.Status -eq 200) "statut=$($r.Status)"
+$r = Api GET "/utilisateurs/$KID/photo"
+Check 'GET photo sans jeton -> 401' ($r.Status -eq 401) "statut=$($r.Status)"
+$txt = Join-Path $Scratch "pasuneimage_$Suffix.png"; 'ceci est du texte' | Set-Content $txt -Encoding ascii
+$r = Api POST '/utilisateurs/moi/photo' -Token $TK -Form @{ fichier = Get-Item $txt }
+Check 'POST photo : un texte renommé .png -> 400' ($r.Status -eq 400) $r.Raw
+$r = Api DELETE '/utilisateurs/moi/photo' -Token $TK
+Check 'DELETE /utilisateurs/moi/photo -> 200, photo retirée' ($r.Status -eq 200 -and $r.Body.photoProfil -eq '') $r.Raw
+$r = Api GET "/utilisateurs/$KID/photo" -Token $TK
+Check 'GET photo après retrait -> 404' ($r.Status -eq 404) "statut=$($r.Status)"
+Check 'le fichier de l''ancienne photo est effacé du disque' (-not (Test-Path (Join-Path (Resolve-Path (Join-Path $PSScriptRoot '..\public\photos')).Path $chemin.Replace('/', '')))) "chemin=$chemin"
 $r = Api PATCH "/utilisateurs/$MID" @{ pays = 'Hack' } -Token $TK
 Check 'PATCH /utilisateurs/:id (autre joueur) -> 403' ($r.Status -eq 403) $r.Raw
 $r = Api PATCH "/utilisateurs/$KID" @{ nomUtilisateur = $M.nomUtilisateur } -Token $TK

@@ -20,6 +20,7 @@ backend/*.exe
 # Go laisse un `.exe~` quand l'ancien binaire est encore verrouillé par le processus en cours.
 backend/*.exe~
 backend/public/preuves/
+backend/public/photos/
 backend/tests/tmp/
 backend/tmp/
 

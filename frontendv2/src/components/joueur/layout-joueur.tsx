@@ -10,6 +10,7 @@ import { formatMontant } from '@/lib/format'
 import { optionsNotifications, optionsPortefeuille } from '@/lib/requetes'
 import type { Utilisateur } from '@/models/utilisateur'
 import { deconnexionJoueur } from '@/services/auth'
+import { urlPhotoProfil } from '@/components/joueur/champ-photo-profil'
 import { salons } from '@/temps-reel/evenements'
 import { useEvenement, useIdentiteTempsReel } from '@/temps-reel/hooks'
 import { ajouterNotification, fusionnerSolde } from '@/temps-reel/cache'
@@ -186,7 +187,17 @@ function Navbar({ utilisateur, nonLues }: { utilisateur: Utilisateur; nonLues: n
             aria-haspopup="menu"
             className="flex h-11 items-center gap-2 rounded-full border border-trait bg-papier px-2 pr-3.5 transition-colors hover:border-vert"
           >
-            <span className="chiffres flex size-7 items-center justify-center rounded-full bg-vert text-[11px] font-bold uppercase text-craie">{utilisateur.nomUtilisateur.slice(0, 2)}</span>
+            {/* Photo du joueur si elle existe, initiales sinon : la pastille garde la même
+                taille dans les deux cas, la barre ne saute pas au chargement. */}
+            {utilisateur.photoProfil ? (
+              <img
+                src={urlPhotoProfil(utilisateur.id, utilisateur.photoProfil)}
+                alt=""
+                className="size-7 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span className="chiffres flex size-7 items-center justify-center rounded-full bg-vert text-[11px] font-bold uppercase text-craie">{utilisateur.nomUtilisateur.slice(0, 2)}</span>
+            )}
             <span className="hidden max-w-32 truncate text-legende font-semibold sm:inline">{utilisateur.nomUtilisateur}</span>
             <FontAwesomeIcon icon={icone.chevronBas} className="text-xs" />
           </button>

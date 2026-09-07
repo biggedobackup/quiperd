@@ -848,3 +848,19 @@ Ce qui reste animé, parce que le mouvement y dit quelque chose : la cascade a �
 du tableau de bord (blocs qui se remettent en place à chaque passage), mais **le compteur
 du solde garde son animation** — l'utilisateur l'a demandé explicitement — comme les
 entrées qui arrivent en direct (« Nouveau », « Mis à jour »).
+
+### Photo de profil : un fichier, jamais une adresse
+
+Le profil acceptait autrefois une URL. Trois défauts : la photo pouvait disparaître du
+jour au lendemain, le navigateur des autres joueurs allait chercher une ressource chez un
+tiers (traceur, contenu quelconque), et rien ne garantissait que c'était une image.
+
+Le joueur **téléverse** désormais un fichier :
+
+- `POST /api/utilisateurs/moi/photo` (multipart, champ `fichier`), `DELETE` pour retirer,
+  `GET /api/utilisateurs/{id}/photo` pour lire — route **protégée**, jamais un dossier
+  statique ouvert ;
+- le backend vérifie le contenu réel (pas seulement l'extension), plafonne à 3 Mo, range
+  le fichier sous `STOCKAGE_PHOTOS_DIR/<id joueur>/<uuid>.<ext>` et efface l'ancienne ;
+- `PATCH /api/utilisateurs/{id}` **n'accepte plus** `photoProfil` : laisser passer une
+  adresse rouvrirait exactement la porte qu'on vient de fermer.

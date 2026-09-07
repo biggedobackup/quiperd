@@ -47,7 +47,11 @@ type Config struct {
 	JWTExpirationHeures int
 
 	StockagePreuvesDir string
-	UploadMaxOctets    int64
+	// StockagePhotosDir : dossier des photos de profil. Séparé des preuves, qui ont
+	// une durée de vie et des règles d'accès différentes (une preuve appartient à un
+	// match et n'est visible que de ses participants et de l'arbitre).
+	StockagePhotosDir string
+	UploadMaxOctets   int64
 
 	SeedAdminNom        string
 	SeedAdminEmail      string
@@ -115,6 +119,7 @@ func Charger() *Config {
 		JWTExpirationHeures: getEnvInt("JWT_EXPIRATION_HEURES", 72),
 
 		StockagePreuvesDir: getEnv("STOCKAGE_PREUVES_DIR", "public/preuves"),
+		StockagePhotosDir:  getEnv("STOCKAGE_PHOTOS_DIR", "public/photos"),
 		UploadMaxOctets:    int64(getEnvInt("UPLOAD_MAX_MO", 50)) * 1024 * 1024,
 
 		SeedAdminNom:        getEnv("SEED_ADMIN_NOM", "Administrateur"),

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../composants/communs/bouton.dart';
@@ -13,6 +16,7 @@ import '../composants/communs/squelette.dart';
 import '../etats/catalogue.etat.dart';
 import '../etats/session.etat.dart';
 import '../modeles/compte_gamer.modele.dart';
+import '../modeles/utilisateur.modele.dart';
 import '../noyau/format.dart';
 import '../noyau/pays.dart';
 import '../noyau/resultat.dart';
@@ -38,7 +42,6 @@ class _ProfilEcranState extends State<ProfilEcran> {
 
   final _pseudo = TextEditingController();
   final _telephone = TextEditingController();
-  final _photo = TextEditingController();
   String? _pays;
 
   final _actuel = TextEditingController();
@@ -53,6 +56,7 @@ class _ProfilEcranState extends State<ProfilEcran> {
   List<CompteGamer> _comptes = const [];
   bool _chargementComptes = true;
   bool _envoiProfil = false;
+  bool _envoiPhoto = false;
   bool _envoiMotDePasse = false;
   bool _envoiCompte = false;
 
@@ -62,7 +66,6 @@ class _ProfilEcranState extends State<ProfilEcran> {
     final moi = context.read<SessionEtat>().utilisateur;
     _pseudo.text = moi?.nomUtilisateur ?? '';
     _telephone.text = moi?.telephone ?? '';
-    _photo.text = moi?.photoProfil ?? '';
     _pays = trouverPays(moi?.pays)?.nom;
     WidgetsBinding.instance.addPostFrameCallback((_) => _chargerComptes());
   }
@@ -71,7 +74,6 @@ class _ProfilEcranState extends State<ProfilEcran> {
   void dispose() {
     _pseudo.dispose();
     _telephone.dispose();
-    _photo.dispose();
     _actuel.dispose();
     _nouveau.dispose();
     _confirmation.dispose();
@@ -98,7 +100,6 @@ class _ProfilEcranState extends State<ProfilEcran> {
       nomUtilisateur: _pseudo.text.trim(),
       telephone: nettoyerTelephone(_telephone.text),
       pays: _pays,
-      photoProfil: _photo.text.trim(),
     );
     if (!mounted) return;
     setState(() => _envoiProfil = false);
@@ -110,6 +111,50 @@ class _ProfilEcranState extends State<ProfilEcran> {
     await session.rafraichirUtilisateur();
     if (!mounted) return;
     Message.succes(context, 'Profil mis à jour');
+  }
+
+  /// Choisit une image dans la galerie et l'envoie. `imageQuality` et les bornes de
+  /// taille réduisent la photo AVANT l'envoi : une photo d'appareil récent pèse
+  /// plusieurs mégaoctets pour finir affichée dans un rond de 40 pixels, et le
+  /// backend refuse au-delà de 3 Mo.
+  Future<void> _choisirPhoto() async {
+    if (_envoiPhoto) return;
+    final choix = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
+    if (choix == null || !mounted) return;
+
+    setState(() => _envoiPhoto = true);
+    final r = await UtilisateursService.envoyerPhoto(File(choix.path));
+    if (!mounted) return;
+    setState(() => _envoiPhoto = false);
+
+    if (r is Echec) {
+      Message.erreur(context, 'Envoi impossible', (r as Echec).message);
+      return;
+    }
+    await context.read<SessionEtat>().rafraichirUtilisateur();
+    if (!mounted) return;
+    Message.succes(context, 'Photo mise à jour');
+  }
+
+  Future<void> _retirerPhoto() async {
+    if (_envoiPhoto) return;
+    setState(() => _envoiPhoto = true);
+    final r = await UtilisateursService.retirerPhoto();
+    if (!mounted) return;
+    setState(() => _envoiPhoto = false);
+
+    if (r is Echec) {
+      Message.erreur(context, 'Suppression impossible', (r as Echec).message);
+      return;
+    }
+    await context.read<SessionEtat>().rafraichirUtilisateur();
+    if (!mounted) return;
+    Message.succes(context, 'Photo retirée');
   }
 
   Future<void> _changerMotDePasse() async {
@@ -240,11 +285,11 @@ class _ProfilEcranState extends State<ProfilEcran> {
                     validateur: validerTelephone,
                   ),
                   const SizedBox(height: 16),
-                  ChampTexte(
-                    controleur: _photo,
-                    label: 'Photo de profil (URL)',
-                    placeholder: 'https://…',
-                    clavier: TextInputType.url,
+                  _ChampPhotoProfil(
+                    utilisateur: moi,
+                    enCours: _envoiPhoto,
+                    onChoisir: _choisirPhoto,
+                    onRetirer: _retirerPhoto,
                   ),
                   const SizedBox(height: 18),
                   Bouton(
@@ -460,4 +505,98 @@ class _Bloc extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Photo de profil : le joueur **choisit un fichier**, il ne colle pas une adresse.
+///
+/// L'aperçu vient de la route protégée du backend, avec le jeton en en-tête. La clé
+/// dépend du chemin stocké : sans elle, Flutter garderait l'ancienne image en cache
+/// après un remplacement, l'adresse étant identique.
+class _ChampPhotoProfil extends StatelessWidget {
+  const _ChampPhotoProfil({
+    required this.utilisateur,
+    required this.enCours,
+    required this.onChoisir,
+    required this.onRetirer,
+  });
+
+  final Utilisateur utilisateur;
+  final bool enCours;
+  final VoidCallback onChoisir;
+  final VoidCallback onRetirer;
+
+  @override
+  Widget build(BuildContext context) {
+    final aUnePhoto = utilisateur.photoProfil.isNotEmpty;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('PHOTO DE PROFIL',
+            style: Typo.etiquette.copyWith(color: Couleurs.muet)),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ClipOval(
+              child: SizedBox(
+                width: 72,
+                height: 72,
+                child: aUnePhoto
+                    ? Image.network(
+                        UtilisateursService.urlPhoto(utilisateur.id),
+                        key: ValueKey(utilisateur.photoProfil),
+                        headers: UtilisateursService.entetesPhoto,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => const _PastilleVide(),
+                      )
+                    : const _PastilleVide(),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Bouton(
+                    libelle: aUnePhoto ? 'Changer la photo' : 'Choisir une photo',
+                    bloc: true,
+                    variante: VarianteBouton.secondaire,
+                    icone: Icons.photo_library_outlined,
+                    chargement: enCours,
+                    onPressed: onChoisir,
+                  ),
+                  if (aUnePhoto) ...[
+                    const SizedBox(height: 8),
+                    Bouton(
+                      libelle: 'Retirer',
+                      bloc: true,
+                      variante: VarianteBouton.fantome,
+                      icone: Icons.delete_outline,
+                      onPressed: enCours ? null : onRetirer,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'JPG, PNG, WEBP ou HEIC, 3 Mo maximum. Elle est stockée par la plateforme, '
+          'jamais chargée depuis un autre site.',
+          style: Typo.petit,
+        ),
+      ],
+    );
+  }
+}
+
+class _PastilleVide extends StatelessWidget {
+  const _PastilleVide();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: Couleurs.gris,
+        alignment: Alignment.center,
+        child: const Icon(Icons.person_outline, color: Couleurs.muet),
+      );
 }

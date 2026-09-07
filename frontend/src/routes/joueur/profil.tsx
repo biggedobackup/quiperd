@@ -24,6 +24,7 @@ import { Select } from '@/components/partages/select/select'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
+import { ChampPhotoProfil } from '@/components/joueur/champ-photo-profil'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -79,7 +80,6 @@ const schemaProfil = z.object({
       return t === undefined || TELEPHONE_VALIDE.test(t)
     }, 'Numéro invalide (format international, ex. +225 07 00 00 00 00)'),
   pays: z.string().optional(),
-  photoProfil: z.string().optional(),
 })
 type ValeursProfil = z.infer<typeof schemaProfil>
 
@@ -99,7 +99,7 @@ function FormulaireProfil() {
     resolver: zodResolver(schemaProfil),
     // Pays ramené à la liste (`trouverPays` accepte nom ou code ISO) ; une valeur inconnue affiche le placeholder
     // sans être écrasée, puisque le backend ignore les chaînes vides.
-    defaultValues: { nomUtilisateur: moi.nomUtilisateur, telephone: moi.telephone, pays: trouverPays(moi.pays)?.nom ?? '', photoProfil: moi.photoProfil },
+    defaultValues: { nomUtilisateur: moi.nomUtilisateur, telephone: moi.telephone, pays: trouverPays(moi.pays)?.nom ?? '' },
   })
   const champPays = register('pays')
 
@@ -137,7 +137,7 @@ function FormulaireProfil() {
           aide="Format international. Sert uniquement à vous joindre."
         />
       </div>
-      <Input label="Photo de profil (URL)" type="url" placeholder="https://…" {...register('photoProfil')} erreur={errors.photoProfil?.message} />
+      <ChampPhotoProfil utilisateurId={moi.id} photoActuelle={moi.photoProfil} />
       <div className="flex justify-end">
         <Button type="submit" chargement={isSubmitting} disabled={!isDirty} iconeDebut={icone.valider}>
           Enregistrer

@@ -12,6 +12,7 @@ import '../etats/portefeuille.etat.dart';
 import '../etats/session.etat.dart';
 import '../modeles/notification_joueur.modele.dart';
 import '../noyau/format.dart';
+import '../services/utilisateurs.service.dart';
 import '../theme/couleurs.dart';
 import '../theme/typographie.dart';
 import 'aide.ecran.dart';
@@ -131,7 +132,12 @@ class CoquilleEcranState extends State<CoquilleEcran> {
           ),
           Padding(
             padding: const EdgeInsets.only(right: 8),
-            child: _MenuCompte(pseudo: utilisateur.nomUtilisateur, email: utilisateur.email),
+            child: _MenuCompte(
+              pseudo: utilisateur.nomUtilisateur,
+              email: utilisateur.email,
+              utilisateurId: utilisateur.id,
+              photoProfil: utilisateur.photoProfil,
+            ),
           ),
         ],
       ),
@@ -198,10 +204,17 @@ class CoquilleEcranState extends State<CoquilleEcran> {
 
 /// Menu du compte : pseudo, e-mail, profil, déconnexion.
 class _MenuCompte extends StatelessWidget {
-  const _MenuCompte({required this.pseudo, required this.email});
+  const _MenuCompte({
+    required this.pseudo,
+    required this.email,
+    required this.utilisateurId,
+    required this.photoProfil,
+  });
 
   final String pseudo;
   final String email;
+  final String utilisateurId;
+  final String photoProfil;
 
   @override
   Widget build(BuildContext context) {
@@ -261,14 +274,21 @@ class _MenuCompte extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         child: Row(
           children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: const BoxDecoration(color: Couleurs.vert, shape: BoxShape.circle),
-              alignment: Alignment.center,
-              child: Text(
-                monogramme(pseudo),
-                style: Typo.chiffres(taille: 11, poids: 700, couleur: Couleurs.craie),
+            // Photo du joueur si elle existe, monogramme sinon : la pastille garde la
+            // même taille dans les deux cas, la barre du haut ne saute pas au chargement.
+            ClipOval(
+              child: SizedBox(
+                width: 32,
+                height: 32,
+                child: photoProfil.isEmpty
+                    ? _Monogramme(pseudo: pseudo)
+                    : Image.network(
+                        UtilisateursService.urlPhoto(utilisateurId),
+                        key: ValueKey(photoProfil),
+                        headers: UtilisateursService.entetesPhoto,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _Monogramme(pseudo: pseudo),
+                      ),
               ),
             ),
             const Icon(Icons.expand_more, size: 18, color: Couleurs.muet),
@@ -442,4 +462,21 @@ class _Entree extends StatelessWidget {
       onTap: onTap,
     );
   }
+}
+
+/// Pastille de repli quand le joueur n'a pas de photo (ou qu'elle ne charge pas).
+class _Monogramme extends StatelessWidget {
+  const _Monogramme({required this.pseudo});
+
+  final String pseudo;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        color: Couleurs.vert,
+        alignment: Alignment.center,
+        child: Text(
+          monogramme(pseudo),
+          style: Typo.chiffres(taille: 11, poids: 700, couleur: Couleurs.craie),
+        ),
+      );
 }
