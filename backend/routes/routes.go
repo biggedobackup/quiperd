@@ -31,10 +31,15 @@ func Enregistrer(app *fiber.App) {
 	// Santé (Postgres + Redis)
 	api.Get("/sante", Sante)
 
-	// Documentation Swagger
-	api.Get("/docs", swaggerUI)
-	api.Get("/docs/", swaggerUI)
-	api.Get("/docs/doc.json", swaggerJSON)
+	// Documentation Swagger — jamais en production : la spécification décrit toutes
+	// les routes, y compris celles de l'administration, et facilite le travail de
+	// reconnaissance d'un attaquant. En production, la consulter depuis un
+	// environnement de recette ou en régénérant `docs/` localement.
+	if !config.Cfg.EstProduction() {
+		api.Get("/docs", swaggerUI)
+		api.Get("/docs/", swaggerUI)
+		api.Get("/docs/doc.json", swaggerJSON)
+	}
 
 	// Modules
 	auth.Enregistrer(api)

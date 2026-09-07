@@ -62,6 +62,19 @@ function Jti([string]$jwt) {
 }
 function Wallet([string]$tok) { (Api GET '/portefeuille' -Token $tok).Body }
 function Dec($v) { [decimal]$v }
+# Fichier vidéo minimal : boîte ISO-BMFF `ftyp`, la signature que reconnaissent les
+# navigateurs et le contrôle de contenu du backend. Un PNG renommé `.mp4` est refusé —
+# c'est précisément ce que le contrôle doit faire.
+function FichierVideo([string]$nom, [int]$taille = 4096) {
+  $path = Join-Path $Scratch $nom
+  $rand = New-Object byte[] $taille
+  [System.Random]::new().NextBytes($rand)
+  $entete = [byte[]](0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6F, 0x6D,
+    0x00, 0x00, 0x02, 0x00, 0x69, 0x73, 0x6F, 0x6D, 0x69, 0x73, 0x6F, 0x32)
+  [IO.File]::WriteAllBytes($path, $entete + $rand)
+  return $path
+}
+
 function Fichier([string]$nom, [int]$taille = 2048) {
   $path = Join-Path $Scratch $nom
   $rand = New-Object byte[] $taille
@@ -70,6 +83,20 @@ function Fichier([string]$nom, [int]$taille = 2048) {
   [IO.File]::WriteAllBytes($path, $png)
   return $path
 }
+
+# Les plafonds anti-abus (connexion, inscription, mot de passe oublié) sont partagés
+# entre exécutions : une recette lancée deux fois dans l'heure buterait dessus et
+# mesurerait le limiteur au lieu du parcours. Ils sont éprouvés dans leur propre
+# section, ici on repart d'un compteur vide.
+function ViderLimiteurs {
+  foreach ($motif in @('limite:*', 'echecs:*')) {
+    foreach ($cle in ([regex]::Matches((Redis "KEYS $motif"), '(limite|echecs):[^
+]+') | ForEach-Object { $_.Value })) {
+      Redis "DEL $cle" | Out-Null
+    }
+  }
+}
+ViderLimiteurs
 
 # ------------------------------------------------------------------ 0. Santé / docs
 Section '0. Santé et documentation'
@@ -797,7 +824,7 @@ Check 'match 2: règlement journalisé une seule fois' ([int]$n -eq 1) "entrées
 
 # ------------------------------------------------------------------ 9b. Lignes héritées en « verification »
 Section '9b. Statut hérité « verification » — validation administrative et auto-validation par preuves'
-$fK1 = Fichier "k1_$Suffix.png"; $fM1 = Fichier "m1_$Suffix.png"; $fV = Fichier "v_$Suffix.mp4" 4096; $fTxt = Join-Path $Scratch "bad_$Suffix.txt"; 'texte' | Set-Content $fTxt
+$fK1 = Fichier "k1_$Suffix.png"; $fM1 = Fichier "m1_$Suffix.png"; $fV = FichierVideo "v_$Suffix.mp4"; $fTxt = Join-Path $Scratch "bad_$Suffix.txt"; 'texte' | Set-Content $fTxt
 $mv = NouveauMatchKM 500
 $MVER = $mv.Match
 $null = Sql "update matchs set statut='verification', gagnant_id='$KID', perdant_id='$MID', score_joueur_1=2, score_joueur_2=1 where id='$MVER'"
@@ -901,6 +928,9 @@ $mt = (Api GET "/matchs/$MATCH3" -Token $TK).Body.match
 Check 'une seule preuve déposée: match toujours en preuve_requise' ($mt.statut -eq 'preuve_requise' -and $mt.echeanceType -eq 'preuve') ($mt.statut + '/' + $mt.echeanceType)
 $nl = Sql "select count(*) from litiges where match_id='$MATCH3'"
 Check 'une seule preuve: toujours aucun litige' ([int]$nl -eq 0) "litiges=$nl"
+$fFauxV = Fichier "fauxv_$Suffix.mp4" 2048
+$r = Api POST "/matchs/$MATCH3/preuves" -Token $TK -Form @{ type = 'video'; fichier = Get-Item $fFauxV }
+Check 'preuve « vidéo » qui est en réalité une image -> 400 (contenu vérifié, pas seulement l''extension)' ($r.Status -eq 400) $r.Raw
 $r = Api POST "/matchs/$MATCH3/preuves" -Token $TK -Form @{ type = 'video'; fichier = Get-Item $fV }
 Check 'POST preuve vidéo (même joueur) -> 201' ($r.Status -eq 201 -and $r.Body.type -eq 'video') $r.Raw
 $mt = (Api GET "/matchs/$MATCH3" -Token $TK).Body.match
@@ -1448,6 +1478,38 @@ Check 'suppression journalisée (contact:suppression + instantané du message)' 
 $colonnes = Sql "select string_agg(column_name, ',' order by column_name) from information_schema.columns where table_name='messages_contact'"
 Check 'table messages_contact conforme au modèle (§7 table 19)' ($colonnes -eq 'date_creation,date_modification,email,id,message,nom,note_admin,statut,sujet,utilisateur_id') $colonnes
 ViderAntiSpam
+
+# ------------------------------------------------------------------ Sécurité
+Section 'S. Sécurité — en-têtes et freins à la force brute'
+$hs = (Invoke-WebRequest "$Base/sante" -SkipHttpErrorCheck).Headers
+Check 'en-tête X-Content-Type-Options: nosniff' (("$($hs['X-Content-Type-Options'])") -eq 'nosniff') "$($hs['X-Content-Type-Options'])"
+Check 'en-tête X-Frame-Options: DENY' (("$($hs['X-Frame-Options'])") -eq 'DENY') "$($hs['X-Frame-Options'])"
+Check 'en-tête Content-Security-Policy sur l''API' (("$($hs['Content-Security-Policy'])") -match "default-src 'none'") "$($hs['Content-Security-Policy'])"
+Check 'en-tête Referrer-Policy' (("$($hs['Referrer-Policy'])") -match 'strict-origin') "$($hs['Referrer-Policy'])"
+Check 'en-tête Permissions-Policy' (("$($hs['Permissions-Policy'])") -match 'geolocation') "$($hs['Permissions-Policy'])"
+
+# Force brute : 10 échecs sur un identifiant inexistant, le 11e est refusé par le
+# limiteur et non par le contrôle du mot de passe. Le compteur est effacé ensuite,
+# pour ne pas laisser de verrou derrière la recette.
+$victime = "brute_$Suffix@test.local"
+$codes = @()
+for ($i = 1; $i -le 11; $i++) {
+  $rr = Api POST '/auth/connexion' @{ email = $victime; motDePasse = "faux$i" }
+  $codes += $rr.Status
+}
+Check 'connexion : 10 échecs -> 401, le 11e -> 429' ((@($codes[0..9] | Where-Object { $_ -ne 401 }).Count -eq 0) -and $codes[10] -eq 429) ($codes -join ',')
+$rr = Api POST '/auth/connexion' @{ email = $victime; motDePasse = 'peu importe' }
+Check 'verrou : la réponse 429 indique le délai' ($rr.Status -eq 429 -and $rr.Body.prochainEssaiDans -gt 0) $rr.Raw
+# Deux compteurs protègent la connexion : celui de l'identifiant et celui de l'adresse
+# IP. La recette en consomme beaucoup à elle seule — on efface les deux pour vérifier
+# que le verrou se lève bien.
+$null = Redis "DEL echecs:connexion:$victime"
+$null = Redis "DEL limite:connexion:127.0.0.1"
+$rr = Api POST '/auth/connexion' @{ email = $victime; motDePasse = 'peu importe' }
+Check 'verrou levé une fois le compteur effacé -> 401' ($rr.Status -eq 401) $rr.Raw
+
+$r = Api GET '/docs'
+Check 'documentation Swagger accessible hors production' ($r.Status -eq 200) "statut=$($r.Status)"
 
 # ------------------------------------------------------------------ Résumé
 Section 'RÉSUMÉ'

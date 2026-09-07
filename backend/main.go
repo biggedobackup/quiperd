@@ -23,6 +23,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 
 	"quiperd/backend/administration"
@@ -42,6 +43,13 @@ func main() {
 	cfg := config.Charger()
 	utils.InitLogger(cfg.EstProduction())
 	defer utils.Sync()
+
+	// Refus de démarrer une production configurée avec les valeurs de développement :
+	// un JWT_SECRET connu de tous laisse fabriquer n'importe quel jeton, et le mot de
+	// passe administrateur par défaut ouvre l'arbitrage et les paiements.
+	if manques := cfg.VerifierProduction(); len(manques) > 0 {
+		utils.Log.Fatal("configuration de production incomplète : " + strings.Join(manques, " ; "))
+	}
 	utils.PushActif = cfg.FCMActif
 
 	if err := config.ConnecterDB(cfg); err != nil {
@@ -85,6 +93,9 @@ func main() {
 	})
 
 	app.Use(recover.New())
+	// En-têtes de sécurité sur toutes les réponses, y compris quand l'API est jointe
+	// directement (application mobile) sans passer par le reverse proxy.
+	app.Use(utils.EntetesSecurite())
 	// Journal HTTP : une ligne par requête. Utile en développement, coûteux en production
 	// (écriture synchrone sur stdout à chaque appel, journaux de conteneur qui gonflent) —
 	// le reverse proxy tient déjà le journal d'accès.
@@ -145,10 +156,27 @@ func brancherNotifications() {
 	}
 }
 
+// gestionErreur normalise les erreurs non traitées par un contrôleur.
+//
+// En production, le détail d'une erreur serveur ne sort JAMAIS : un message de
+// GORM ou du pilote PostgreSQL décrit la structure des tables, parfois la
+// requête elle-même. Il part dans le journal, le client reçoit une phrase
+// neutre. Les erreurs 4xx, elles, sont écrites pour le joueur et restent
+// telles quelles.
 func gestionErreur(c fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 	}
-	return c.Status(code).JSON(fiber.Map{"erreur": err.Error()})
+	message := err.Error()
+	if code >= fiber.StatusInternalServerError {
+		if utils.Log != nil {
+			utils.Log.Error("erreur non traitée",
+				zap.String("chemin", c.Path()), zap.String("methode", c.Method()), zap.Error(err))
+		}
+		if config.Cfg.EstProduction() {
+			message = "une erreur interne est survenue"
+		}
+	}
+	return c.Status(code).JSON(fiber.Map{"erreur": message})
 }

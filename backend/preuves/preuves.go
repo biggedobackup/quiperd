@@ -105,6 +105,10 @@ func Televerser(c fiber.Ctx) error {
 	if !utils.TypeAutorise(typePreuve, ext) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "format de fichier non autorisé")
 	}
+	// L'extension ne prouve rien : on regarde le contenu réel avant d'écrire sur le disque.
+	if err := utils.ContenuAutorise(fichier, typePreuve); err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "le contenu du fichier ne correspond pas au type annoncé")
+	}
 
 	chemin, empreinte, err := utils.SauvegarderPreuve(config.Cfg.StockagePreuvesDir, matchID.String(), userID.String(), fichier)
 	if err != nil {
@@ -202,7 +206,14 @@ func Fichier(c fiber.Ctx) error {
 	if !auth.EstAdmin(c) && !m.EstParticipant(userID) {
 		return utils.Erreur(c, fiber.StatusForbidden, "accès refusé")
 	}
-	chemin := utils.CheminAbsoluPreuve(config.Cfg.StockagePreuvesDir, p.UrlFichier)
+	chemin, err := utils.CheminPreuveSous(config.Cfg.StockagePreuvesDir, p.UrlFichier)
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusNotFound, "preuve introuvable")
+	}
+	// Le fichier est servi tel quel : le nom d'origine n'est jamais réutilisé et
+	// `nosniff` est posé globalement, mais on force l'affichage en pièce jointe pour
+	// qu'aucun contenu téléversé ne s'exécute dans le contexte du domaine.
+	c.Set("Content-Disposition", "inline; filename=\""+p.ID.String()+filepath.Ext(p.UrlFichier)+"\"")
 	return c.SendFile(chemin)
 }
 

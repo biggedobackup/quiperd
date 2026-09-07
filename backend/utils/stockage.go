@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,6 +29,73 @@ func TypeAutorise(typePreuve, ext string) bool {
 	default:
 		return false
 	}
+}
+
+// ContenuAutorise lit les premiers octets du fichier téléversé et vérifie que son
+// contenu RÉEL correspond au type annoncé.
+//
+// L'extension ne prouve rien : n'importe quel fichier peut être nommé `.png`. Un
+// document HTML stocké sous ce nom puis servi par la route des preuves serait, sur
+// un navigateur qui devine le type, une faille de script inter-site sur notre
+// propre domaine. `X-Content-Type-Options: nosniff` ferme déjà cette porte, mais
+// une preuve qui n'est pas une image n'a de toute façon rien à faire là.
+//
+// `http.DetectContentType` reconnaît les signatures usuelles (PNG, JPEG, WEBP,
+// GIF, MP4, WEBM…). Deux formats fréquents sur téléphone lui échappent — HEIC
+// d'iPhone et QuickTime .mov — et sont reconnus par leur boîte ISO-BMFF `ftyp`.
+func ContenuAutorise(fichier *multipart.FileHeader, typePreuve string) error {
+	src, err := fichier.Open()
+	if err != nil {
+		return fmt.Errorf("ouverture upload: %w", err)
+	}
+	defer src.Close()
+
+	entete := make([]byte, 512)
+	n, err := io.ReadFull(src, entete)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return fmt.Errorf("lecture upload: %w", err)
+	}
+	entete = entete[:n]
+
+	detecte := http.DetectContentType(entete)
+	switch typePreuve {
+	case "capture_ecran":
+		if strings.HasPrefix(detecte, "image/") || estISOBMFF(entete) {
+			return nil
+		}
+	case "video":
+		if strings.HasPrefix(detecte, "video/") || estISOBMFF(entete) {
+			return nil
+		}
+	}
+	return fmt.Errorf("contenu du fichier incompatible avec le type annoncé (%s)", detecte)
+}
+
+// estISOBMFF reconnaît un conteneur ISO base media (MP4, MOV, HEIC, AVIF) à sa
+// boîte `ftyp`, que `http.DetectContentType` ne couvre que partiellement.
+func estISOBMFF(entete []byte) bool {
+	return len(entete) >= 12 && string(entete[4:8]) == "ftyp"
+}
+
+// CheminPreuveSous résout le chemin absolu d'une preuve et REFUSE tout chemin qui
+// sortirait du dossier de stockage.
+//
+// Le chemin vient de la base et n'est aujourd'hui écrit que par nous, mais une
+// ligne trafiquée ou une future importation ne doit jamais permettre de servir
+// `/etc/passwd` : la garde coûte deux lignes et vaut pour toujours.
+func CheminPreuveSous(baseDir, cheminRelatif string) (string, error) {
+	base, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", err
+	}
+	cible, err := filepath.Abs(filepath.Join(base, filepath.FromSlash(cheminRelatif)))
+	if err != nil {
+		return "", err
+	}
+	if cible != base && !strings.HasPrefix(cible, base+string(os.PathSeparator)) {
+		return "", fmt.Errorf("chemin hors du dossier de stockage")
+	}
+	return cible, nil
 }
 
 // SauvegarderPreuve écrit un fichier de preuve sur le disque local dans

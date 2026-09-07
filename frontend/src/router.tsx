@@ -2,6 +2,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { createRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { routeTree } from './routeTree.gen'
+import { preparerEntetesSecurite } from '@/server/csp'
 import { PageErreur, PageIntrouvable } from '@/components/partages/etats/pages-erreur'
 
 export function getRouter() {
@@ -19,9 +20,16 @@ export function getRouter() {
     },
   })
 
+  // En-têtes de sécurité + nonce de la politique de sécurité du contenu : posés ici
+  // parce que `getRouter()` est appelé une fois par requête au rendu serveur, ce qui
+  // est le seul endroit où l'en-tête et le nonce des balises peuvent être tirés
+  // ensemble. Côté navigateur, la fonction ne fait rien.
+  const nonce = preparerEntetesSecurite()
+
   const router = createRouter({
     routeTree,
     context: { queryClient },
+    ...(nonce ? { ssr: { nonce } } : {}),
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,

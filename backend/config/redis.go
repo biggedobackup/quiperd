@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
+
+	"quiperd/backend/utils"
 )
 
 // Redis est le client global (sessions JWT, cache statistiques/classements).
@@ -27,6 +29,9 @@ func ConnecterRedis(c *Config) error {
 	if err := Redis.Ping(ctx).Err(); err != nil {
 		return fmt.Errorf("ping Redis: %w", err)
 	}
+	// Le limiteur de `utils` ne peut pas importer `config` (cycle d'import) : on lui
+	// passe le client une fois la connexion établie.
+	utils.RedisLimiteur = Redis
 	return nil
 }
 

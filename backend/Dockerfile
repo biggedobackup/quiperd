@@ -2,6 +2,10 @@
 # QUI PERD — image du backend Go. Binaire statique (CGO désactivé), image finale Alpine minimale.
 # Construit par docker compose (deploy/docker-compose.yml) depuis ~/dev/backend.
 
+# Étiquette de version MINEURE volontairement flottante (1.26, pas 1.26.0) : chaque
+# reconstruction récupère le dernier correctif de la bibliothèque standard. C'est ce qui
+# ferme les failles `crypto/x509` et consorts sans changer une ligne de code
+# (`govulncheck` les signale sur un binaire compilé avec un Go trop ancien).
 FROM golang:1.26-alpine AS build
 WORKDIR /src
 # Dépendances d'abord : couche mise en cache tant que go.mod / go.sum ne changent pas.

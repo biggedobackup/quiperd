@@ -60,7 +60,44 @@ func Migrer() error {
 	); err != nil {
 		return err
 	}
+	if err := indexComposites(); err != nil {
+		return err
+	}
 	return finaliserManches()
+}
+
+// indexComposites ajoute les index que les modèles ne savent pas exprimer : ceux
+// qui portent sur plusieurs colonnes ET sur un ordre.
+//
+// Les index à une colonne posés par les balises GORM suffisent à filtrer ; ils ne
+// suffisent pas à ÉVITER LE TRI. Les quatre listes les plus consultées de la
+// plateforme filtrent puis trient par date décroissante : sans index composite,
+// PostgreSQL lit toutes les lignes correspondantes et les trie à chaque appel, ce
+// qui se voit dès quelques milliers de mouvements de portefeuille.
+//
+// `CREATE INDEX IF NOT EXISTS` : idempotent, exécuté à chaque démarrage sans coût
+// quand l'index est là.
+func indexComposites() error {
+	instructions := []string{
+		// Historique du portefeuille : filtré par portefeuille, trié du plus récent.
+		`CREATE INDEX IF NOT EXISTS idx_tx_portefeuille_date
+		   ON transactions_portefeuilles (portefeuille_id, date_creation DESC)`,
+		// Liste publique des défis ouverts, et « mes défis ».
+		`CREATE INDEX IF NOT EXISTS idx_defis_statut_date
+		   ON defis (statut, date_creation DESC)`,
+		// Notifications d'un joueur, non lues d'abord dans le compteur.
+		`CREATE INDEX IF NOT EXISTS idx_notifications_utilisateur_date
+		   ON notifications (utilisateur_id, date_creation DESC)`,
+		// Suivi des paiements côté administration (filtres type + statut, page 1 en tête).
+		`CREATE INDEX IF NOT EXISTS idx_paiements_type_statut_date
+		   ON paiements (type, statut, date_creation DESC)`,
+	}
+	for _, sql := range instructions {
+		if err := config.DB.Exec(sql).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // renommerColonnesMatchs aligne une base créée avant le correctif de nommage

@@ -216,6 +216,45 @@ func getEnvInt(cle string, defaut int) int {
 	return defaut
 }
 
+// Valeurs par défaut de développement qui seraient des portes ouvertes en production.
+const (
+	JWTSecretParDefaut    = "secret-dev-non-securise-a-changer"
+	AdminMotDePasseDefaut = "Admin1234!"
+	// longueurMinimaleSecret : 32 octets, soit la taille d'une clé HMAC-SHA256.
+	longueurMinimaleSecret = 32
+)
+
+// VerifierProduction refuse de laisser démarrer une instance de production
+// configurée avec les valeurs de développement.
+//
+// Un JWT_SECRET laissé au défaut signe des jetons que n'importe qui peut
+// fabriquer : c'est un contournement complet de l'authentification sur une
+// plateforme qui manipule de l'argent réel. Le mot de passe administrateur par
+// défaut donne, lui, l'accès à l'arbitrage et aux paiements. Mieux vaut un
+// serveur qui refuse de démarrer qu'un serveur ouvert.
+func (c *Config) VerifierProduction() []string {
+	if !c.EstProduction() {
+		return nil
+	}
+	var manques []string
+	if c.JWTSecret == JWTSecretParDefaut {
+		manques = append(manques, "JWT_SECRET est resté à la valeur de développement")
+	}
+	if len(c.JWTSecret) < longueurMinimaleSecret {
+		manques = append(manques, "JWT_SECRET fait moins de 32 caractères")
+	}
+	if c.SeedAdminMotDePasse == AdminMotDePasseDefaut {
+		manques = append(manques, "SEED_ADMIN_MOTDEPASSE est resté à la valeur de développement")
+	}
+	if c.CorsOrigin == "" || strings.Contains(c.CorsOrigin, "localhost") {
+		manques = append(manques, "CORS_ORIGIN pointe encore localhost")
+	}
+	if strings.Contains(strings.Join(c.WSOriginesAutorisees, ","), "*") {
+		manques = append(manques, "WS_ORIGINES_AUTORISEES contient « * » (socket ouvert à toute origine)")
+	}
+	return manques
+}
+
 func getEnvBool(cle string, defaut bool) bool {
 	if v, ok := os.LookupEnv(cle); ok && v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {

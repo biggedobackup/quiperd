@@ -33,9 +33,15 @@ type Claims struct {
 func clePrefixeSession(jti string) string     { return "session:" + jti }
 func cleSessionsUtilisateur(id string) string { return "sessions:utilisateur:" + id }
 
+// CoutBcrypt : 12 tours plutôt que les 10 par défaut. Chaque tour double le coût
+// d'une attaque par dictionnaire sur une base volée ; 12 reste sous les 300 ms sur
+// un serveur modeste, ce qui est indolore sur une connexion et prohibitif pour qui
+// essaie des millions de mots de passe.
+const CoutBcrypt = 12
+
 // HacherMotDePasse renvoie le hash bcrypt d'un mot de passe.
 func HacherMotDePasse(mdp string) (string, error) {
-	h, err := bcrypt.GenerateFromPassword([]byte(mdp), bcrypt.DefaultCost)
+	h, err := bcrypt.GenerateFromPassword([]byte(mdp), CoutBcrypt)
 	return string(h), err
 }
 

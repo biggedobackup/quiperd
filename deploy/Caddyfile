@@ -29,15 +29,38 @@
 	servers {
 		trusted_proxies static private_ranges
 	}
+	# La bannière du serveur ne dit rien d'utile au visiteur et beaucoup à qui cherche
+	# une version vulnérable.
+	admin off
+}
+
+# En-têtes communs aux deux sites. La politique de sécurité du contenu N'EST PAS posée
+# ici : elle est émise par l'application, avec un nonce tiré à chaque requête (voir
+# `frontendv2/src/server/csp.ts`). Caddy ne poserait qu'une politique figée, donc plus
+# faible, et écraserait la bonne.
+(entetes-communs) {
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), usb=()"
+		# HSTS : le visiteur arrive par Cloudflare en HTTPS ; l'en-tête traverse le
+		# tunnel. Un an, sous-domaines compris.
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+		-X-Powered-By
+	}
 }
 
 # Site web (conteneur web, TanStack Start / Nitro)
 :80 {
-	header {
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		-Server
+	import entetes-communs
+	# Le site s'encadre lui-même (fenêtre de paiement) : SAMEORIGIN, pas DENY.
+	header X-Frame-Options "SAMEORIGIN"
+
+	# Taille maximale d'une requête : les preuves passent par l'API (port 8080), le
+	# site n'a aucune raison de recevoir davantage qu'un formulaire.
+	request_body {
+		max_size 2MB
 	}
 
 	# Socket temps réel, sur la même origine que les pages du site.
@@ -54,12 +77,17 @@
 	}
 }
 
-# API (application mobile, documentation Swagger sur /api/docs) — même backend que celui que le
-# site appelle en interne. Les preuves ne sont servies que par la route protégée du backend.
+# API (application mobile) — même backend que celui que le site appelle en interne.
+# Les preuves ne sont servies que par la route protégée du backend, et la documentation
+# Swagger n'est plus montée en production (voir backend/routes/routes.go).
 :8080 {
-	header {
-		X-Content-Type-Options "nosniff"
-		-Server
+	import entetes-communs
+	header X-Frame-Options "DENY"
+
+	# Plafond aligné sur UPLOAD_MAX_MO du backend (50 Mo) plus une marge d'enveloppe
+	# multipart : au-delà, la requête est coupée par le proxy avant d'atteindre l'API.
+	request_body {
+		max_size 55MB
 	}
 
 	# Même socket, joignable aussi par l'origine de l'API (application mobile, tunnel nommé avec

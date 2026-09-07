@@ -60,7 +60,7 @@ func enregistrerSession(c fiber.Ctx, userID uuid.UUID, jti string, exp time.Time
 	s := SessionUtilisateur{
 		UtilisateurID: userID, JetonHash: HashJeton(jti), Appareil: appareil, DateExpiration: exp,
 	}
-	if ip := c.IP(); ip != "" {
+	if ip := utils.ClientIP(c); ip != "" {
 		s.AdresseIP = &ip
 	}
 	_ = config.DB.Create(&s).Error
@@ -75,6 +75,24 @@ type entreeConnexion struct {
 // @Summary Connexion joueur
 // @Tags auth
 // @Router /auth/connexion [post]
+// Plafond d'échecs par identifiant, en complément du plafond par IP posé sur la
+// route : l'un freine une machine qui essaie mille mots de passe, l'autre un
+// réseau de machines qui s'acharne sur un seul compte. La fenêtre est courte
+// (15 min) pour que le verrouillage d'un compte par un tiers reste sans gravité.
+const (
+	MaxEchecsConnexion     = 10
+	FenetreEchecsConnexion = 15 * time.Minute
+	// Réinitialisations envoyées à une même adresse : trois par heure suffisent à qui
+	// a perdu son mot de passe, et coupent court à l'usage du formulaire comme outil
+	// de harcèlement par courriel.
+	MaxEnvoisReinitialisation     = 3
+	FenetreEnvoisReinitialisation = time.Hour
+)
+
+func cleEchecsConnexion(portee, identifiant string) string {
+	return "echecs:" + portee + ":" + strings.ToLower(strings.TrimSpace(identifiant))
+}
+
 func Connexion(c fiber.Ctx) error {
 	var in entreeConnexion
 	if err := c.Bind().Body(&in); err != nil {
@@ -83,12 +101,18 @@ func Connexion(c fiber.Ctx) error {
 	if d := utils.Valider(in); d != nil {
 		return utils.ErreurValidation(c, "validation échouée", d)
 	}
+	cleEchecs := cleEchecsConnexion("connexion", in.Email)
+	if atteint, ttl := utils.CompteurAtteint(cleEchecs, MaxEchecsConnexion); atteint {
+		return utils.TropDeTentatives(c, ttl)
+	}
 	var u Utilisateur
 	err := config.DB.Where("email = ? OR nom_utilisateur = ?", strings.ToLower(in.Email), in.Email).First(&u).Error
 	if err != nil || !VerifierMotDePasse(u.MotDePasse, in.MotDePasse) {
+		utils.Incrementer(cleEchecs, FenetreEchecsConnexion)
 		journaliserEchec(c, in.Email, "joueur")
 		return utils.Erreur(c, fiber.StatusUnauthorized, "identifiants invalides")
 	}
+	utils.OublierCompteur(cleEchecs)
 	if u.Statut == StatutSuspendu {
 		return utils.Erreur(c, fiber.StatusForbidden, "compte suspendu")
 	}
@@ -115,12 +139,18 @@ func ConnexionAdmin(c fiber.Ctx) error {
 	if d := utils.Valider(in); d != nil {
 		return utils.ErreurValidation(c, "validation échouée", d)
 	}
+	cleEchecs := cleEchecsConnexion("connexion-admin", in.Email)
+	if atteint, ttl := utils.CompteurAtteint(cleEchecs, MaxEchecsConnexion); atteint {
+		return utils.TropDeTentatives(c, ttl)
+	}
 	var a Administrateur
 	err := config.DB.Where("email = ?", strings.ToLower(in.Email)).First(&a).Error
 	if err != nil || !VerifierMotDePasse(a.MotDePasse, in.MotDePasse) {
+		utils.Incrementer(cleEchecs, FenetreEchecsConnexion)
 		journaliserEchec(c, in.Email, "admin")
 		return utils.Erreur(c, fiber.StatusUnauthorized, "identifiants invalides")
 	}
+	utils.OublierCompteur(cleEchecs)
 	if a.Statut == StatutSuspendu {
 		return utils.Erreur(c, fiber.StatusForbidden, "compte suspendu")
 	}
@@ -180,6 +210,16 @@ func MotDePasseOublie(c fiber.Ctx) error {
 	if err := c.Bind().Body(&in); err != nil {
 		return utils.Erreur(c, fiber.StatusBadRequest, "corps de requête invalide")
 	}
+	// Plafond par ADRESSE : c'est le vrai garde-fou ici. Le plafond par IP freine une
+	// machine, celui-ci empêche d'inonder la boîte d'un tiers de courriels de
+	// réinitialisation depuis autant d'adresses qu'on veut. Le compteur monte même si
+	// le compte n'existe pas — sinon il révélerait quels comptes existent.
+	cleEnvois := cleEchecsConnexion("reinit", in.Email)
+	if atteint, ttl := utils.CompteurAtteint(cleEnvois, MaxEnvoisReinitialisation); atteint {
+		return utils.TropDeTentatives(c, ttl)
+	}
+	utils.Incrementer(cleEnvois, FenetreEnvoisReinitialisation)
+
 	var u Utilisateur
 	// Réponse générique quoi qu'il arrive (pas d'énumération de comptes) : la réponse
 	// ci-dessous est IDENTIQUE que le compte existe ou non. Ne pas la spécialiser.

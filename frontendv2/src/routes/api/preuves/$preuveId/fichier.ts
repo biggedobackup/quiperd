@@ -24,6 +24,11 @@ export const Route = createFileRoute('/api/preuves/$preuveId/fichier')({
           if (v) enTetes.set(nom, v)
         }
         enTetes.set('Cache-Control', 'private, max-age=300')
+        // Ces octets viennent d'un téléversement de joueur et sont servis depuis
+        // l'origine du site : interdire au navigateur de deviner leur type est ce qui
+        // empêche un fichier trompeur d'être interprété comme du HTML ici.
+        enTetes.set('X-Content-Type-Options', 'nosniff')
+        enTetes.set('Content-Security-Policy', "default-src 'none'; sandbox")
         return new Response(reponse.body, { status: reponse.status, headers: enTetes })
       },
     },
