@@ -46,9 +46,41 @@ func EntetesSecurite() fiber.Handler {
 		}
 		if c.Get("Authorization") != "" {
 			c.Set("Cache-Control", "no-store")
+		} else if cachePublic(c) {
+			// Catalogue et règles : ces réponses ne dépendent d'aucun joueur et ne
+			// changent qu'à l'initiative d'un administrateur. Les laisser mettre en
+			// cache par le navigateur et par Cloudflare supprime un aller-retour à
+			// chaque ouverture de page — la différence se sent sur une 3G ivoirienne.
+			// `Vary: Authorization` : la variante administrateur (catalogue complet)
+			// ne doit jamais être servie depuis le cache de la variante publique.
+			c.Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+			c.Set("Vary", "Authorization, Accept-Encoding")
 		}
 		return c.Next()
 	}
+}
+
+// cheminsCachables : lectures publiques, identiques pour tout le monde, que rien
+// n'oblige à recalculer à chaque affichage de page.
+var cheminsCachables = []string{
+	"/api/jeux",
+	"/api/plateformes",
+	"/api/configurations-financieres",
+	"/api/classement",
+	"/api/paiements/prestataires",
+}
+
+func cachePublic(c fiber.Ctx) bool {
+	if c.Method() != fiber.MethodGet {
+		return false
+	}
+	chemin := c.Path()
+	for _, prefixe := range cheminsCachables {
+		if chemin == prefixe || strings.HasPrefix(chemin, prefixe+"/") || strings.HasPrefix(chemin, prefixe+"?") {
+			return true
+		}
+	}
+	return false
 }
 
 // requeteHTTPS dit si le visiteur a joint la plateforme en HTTPS, en se fiant à

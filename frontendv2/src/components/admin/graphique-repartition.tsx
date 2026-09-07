@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { formatMontant } from '@/lib/format'
+import { Suspense, lazy, useEffect, useState } from 'react'
 
 export interface Barre {
   nom: string
@@ -9,36 +7,38 @@ export interface Barre {
   couleur?: string
 }
 
+export interface ProprietesGraphique {
+  titre: string
+  donnees: Barre[]
+  format?: 'entier' | 'montant'
+  hauteur?: number
+}
+
 /**
- * Répartition en barres plates (Recharts) : rendu côté client uniquement (ResponsiveContainer
- * n'a pas de largeur au SSR). Aucune série temporelle inventée : le backend n'en expose pas.
+ * Répartition en barres plates. Le tracé lui-même (Recharts, plus de 350 Ko) est dans un
+ * module séparé, chargé **après** le montage : le tableau de bord s'affiche et devient
+ * utilisable sans attendre la bibliothèque de graphiques, qui arrive ensuite à la place du
+ * rectangle de chargement. Rendu client uniquement de toute façon : `ResponsiveContainer`
+ * n'a aucune largeur au rendu serveur.
  */
-export function GraphiqueRepartition({ titre, donnees, format = 'entier', hauteur = 220 }: { titre: string; donnees: Barre[]; format?: 'entier' | 'montant'; hauteur?: number }) {
+const GraphiqueCorps = lazy(() => import('./graphique-corps'))
+
+export function GraphiqueRepartition({ titre, donnees, format = 'entier', hauteur = 220 }: ProprietesGraphique) {
   const [monte, setMonte] = useState(false)
   useEffect(() => setMonte(true), [])
-  const formate = (v: number) => (format === 'montant' ? formatMontant(v) : String(v))
+
+  const attente = <div className="h-full animate-pulsation rounded-xl bg-trait/40" aria-hidden="true" />
 
   return (
     <div className="rounded-2xl border border-trait bg-papier p-5 shadow-carte">
       <h3 className="etiquette text-muet">{titre}</h3>
       <div className="mt-4" style={{ height: hauteur }}>
         {monte ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={donnees} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="30%">
-              <CartesianGrid vertical={false} stroke="var(--color-trait)" />
-              <XAxis dataKey="nom" tick={{ fontSize: 11, fill: 'var(--color-muet)', fontFamily: 'var(--font-texte)' }} axisLine={{ stroke: 'var(--color-trait)' }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--color-muet)', fontFamily: 'var(--font-mono)' }} axisLine={false} tickLine={false} width={format === 'montant' ? 64 : 32} tickFormatter={(v: number) => (format === 'montant' ? `${Math.round(v / 1000)}k` : String(v))} />
-              <Tooltip
-                cursor={{ fill: 'var(--color-vert-pale)' }}
-                contentStyle={{ border: '1px solid var(--color-trait)', borderRadius: 12, boxShadow: 'var(--shadow-carte)', background: 'var(--color-papier)', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--color-encre)' }}
-                formatter={(v) => [formate(Number(v)), '']}
-                labelStyle={{ fontFamily: 'var(--font-texte)', fontWeight: 700 }}
-              />
-              <Bar dataKey="valeur" fill="var(--color-encre)" radius={[6, 6, 0, 0]} isAnimationActive />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={attente}>
+            <GraphiqueCorps donnees={donnees} format={format} />
+          </Suspense>
         ) : (
-          <div className="h-full animate-pulsation rounded-xl bg-trait/40" aria-hidden="true" />
+          attente
         )}
       </div>
     </div>

@@ -71,6 +71,18 @@
 		}
 	}
 
+	# Fichiers publics NON hachés (image du hero, favicons, images sociales). Nitro pose
+	# déjà `immutable` sur `/assets/*`, dont le nom porte une empreinte, mais rien sur
+	# ceux-ci : sans en-tête, le navigateur revalide à chaque visite, et l'image du hero
+	# est justement le plus gros élément de la première page. Une semaine, renouvelable
+	# en renommant le fichier.
+	@statiques path /images/* /icons/* /og/* /fonts/*
+	handle @statiques {
+		header Cache-Control "public, max-age=604800, stale-while-revalidate=86400"
+		encode gzip zstd
+		reverse_proxy web:3000
+	}
+
 	handle {
 		encode gzip zstd
 		reverse_proxy web:3000

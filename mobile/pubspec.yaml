@@ -10,7 +10,6 @@ dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
   # Client HTTP de l'API (paquet officiel Dart), multipart compris pour l'envoi des preuves.
   http: ^1.5.0
   # Socket temps réel : le serveur POUSSE, l'application ne redemande jamais périodiquement.

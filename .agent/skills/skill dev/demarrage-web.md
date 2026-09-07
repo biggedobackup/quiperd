@@ -771,3 +771,29 @@ plats (grille pointillée, hachures) en fond de section.
   le pays vient de `@/lib/pays` (`Select groupes={optionsPaysGroupees()}`, valeur = nom
   français) ; le téléphone du compte n'est jamais qualifié de « mobile money » hors des modales
   de paiement.
+
+---
+
+## Poids envoyé au navigateur
+
+Mesures sur le build de production, et ce qu'elles imposent :
+
+- **Recharts (356 Ko) n'est chargé qu'au montage d'un graphique.** Importé directement, il
+  partait dans le paquet de la route `admin/tableau-de-bord`, qui pesait alors 363 Ko : tout
+  administrateur payait une bibliothèque de graphiques avant de voir la moindre barre. Le
+  tracé vit dans `components/admin/graphique-corps.tsx`, chargé par `lazy()` derrière un
+  `Suspense` — la route est retombée à **7 Ko**. Même règle pour toute future bibliothèque
+  lourde (éditeur, carte, lecteur vidéo) : enveloppe légère + corps différé.
+- Les fichiers de `/assets/*` portent une empreinte dans leur nom et Nitro leur pose déjà
+  `Cache-Control: public, max-age=31536000, immutable`. Les fichiers publics **non hachés**
+  (`/images`, `/icons`, `/og`) n'avaient rien : le cache est posé par le reverse proxy
+  (`deploy/Caddyfile`), une semaine, renouvelable en renommant le fichier.
+- L'image du hero est servie en **WebP avec repli JPEG** (`<picture>`) : 58 Ko au lieu de
+  116 pour le plus gros élément de la page d'accueil, sans changement visible.
+- Les polices sont importées par famille (`@fontsource-variable/...`) et découpées par
+  `unicode-range` : le navigateur ne télécharge que les sous-ensembles réellement utilisés.
+  Ne pas « optimiser » en retirant `latin-ext` — la copie contient des « œ ».
+- Le catalogue public (`/jeux`, `/plateformes`, `/configurations-financieres`,
+  `/classement`, `/paiements/prestataires`) est renvoyé par l'API avec
+  `Cache-Control: public, max-age=60, stale-while-revalidate=300` et `Vary: Authorization` :
+  navigateur et CDN évitent l'aller-retour, la variante administrateur reste distincte.

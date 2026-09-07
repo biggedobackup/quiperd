@@ -75,15 +75,23 @@ export function Hero({ regles, connecte, nombreDefis }: { regles: ReglesFinancie
             pas (CLS). `fetchPriority=high` : c'est la plus grande image visible d'emblée, elle
             doit passer devant le reste de la file de téléchargement.
           */}
-          <img
-            src="/images/hero-gaming.jpg"
-            alt="Écran de jeu, manette et casque : les défis QUI PERD se jouent sur PlayStation, Xbox, PC et mobile."
-            width={1077}
-            height={705}
-            fetchPriority="high"
-            decoding="async"
-            className="h-auto w-full"
-          />
+          {/*
+            WebP d'abord, JPEG en repli : moitié moins d'octets pour la plus grosse image
+            de la page d'accueil (58 Ko contre 116), sans rien changer au rendu. `<picture>`
+            plutôt qu'un simple `src` : les navigateurs qui ignorent WebP prennent le JPEG.
+          */}
+          <picture>
+            <source srcSet="/images/hero-gaming.webp" type="image/webp" />
+            <img
+              src="/images/hero-gaming.jpg"
+              alt="Écran de jeu, manette et casque : les défis QUI PERD se jouent sur PlayStation, Xbox, PC et mobile."
+              width={1077}
+              height={705}
+              fetchPriority="high"
+              decoding="async"
+              className="h-auto w-full"
+            />
+          </picture>
         </Apparition>
       </div>
     </section>

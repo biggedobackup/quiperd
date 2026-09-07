@@ -636,12 +636,40 @@ joueur connecté d'atteindre connexion/inscription ; une **garde connecté** ren
 
 `lib/config/environnement.dart` — une seule source, choisie à la compilation :
 
-- Émulateur Android : `http://10.0.2.2:8080/api` (l'alias de la machine hôte ; le HTTP en clair
-  est autorisé **uniquement** par `android/app/src/debug/res/xml/network_security_config.xml`,
-  jamais en `release`).
+- Émulateur Android : `http://10.0.2.2:8080/api` (l'alias de la machine hôte).
 - Simulateur iOS : `http://localhost:8080/api`.
 - Appareil physique : `http://<IP_DU_POSTE>:8080/api`.
 - Production : `https://…/api` — et `wss://…/api/temps-reel` pour le socket.
+
+### Politique réseau : serveurs internes et certificats
+
+L'application est aujourd'hui **permissive avec les serveurs internes**, dans les trois couches
+qui peuvent couper une connexion. Sans elles, un serveur interne répond parfaitement mais
+l'application affiche « connexion impossible », ce qui envoie chercher un bug d'API là où il n'y
+en a pas.
+
+| Couche | Fichier | Ce qu'elle autorise |
+| --- | --- | --- |
+| Dart | `lib/noyau/reseau.dart` (`ReseauPermissif`, installé en tête de `main()`) | Tout certificat TLS, pour le REST, le socket et les images — tout ce qui passe par `dart:io`. |
+| Android | `android/app/src/main/res/xml/network_security_config.xml` | HTTP en clair vers n'importe quel hôte, et les autorités installées sur l'appareil (`user`). **Source set `main`** : vaut aussi en `release`, car la recette s'installe en APK release. |
+| iOS | `ios/Runner/Info.plist` (`NSAppTransportSecurity`) | `NSAllowsArbitraryLoads` + `NSAllowsLocalNetworking`, plus `NSLocalNetworkUsageDescription`. |
+
+La **WebView de paiement** est un composant natif : les overrides Dart ne s'y appliquent pas.
+C'est `onSslAuthError: (e) => e.proceed()` dans `paiement_web.ecran.dart` qui la laisse charger
+une page servie par un certificat auto-signé.
+
+Interrupteur unique pour une version destinée aux joueurs :
+`flutter build apk --release --dart-define=RESEAU_PERMISSIF=false` (le rappel `onSslAuthError`
+n'est alors pas posé non plus). Retirer en plus l'attribut `networkSecurityConfig` du manifeste
+et le bloc ATS de l'`Info.plist` pour revenir à une politique stricte de bout en bout.
+
+Pour **prouver** que les certificats inconnus passent, `backend/tests/outils/proxy-tls` sert
+l'API en HTTPS derrière un certificat auto-signé fabriqué à chaque démarrage :
+
+```
+go run ./tests/outils/proxy-tls -port 8443 -cible http://127.0.0.1:8080
+flutter build apk --release --dart-define=API_BASE_URL=https://10.0.2.2:8443/api
+```
 
 ### Charte API (rappel — détail complet dans `demarrage-backend.md` §1)
 
@@ -847,3 +875,32 @@ flutter build apk --debug
 
 Le backend doit tourner en parallèle (Postgres et Redis compris) : `GET /api/sante` doit répondre
 `{"statut":"en_ligne"}` avant de lancer la recette.
+
+---
+
+## 11. Poids et démarrage de l'application
+
+Mesures faites sur cette base de code (émulateur x86_64, build release) :
+
+| | Avant | Après |
+|---|---|---|
+| APK unique (3 ABI) | 55,5 Mo | — |
+| APK par ABI (`--split-per-abi`) | — | **19,4 Mo** en arm64-v8a, 17,2 Mo en armeabi-v7a |
+| Démarrage à froid | | 3,0 s (`am start -W`, TotalTime) |
+
+- **Toujours livrer par ABI.** Un APK unique embarque `libflutter.so` et `libapp.so` en trois
+  architectures : un téléphone en télécharge trois fois trop. Pour le Play Store,
+  `flutter build appbundle` fait la découpe tout seul ; pour une distribution directe,
+  `flutter build apk --release --split-per-abi` et l'on donne le fichier `arm64-v8a` (tous
+  les téléphones vendus aujourd'hui) ou `armeabi-v7a` (appareils anciens).
+- **Aucune dépendance décorative.** `cupertino_icons` était déclaré sans être utilisé nulle
+  part : 257 Ko de police d'icônes iOS dans un APK Android. Vérifier avant d'ajouter, et
+  retirer ce qui n'est plus appelé.
+- Les polices de texte pèsent 1,1 Mo à elles seules (`Unbounded.ttf` : 778 Ko), et Flutter
+  ne les élague pas — il n'élague que les polices d'ICÔNES (`--tree-shake-icons`, actif par
+  défaut : MaterialIcons tombe de 1,6 Mo à 11 Ko). Les réduire au latin + français
+  couperait environ 700 Ko :
+  `pip install fonttools && pyftsubset Unbounded.ttf --unicodes="U+0000-00FF,U+0152-0153,U+20A0-20BF,U+2018-201D,U+2026,U+202F" --output-file=Unbounded.ttf`
+- Le catalogue, le portefeuille et les notifications sont chargés **en parallèle** au
+  montage de la coquille (`Future.wait`) : ne pas les enchaîner, chaque appel séquentiel
+  s'ajoute au temps avant premier écran utile.
