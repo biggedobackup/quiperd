@@ -1,12 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate, useRouterState, type LinkProps } from '@tanstack/react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { Link, useRouterState, type LinkProps } from '@tanstack/react-router'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { icone } from '@/lib/icones'
-import { optionsJeux } from '@/lib/requetes'
 import { Logo } from '@/components/partages/logo/logo'
 import { LienBouton, classesBouton, type VarianteBouton } from '@/components/partages/button/button'
 
@@ -52,50 +50,6 @@ function LienMenu({
       {children}
       {iconeFin && <FontAwesomeIcon icon={iconeFin} />}
     </Link>
-  )
-}
-
-/**
- * Recherche du header. Elle mène toujours à la liste des défis ouverts : si le texte saisi
- * désigne un jeu du catalogue, le filtre `?jeu=` est appliqué, sinon la liste s'ouvre entière.
- *
- * Le catalogue n'est demandé qu'à la soumission (`ensureQueryData`) : tant que personne ne
- * cherche, le header ne coûte aucun appel réseau — la navigation reste à un aller-retour.
- */
-function RechercheJeux({ className = '', surValidation }: { className?: string; surValidation?: () => void }) {
-  const [terme, setTerme] = useState('')
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
-
-  const soumettre = async (e: FormEvent) => {
-    e.preventDefault()
-    const t = terme.trim().toLowerCase()
-    surValidation?.()
-    if (!t) {
-      await navigate({ to: '/defis' })
-      return
-    }
-    const jeux = await queryClient.ensureQueryData(optionsJeux())
-    const trouve = jeux.find((j) => j.nom.toLowerCase().includes(t))
-    await navigate({ to: '/defis', search: trouve ? { jeu: trouve.id } : {} })
-  }
-
-  return (
-    <form role="search" onSubmit={soumettre} className={`relative ${className}`}>
-      <FontAwesomeIcon
-        icon={icone.rechercher}
-        aria-hidden="true"
-        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-muet"
-      />
-      <input
-        type="search"
-        value={terme}
-        onChange={(e) => setTerme(e.target.value)}
-        placeholder="Rechercher un jeu, un joueur…"
-        aria-label="Rechercher un jeu"
-        className="h-11 w-full rounded-full border border-trait bg-gris pl-10 pr-4 text-[14px] text-encre placeholder:text-muet focus:border-vert focus:bg-papier focus:outline-none"
-      />
-    </form>
   )
 }
 
@@ -208,7 +162,7 @@ export function Header({ connecte }: { connecte: boolean }) {
           <div className="shrink-0 border-b border-trait bg-craie">
             <div className={CLASSES_BARRE}>
               <Link to="/" aria-label="Défis en Ligne — accueil" className="inline-flex" onClick={fermerParLien}>
-                <Logo lien={false} />
+                <Logo lien={false} taille="lg" />
               </Link>
               <button
                 ref={boutonFermer}
@@ -230,9 +184,6 @@ export function Header({ connecte }: { connecte: boolean }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduit ? 0 : 0.2, ease: 'easeOut' }}
           >
-            <div className="p-4">
-              <RechercheJeux surValidation={fermerParLien} />
-            </div>
             <nav className="flex flex-col divide-y divide-trait border-y border-trait" aria-label="Navigation mobile">
               {LIENS.map((l, i) => (
                 <motion.div
@@ -280,7 +231,7 @@ export function Header({ connecte }: { connecte: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-trait bg-craie shadow-barre">
       <div className={CLASSES_BARRE}>
-        <Logo />
+        <Logo taille="lg" />
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navigation principale">
           {LIENS.map((l) => (
             <Link
@@ -297,7 +248,6 @@ export function Header({ connecte }: { connecte: boolean }) {
             </Link>
           ))}
         </nav>
-        <RechercheJeux className="hidden min-w-0 flex-1 max-w-[300px] xl:block" />
         <div className="hidden items-center gap-2.5 lg:flex">
           {connecte ? (
             <LienBouton to="/joueur/tableau-de-bord" variante="volt" taille="md" iconeDebut={icone.defi}>

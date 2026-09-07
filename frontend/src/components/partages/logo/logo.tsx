@@ -14,7 +14,9 @@ export interface ProprietesLogo {
   className?: string
 }
 
-const TAILLES = { sm: 'text-[15px]', md: 'text-[19px]', lg: 'text-[26px]' }
+// `lg` est responsive : sur un écran de 375 px, un logotype à 26 px frôlerait le bouton du menu
+// (il ne restait que 16 px). Il grandit à partir de `sm`, là où la barre a de la place.
+const TAILLES = { sm: 'text-[15px]', md: 'text-[19px]', lg: 'text-[20px] sm:text-[26px]' }
 
 /**
  * Logotype : le « D » couronné à la manette, puis « Défis en » dans la couleur du texte et
