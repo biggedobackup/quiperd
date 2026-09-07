@@ -72,6 +72,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
   bool? _presenceAdverse;
 
   StreamSubscription<EvenementRecu>? _ecoute;
+
   /// Référence capturée à l'ouverture : `dispose()` ne doit jamais
   /// interroger l'arbre des widgets (assertion `_dependents.isEmpty`).
   late final ClientTempsReel _direct;
@@ -162,74 +163,126 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
         // La charge ne contient pas la déclaration complète : on relit, ce qui
         // reste UN appel provoqué par un événement, jamais une boucle.
         _charger(silencieux: true);
-        if ('${e.charge['declarant']}' != moi && mounted) {
-          Message.info(context, 'Résultat proposé', 'Votre adversaire a déclaré le résultat.');
+        if ('${e.charge['declarant']}' != moi && mounted && detail != null) {
+          // Mêmes trois phrases que le web, au mot près : on annonce l'issue déclarée, pas
+          // le 1-0 rangé en base — le joueur n'a jamais saisi de chiffre.
+          final nom = detail.match.nomAdversaireDe(moi);
+          final pour = (e.charge['scorePour'] as num?)?.toInt() ?? 0;
+          final contre = (e.charge['scoreContre'] as num?)?.toInt() ?? 0;
+          Message.info(
+            context,
+            'Résultat à confirmer',
+            pour == contre
+                ? '$nom annonce un match nul. Confirmez, ou annoncez l’inverse.'
+                : pour > contre
+                ? '$nom se déclare vainqueur. Confirmez, ou annoncez l’inverse.'
+                : '$nom vous déclare vainqueur. Confirmez, ou annoncez l’inverse.',
+          );
         }
 
       case Evenements.matchScoreConfirme:
         _charger(silencieux: true);
 
       case Evenements.matchDesaccord:
-        _majMatch((m) => m.copieAvec(
-              statut: 'preuve_requise',
-              echeance: '${e.charge['echeancePreuve'] ?? ''}',
-              echeanceType: 'preuve',
-            ));
+        _majMatch(
+          (m) => m.copieAvec(
+            statut: 'preuve_requise',
+            echeance: '${e.charge['echeancePreuve'] ?? ''}',
+            echeanceType: 'preuve',
+          ),
+        );
         if (mounted) {
           Message.erreur(
             context,
             'Déclarations divergentes',
-            'Vos scores ne concordent pas : envoyez chacun une preuve avant l’échéance.',
+            'Vos déclarations ne concordent pas : envoyez chacun une preuve avant l’échéance, puis un arbitre tranchera.',
           );
         }
 
       case Evenements.matchNul:
-        _majMatch((m) => m.copieAvec(
-              statut: 'nul_en_attente',
-              echeance: '${e.charge['echeanceChoix'] ?? ''}',
-              echeanceType: 'choix_nul',
-            ));
+        _majMatch(
+          (m) => m.copieAvec(
+            statut: 'nul_en_attente',
+            echeance: '${e.charge['echeanceChoix'] ?? ''}',
+            echeanceType: 'choix_nul',
+          ),
+        );
 
       case Evenements.matchNulChoix:
         _charger(silencieux: true);
+        if ('${e.charge['utilisateurId']}' != moi && mounted && detail != null) {
+          final nom = detail.match.nomAdversaireDe(moi);
+          Message.info(
+            context,
+            'Choix de votre adversaire',
+            '${e.charge['choix']}' == 'rejouer'
+                ? '$nom veut rejouer la manche. À vous de choisir.'
+                : '$nom préfère partager les mises. À vous de choisir.',
+          );
+        }
 
       case Evenements.matchRejoue:
         final manche = e.charge['manche'];
-        _majMatch((m) => m.copieAvec(
-              statut: 'en_cours',
-              manche: manche is num ? manche.toInt() : detail?.match.manche,
-              echeance: null,
-              echeanceType: '',
-              scoreJoueur1: null,
-              scoreJoueur2: null,
-            ));
+        _majMatch(
+          (m) => m.copieAvec(
+            statut: 'en_cours',
+            manche: manche is num ? manche.toInt() : detail?.match.manche,
+            echeance: null,
+            echeanceType: '',
+            scoreJoueur1: null,
+            scoreJoueur2: null,
+          ),
+        );
         _charger(silencieux: true);
         if (mounted) {
-          Message.info(context, 'Nouvelle manche', 'Rejouez : aucune mise n’a bougé.');
+          Message.succes(
+            context,
+            'Manche ${manche is num ? manche.toInt() : ''}'.trim(),
+            'Vous avez tous les deux choisi de rejouer. Aucun mouvement d’argent : les mises restent bloquées.',
+          );
         }
 
       case Evenements.matchPartage:
-        setState(() => _partage = DetailPartage(
-              rendu: '${e.charge['rendu'] ?? '0'}',
-              commission: '${e.charge['commission'] ?? '0'}',
-            ));
+        setState(
+          () => _partage = DetailPartage(
+            rendu: '${e.charge['rendu'] ?? '0'}',
+            commission: '${e.charge['commission'] ?? '0'}',
+          ),
+        );
         _charger(silencieux: true);
 
       case Evenements.matchAbandon:
-        setState(() => _abandon = DetailAbandon(
-              gagnantId: '${e.charge['gagnantId'] ?? ''}',
-              motif: '${e.charge['motif'] ?? ''}',
-            ));
+        setState(
+          () => _abandon = DetailAbandon(
+            gagnantId: '${e.charge['gagnantId'] ?? ''}',
+            motif: '${e.charge['motif'] ?? ''}',
+          ),
+        );
         _charger(silencieux: true);
 
       case Evenements.matchPreuveEnvoyee:
         _rechargerPreuves();
+        if ('${e.charge['utilisateurId']}' != moi && mounted && detail != null) {
+          final nom = detail.match.nomAdversaireDe(moi);
+          final type = '${e.charge['type']}' == 'video' ? 'vidéo' : 'capture';
+          Message.info(context, 'Preuve reçue', '$nom a envoyé sa preuve ($type).');
+        }
 
       case Evenements.matchLitigeOuvert:
         _majMatch((m) => m.copieAvec(statut: 'litige', echeance: null, echeanceType: ''));
+        if (mounted) {
+          Message.info(
+            context,
+            'Litige ouvert',
+            'Un arbitre va examiner les preuves des deux joueurs. Les mises restent bloquées.',
+          );
+        }
 
       case Evenements.matchLitigeResolu:
         _charger(silencieux: true);
+        if (mounted) {
+          Message.info(context, 'Litige tranché', 'La décision de l’arbitre a été appliquée.');
+        }
 
       case Evenements.matchTermine:
         final match = MatchDefi.depuisJson(e.charge);
@@ -242,10 +295,12 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
         if (mounted) context.read<PortefeuilleEtat>().charger(avecTransactions: false);
 
       case Evenements.matchChrono:
-        _majMatch((m) => m.copieAvec(
-              echeance: '${e.charge['echeance'] ?? ''}',
-              echeanceType: '${e.charge['type'] ?? ''}',
-            ));
+        _majMatch(
+          (m) => m.copieAvec(
+            echeance: '${e.charge['echeance'] ?? ''}',
+            echeanceType: '${e.charge['type'] ?? ''}',
+          ),
+        );
     }
   }
 
@@ -279,7 +334,11 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
       _charger(silencieux: true);
       return;
     }
-    Message.succes(context, 'Résultat déclaré', 'En attente de votre adversaire.');
+    Message.succes(
+      context,
+      'Résultat déclaré',
+      'En attente de la réponse de ${detail.match.nomAdversaireDe(moi)}.',
+    );
     _charger(silencieux: true);
   }
 
@@ -296,7 +355,11 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
       _charger(silencieux: true);
       return;
     }
-    Message.succes(context, 'Résultat confirmé', 'Le règlement vient d’être effectué.');
+    Message.succes(
+      context,
+      'Résultat confirmé',
+      'Le match est réglé : l’argent est versé immédiatement.',
+    );
     context.read<PortefeuilleEtat>().charger(avecTransactions: false);
     _charger(silencieux: true);
   }
@@ -306,8 +369,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     if (detail == null) return;
     final moi = context.read<SessionEtat>().utilisateur?.id ?? '';
     final regles = context.read<CatalogueEtat>().regles;
-    final choixAdverse =
-        detail.choixCourants.where((c) => c.utilisateurId != moi).firstOrNull;
+    final choixAdverse = detail.choixCourants.where((c) => c.utilisateurId != moi).firstOrNull;
 
     final choix = await ouvrirChoixNul(
       context,
@@ -334,7 +396,9 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     Message.succes(
       context,
       'Choix enregistré',
-      choix == 'rejouer' ? 'En attente de votre adversaire.' : 'Partage demandé.',
+      choix == 'rejouer'
+          ? 'Vous voulez rejouer. La manche ne repart que si ${detail.match.nomAdversaireDe(moi)} l’accepte aussi.'
+          : 'Vous voulez partager les mises. Le partage sera appliqué.',
     );
     _charger(silencieux: true);
   }
@@ -371,7 +435,10 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
       appBar: AppBar(
         title: const Text('Match'),
         actions: const [
-          Padding(padding: EdgeInsets.only(right: 16), child: Center(child: IndicateurDirect())),
+          Padding(
+            padding: EdgeInsets.only(right: 16),
+            child: Center(child: IndicateurDirect()),
+          ),
         ],
       ),
       body: SafeArea(child: _corps()),
@@ -380,7 +447,10 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
 
   Widget _corps() {
     if (_chargement && _detail == null) {
-      return const Padding(padding: EdgeInsets.all(16), child: SqueletteDiffere(child: SqueletteCartes(nombre: 3)));
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: SqueletteDiffere(child: SqueletteCartes(nombre: 3)),
+      );
     }
     final detail = _detail;
     if (detail == null) {
@@ -410,8 +480,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
 
     final declarations = detail.declarationsCourantes;
     final maDeclaration = declarations.where((d) => d.utilisateurId == moi.id).firstOrNull;
-    final declarationAdverse =
-        declarations.where((d) => d.utilisateurId != moi.id).firstOrNull;
+    final declarationAdverse = declarations.where((d) => d.utilisateurId != moi.id).firstOrNull;
     final monChoix = detail.choixCourants.where((c) => c.utilisateurId == moi.id).firstOrNull;
     final choixAdverse = detail.choixCourants.where((c) => c.utilisateurId != moi.id).firstOrNull;
 
@@ -420,7 +489,8 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     final peutDeclarer = statut == 'en_cours' && maDeclaration == null;
     final enAttenteAdverse =
         statut == 'en_cours' && maDeclaration != null && declarationAdverse == null;
-    final peutOuvrirLitige = statut == 'en_cours' ||
+    final peutOuvrirLitige =
+        statut == 'en_cours' ||
         statut == 'preuve_requise' ||
         statut == 'nul_en_attente' ||
         statut == 'verification';
@@ -433,10 +503,12 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
           EnTetePage(
-            surtitre: '${match.jeuNom} · ${match.plateformeNom}'
+            surtitre:
+                '${match.jeuNom} · ${match.plateformeNom}'
                 '${match.manche > 1 ? ' · Manche ${match.manche}' : ''}',
             titre: '$nomMoi vs $nomAdversaire',
-            description: 'Mise de ${formatMontant(match.montantMise, match.devise)} par joueur · '
+            description:
+                'Mise de ${formatMontant(match.montantMise, match.devise)} par joueur · '
                 '${formatMontant(versNombre(match.montantMise) * 2, match.devise)} en séquestre '
                 'jusqu’au règlement.',
           ),
@@ -484,9 +556,9 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
 
           if (statut == 'litige') ...[
             PanneauLitige(
-              onVoirLitiges: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const LitigesEcran()),
-              ),
+              onVoirLitiges: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const LitigesEcran())),
             ),
             const SizedBox(height: 20),
           ],
@@ -523,9 +595,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
             // une issue que lorsque la plateforme a tranché.
             score1: match.gagnantId == null ? null : match.scoreJoueur1,
             score2: match.gagnantId == null ? null : match.scoreJoueur2,
-            gagnant: match.gagnantId == null
-                ? null
-                : (match.gagnantId == match.joueur1Id ? 1 : 2),
+            gagnant: match.gagnantId == null ? null : (match.gagnantId == match.joueur1Id ? 1 : 2),
             etiquette: match.manche > 1
                 ? 'Manche ${match.manche}'
                 : (statut == 'termine' ? 'Résultat final' : 'Match'),
@@ -554,9 +624,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
                         TextSpan(
                           text: 'Face à ',
                           style: Typo.legende.copyWith(color: Couleurs.muet),
-                          children: [
-                            TextSpan(text: nomAdversaire, style: Typo.legendeForte),
-                          ],
+                          children: [TextSpan(text: nomAdversaire, style: Typo.legendeForte)],
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -599,12 +667,14 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
                   nom: '$nomMoi (vous)',
                   declaration: maDeclaration,
                   attente: 'Vous n’avez pas encore déclaré.',
+                  nomDe: match.nomDe,
                 ),
                 const SizedBox(height: 10),
                 _LigneDeclaration(
                   nom: nomAdversaire,
                   declaration: declarationAdverse,
                   attente: 'En attente de la déclaration adverse.',
+                  nomDe: match.nomDe,
                 ),
                 if (peutDeclarer && !aConfirmer) ...[
                   const SizedBox(height: 16),
@@ -652,10 +722,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Preuves', style: Typo.h3),
-              Text(
-                '${_preuves.length} ${pluriel(_preuves.length, 'fichier')}',
-                style: Typo.petit,
-              ),
+              Text('${_preuves.length} ${pluriel(_preuves.length, 'fichier')}', style: Typo.petit),
             ],
           ),
           const SizedBox(height: 12),
@@ -720,52 +787,51 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
     return null;
   }
 
+  /// Consignes du bloc « Que faire maintenant ? ».
+  ///
+  /// Copie du web à la lettre (`consignes()` dans `routes/joueur/matchs/$matchId.tsx`), y
+  /// compris l'ordre et l'état coché de chaque ligne : un joueur qui connaît le site doit lire
+  /// exactement la même chose ici, sinon il doute d'être au même endroit.
   List<({bool fait, String texte})> _consignes({
     required String statut,
     required bool aDeclare,
     required bool aConfirmer,
     required String nomAdversaire,
   }) {
-    // Le joueur désigne l'issue, jamais un score : le vocabulaire de l'écran suit.
     return switch (statut) {
-      'en_cours' when aConfirmer => [
-          (fait: true, texte: 'Le match a été joué.'),
-          (fait: true, texte: '$nomAdversaire a déclaré le résultat.'),
-          (fait: false, texte: 'Confirmez ce résultat, ou annoncez l’inverse.'),
-        ],
-      'en_cours' => [
-          (fait: true, texte: 'Le match a été joué sur le jeu et la plateforme du défi.'),
-          (fait: aDeclare, texte: 'Déclarez le résultat de votre côté.'),
-          (
-            fait: false,
-            texte: aDeclare
-                ? '$nomAdversaire confirme ou annonce l’inverse.'
-                : 'Les deux déclarations identiques règlent le match immédiatement.'
-          ),
-        ],
-      'preuve_requise' => [
-          (fait: true, texte: 'Vos déclarations ne concordent pas.'),
-          (fait: false, texte: 'Envoyez votre preuve (capture ou vidéo) avant l’échéance.'),
-          (fait: false, texte: 'À l’échéance, un arbitre tranchera.'),
-        ],
-      'nul_en_attente' => [
-          (fait: true, texte: 'Match nul déclaré des deux côtés.'),
-          (fait: false, texte: 'Choisissez : rejouer la manche ou partager la mise.'),
-          (fait: false, texte: 'Sans choix des deux côtés, l’escrow est partagé.'),
-        ],
-      'litige' => [
-          (fait: true, texte: 'Un litige est ouvert sur ce match.'),
-          (fait: false, texte: 'L’arbitre examine les déclarations et les preuves.'),
-          (fait: false, texte: 'Les mises restent bloquées jusqu’à la décision.'),
-        ],
       'termine' => [
-          (fait: true, texte: 'Le match est réglé.'),
-          (fait: true, texte: 'Le mouvement figure dans votre portefeuille.'),
-        ],
+        (fait: true, texte: 'Jouer le match et déclarer le résultat.'),
+        (fait: true, texte: 'Accord des deux joueurs sur le résultat.'),
+        (fait: true, texte: 'Règlement automatique : l’argent est versé.'),
+      ],
+      'preuve_requise' => [
+        (fait: false, texte: 'Envoyer votre preuve (capture ou vidéo).'),
+        (fait: false, texte: 'Attendre la preuve de $nomAdversaire.'),
+        (fait: false, texte: 'Un arbitre examine les deux preuves et tranche.'),
+      ],
+      'nul_en_attente' => [
+        (fait: false, texte: 'Choisir : rejouer la manche ou partager les mises.'),
+        (fait: false, texte: 'Attendre le choix de $nomAdversaire.'),
+        (fait: false, texte: 'Rejouer si vous êtes d’accord tous les deux, sinon partage.'),
+      ],
+      'litige' || 'verification' => [
+        (fait: true, texte: 'Jouer le match et déclarer le résultat.'),
+        (fait: false, texte: 'Envoyer vos preuves : capture et, si possible, vidéo.'),
+        (fait: false, texte: 'Attendre la décision : le règlement suit automatiquement.'),
+      ],
       _ => [
-          (fait: true, texte: 'Le match a été joué.'),
-          (fait: false, texte: 'La plateforme vérifie les éléments fournis.'),
-        ],
+        (fait: aDeclare, texte: 'Jouer le match sur le jeu et la plateforme du défi.'),
+        (
+          fait: aDeclare,
+          texte: aConfirmer
+              ? 'Confirmer le résultat annoncé par $nomAdversaire, ou annoncer l’inverse.'
+              : 'Déclarer qui a gagné.',
+        ),
+        (
+          fait: false,
+          texte: 'Deux déclarations identiques = règlement immédiat, sans preuve ni arbitre.',
+        ),
+      ],
     };
   }
 }
@@ -774,16 +840,25 @@ class _LigneDeclaration extends StatelessWidget {
   const _LigneDeclaration({
     required this.nom,
     required this.declaration,
+    required this.nomDe,
     required this.attente,
   });
 
   final String nom;
   final ResultatDeclare? declaration;
   final String attente;
+  final String Function(String) nomDe;
 
   @override
   Widget build(BuildContext context) {
     final d = declaration;
+    // Sous-titre repris du web à la lettre : « Gagnant déclaré : X · date · « commentaire » ».
+    // Le commentaire compte : c'est là qu'un joueur note le score de sa partie s'il y tient.
+    final sousTitre = d == null
+        ? attente
+        : 'Gagnant déclaré : ${d.gagnantDeclareId == null ? 'match nul' : nomDe(d.gagnantDeclareId!)}'
+              ' · ${formatDateHeure(d.dateDeclaration)}'
+              '${d.commentaire.isEmpty ? '' : ' · « ${d.commentaire} »'}';
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -791,6 +866,7 @@ class _LigneDeclaration extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             d == null ? Icons.hourglass_empty : Icons.check_circle,
@@ -803,22 +879,21 @@ class _LigneDeclaration extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(nom, style: Typo.legendeForte, overflow: TextOverflow.ellipsis),
-                Text(
-                  d == null ? attente : formatDateRelative(d.dateDeclaration),
-                  style: Typo.petit,
-                ),
+                Text(sousTitre, style: Typo.petit),
               ],
             ),
           ),
+          const SizedBox(width: 8),
           // Les 1-0 / 0-1 rangés en base sont une convention interne du moteur de règlement.
           // Les afficher montrerait au joueur un chiffre que personne n'a saisi.
           if (d != null)
             Text(
               d.scorePour == d.scoreContre
-                  ? 'Nul'
+                  ? 'Match nul'
                   : d.scorePour > d.scoreContre
-                      ? 'Vainqueur'
-                      : 'Battu',
+                  ? 'Se déclare vainqueur'
+                  : 'Se déclare battu',
+              textAlign: TextAlign.right,
               style: Typo.legendeForte.copyWith(color: Couleurs.vert),
             ),
         ],

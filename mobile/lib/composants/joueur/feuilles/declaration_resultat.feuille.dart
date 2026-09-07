@@ -83,7 +83,7 @@ class _FeuilleResultatState extends State<_FeuilleResultat> {
       (
         valeur: 'nul',
         libelle: 'Match nul',
-        aide: 'La partie n’a pas départagé : vous choisirez ensuite de rejouer ou de partager.',
+        aide: 'La partie n’a pas départagé : vous choisirez ensuite de rejouer ou de partager les mises.',
       ),
     ];
 
@@ -105,12 +105,23 @@ class _FeuilleResultatState extends State<_FeuilleResultat> {
                 style: Typo.h3,
               ),
               const SizedBox(height: 4),
+              // Copie reprise mot pour mot du web : un joueur qui connaît le site doit lire
+              // exactement la même chose ici.
               Text(
-                'Une seule déclaration par joueur et par manche, définitive. Si votre adversaire '
-                'déclare la même chose, le match est réglé immédiatement — sans preuve ni arbitre.',
+                widget.contreProposition
+                    ? 'Votre adversaire a déjà déclaré. Si vous annoncez la même issue que lui, le match '
+                        'est réglé sur-le-champ ; sinon une preuve sera exigée des deux côtés.'
+                    : 'Une seule déclaration par joueur et par manche, définitive. Si votre adversaire '
+                        'annonce la même issue, le match est réglé immédiatement — sans preuve ni arbitre.',
                 style: Typo.petit,
               ),
               const SizedBox(height: 18),
+              // Même légende de section que le web (`<legend>` du fieldset).
+              Text(
+                'Issue de la partie'.toUpperCase(),
+                style: Typo.etiquette.copyWith(color: Couleurs.muet, fontSize: 10),
+              ),
+              const SizedBox(height: 10),
               for (final c in choix) ...[
                 _Choix(
                   libelle: c.libelle,

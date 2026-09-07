@@ -691,7 +691,7 @@ function EcranMatch() {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-h3">Preuves</h3>
-            <span className="text-legende text-muet">{preuves.data ? `${preuves.data.length} fichier(s)` : ''}</span>
+            <span className="text-legende text-muet">{preuves.data ? `${preuves.data.length} ${preuves.data.length > 1 ? 'fichiers' : 'fichier'}` : ''}</span>
           </div>
           {/* En « preuve exigée », la zone d'envoi est déjà en haut de l'écran : pas de doublon. */}
           {peutEnvoyerPreuve && statut !== 'preuve_requise' && (
@@ -757,7 +757,7 @@ function EcranMatch() {
 function toastAvertirDesaccord() {
   toastErreur(
     'Déclarations divergentes',
-    'Vos scores ne concordent pas : envoyez chacun une preuve avant l’échéance, puis un arbitre tranchera.',
+    'Vos déclarations ne concordent pas : envoyez chacun une preuve avant l’échéance, puis un arbitre tranchera.',
   )
 }
 

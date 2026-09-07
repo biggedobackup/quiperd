@@ -69,8 +69,10 @@ class PanneauAttente extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Panneau(
       etiquette: 'En attente',
-      titre: 'Votre résultat est déclaré',
-      texte: '$nomAdversaire doit maintenant confirmer ou annoncer l’inverse.',
+      // Copie du web mot pour mot : le joueur doit lire la même chose des deux côtés.
+      titre: 'Résultat déclaré — en attente de $nomAdversaire',
+      texte: 'S’il confirme, le match est réglé sur-le-champ. S’il ne répond pas avant '
+          'l’échéance, votre déclaration fera foi et le règlement se fera en votre faveur.',
       couleur: Couleurs.info,
       fond: Couleurs.infoFond,
       enfants: [
@@ -78,7 +80,7 @@ class PanneauAttente extends StatelessWidget {
           const SizedBox(height: 16),
           BlocCompteARebours(
             echeance: echeance!,
-            consequence: 'Sans réponse de sa part, la victoire vous revient.',
+            consequence: 'Il lui reste ce délai pour répondre.',
             surFin: surFinChrono,
           ),
         ],
