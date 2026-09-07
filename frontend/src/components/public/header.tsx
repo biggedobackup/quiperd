@@ -17,7 +17,10 @@ const LIENS = [
 ] as const
 
 /** Gabarit de la barre du haut, partagé par le header et le menu mobile : la barre semble ne jamais bouger. */
-const CLASSES_BARRE = 'mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6'
+// La hauteur suit le dessin du logo (`clamp(0, 20vw, 100px)` dans `Logo`) plus une marge :
+// 84 px sur un écran de 360, 112 px dès que le dessin atteint son plafond de 100 px.
+const CLASSES_BARRE =
+  'mx-auto flex h-[clamp(84px,calc(20vw+12px),112px)] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6'
 const CLASSES_BOUTON_MENU =
   'flex size-11 items-center justify-center rounded-[10px] border border-trait bg-papier text-encre transition-colors hover:border-vert hover:text-vert'
 /** Point de rupture `lg` de Tailwind v4 : au-delà, le menu mobile n'existe plus. */
@@ -162,7 +165,7 @@ export function Header({ connecte }: { connecte: boolean }) {
           <div className="shrink-0 border-b border-trait bg-craie">
             <div className={CLASSES_BARRE}>
               <Link to="/" aria-label="Défis en Ligne — accueil" className="inline-flex" onClick={fermerParLien}>
-                <Logo lien={false} echelleMarque={3.4} />
+                <Logo lien={false} marquePx={100} />
               </Link>
               <button
                 ref={boutonFermer}
@@ -231,7 +234,7 @@ export function Header({ connecte }: { connecte: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-trait bg-craie shadow-barre">
       <div className={CLASSES_BARRE}>
-        <Logo echelleMarque={3.4} />
+        <Logo marquePx={100} />
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navigation principale">
           {LIENS.map((l) => (
             <Link
