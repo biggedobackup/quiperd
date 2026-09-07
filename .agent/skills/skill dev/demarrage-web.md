@@ -363,13 +363,19 @@ par les pages dédiées d'authentification et légales :
    nommés (`joueur1Nom`/`joueur2Nom` renvoyés par l'API).
 5. **Portefeuille** — solde disponible/bloqué, dépôt (`depot-modal`) et retrait
    (`retrait-modal`, **frais de retrait calculés par le backend et affichés avant confirmation**)
-   via LigdiCash/MoneyFusion (redirection vers la page de paiement hébergée quand l'API renvoie
-   `urlPaiement`, jamais une iframe ; sinon message « en attente de confirmation »), historique
-   paginé, état vide si aucune transaction. Les prestataires proposés viennent de
+   via LigdiCash/MoneyFusion. Quand l'API renvoie `urlPaiement`, la page hébergée s'ouvre
+   **dans une modale de la plateforme** (`paiement-modal`) et non par une redirection : le
+   joueur ne quitte pas QUI PERD, le portefeuille reste monté derrière, et la modale se ferme
+   toute seule dès que `paiement.statut` arrive par le socket. Un lien « ouvrir dans un nouvel
+   onglet » reste offert au cas où le prestataire refuserait l'encadrement, et la carte
+   « paiements en cours » propose **« Reprendre le paiement »** tant que le dépôt est en
+   attente : refermer la fenêtre par mégarde ne doit pas condamner un paiement valable.
+   Historique paginé, état vide si aucune transaction. Les prestataires proposés viennent de
    `GET /api/paiements/prestataires` (`optionsPrestataires`) — **jamais une liste en dur** : le
    backend refuse une passerelle non configurée. Liste vide → encart explicatif sans formulaire ;
    un seul prestataire → pas de `<select>` à un choix ; le numéro n'est obligatoire que si le
-   serveur le dit (`numeroRequis`). Les montants sont des entiers de FCFA.
+   serveur le dit (`numeroRequis`), et le plancher du montant vient de `montantMinimum` (200 F
+   chez MoneyFusion, 100 ailleurs). Les montants sont des entiers de FCFA.
 6. **Litiges** — ouverture depuis l'écran de match (confirmation avant envoi), suivi de la
    décision arbitrale avec `badge-statut` dédié.
 7. **Notifications / Profil** — liste des notifications (marquage lu), gestion des comptes

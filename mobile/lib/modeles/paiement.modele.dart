@@ -70,6 +70,7 @@ class PrestatairePublic {
     required this.code,
     required this.libelle,
     required this.numeroRequis,
+    required this.montantMinimum,
   });
 
   /// ligdicash | fusionmoney
@@ -79,10 +80,15 @@ class PrestatairePublic {
   /// MoneyFusion exige le numéro à la création ; LigdiCash le collecte sur sa page.
   final bool numeroRequis;
 
+  /// Plancher imposé par la PASSERELLE, en francs entiers : MoneyFusion refuse la
+  /// création sous 200 F. Sous ce seuil, le dépôt n'aboutirait jamais.
+  final int montantMinimum;
+
   factory PrestatairePublic.depuisJson(Map<String, dynamic> json) => PrestatairePublic(
         code: texte(json, 'code'),
         libelle: texte(json, 'libelle'),
         numeroRequis: booleen(json, 'numeroRequis'),
+        montantMinimum: entier(json, 'montantMinimum', 100),
       );
 }
 

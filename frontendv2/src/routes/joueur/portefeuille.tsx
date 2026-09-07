@@ -18,6 +18,7 @@ import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { DepotModal } from '@/components/joueur/modals/depot-modal'
 import { RetraitModal } from '@/components/joueur/modals/retrait-modal'
+import { PaiementModal } from '@/components/joueur/modals/paiement-modal'
 import { BlocEmailNonConfirme, estRefusEmail, toastRefusEmail, useEmailNonConfirme } from '@/components/joueur/email-non-verifie'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { CompteurAnime } from '@/components/partages/compteur-anime/compteur-anime'
@@ -54,6 +55,8 @@ interface PaiementSuivi {
   montant: string
   devise: string
   statut: string
+  /** Page hébergée du prestataire : permet de rouvrir un paiement fermé par mégarde. */
+  url?: string
 }
 
 /** Ce que le joueur doit comprendre, en une phrase, pour chaque issue d'un paiement. */
@@ -111,6 +114,8 @@ function PagePortefeuille() {
   const retrait = useServerFn(retirer)
   const [modalDepot, setModalDepot] = useState(false)
   const [modalRetrait, setModalRetrait] = useState(false)
+  /** Page de paiement du prestataire, ouverte DANS la plateforme (jamais une redirection). */
+  const [paiementOuvert, setPaiementOuvert] = useState<{ url: string; id: string } | null>(null)
   // Le retrait exige une adresse confirmée (403 côté backend) ; le dépôt, lui, reste ouvert.
   const emailNonConfirmeSession = useEmailNonConfirme()
   const [refuseParLeServeur, setRefuseParLeServeur] = useState(false)
@@ -138,7 +143,8 @@ function PagePortefeuille() {
       const index = liste.findIndex((s) => s.id === p.id)
       if (index < 0) return [p, ...liste].slice(0, 4)
       const copie = [...liste]
-      copie[index] = { ...copie[index], ...p }
+      // `url` n'arrive qu'à la création : un événement de statut ne doit pas l'effacer.
+      copie[index] = { ...copie[index], ...p, url: p.url ?? copie[index]?.url }
       return copie
     })
 
@@ -172,7 +178,9 @@ function PagePortefeuille() {
       } else if (statut === 'rembourse') {
         toastInfo('Dépôt remboursé', `${somme} ont été repris sur votre solde disponible.`)
       }
-      // Le bandeau « retour du prestataire » n'a plus lieu d'être : l'issue est connue.
+      // L'issue est connue : la page de paiement n'a plus rien à montrer.
+      if (statut !== 'en_attente') setPaiementOuvert((ouvert) => (ouvert?.id === paiementId ? null : ouvert))
+      // Le bandeau « retour du prestataire » n'a plus lieu d'être non plus.
       if (paiement && statut !== 'en_attente') void navigate({ search: { page, paiement: undefined } })
     },
     salonMoi,
@@ -199,8 +207,10 @@ function PagePortefeuille() {
         return
       }
       if (r.donnees.urlPaiement) {
-        toastInfo('Redirection vers le paiement…')
-        window.location.href = r.donnees.urlPaiement
+        // Le joueur reste sur QUI PERD : la page hébergée s'ouvre dans une fenêtre
+        // de la plateforme, et le socket dira ici même comment le paiement finit.
+        suivreLePaiement(r.donnees.paiement, r.donnees.urlPaiement)
+        setPaiementOuvert({ url: r.donnees.urlPaiement, id: r.donnees.paiement.id })
         return
       }
       toastInfo('Dépôt enregistré', r.donnees.message ?? 'En attente de confirmation du prestataire.')
@@ -229,9 +239,9 @@ function PagePortefeuille() {
     },
   })
 
-  function suivreLePaiement(p: Paiement | undefined) {
+  function suivreLePaiement(p: Paiement | undefined, url?: string) {
     if (!p?.id) return
-    suivre({ id: p.id, type: p.type, montant: p.montant, devise: p.devise, statut: p.statut })
+    suivre({ id: p.id, type: p.type, montant: p.montant, devise: p.devise, statut: p.statut, url })
   }
 
   const colonnes: Colonne<TransactionPortefeuille>[] = [
@@ -325,7 +335,14 @@ function PagePortefeuille() {
                 </span>
                 <span className="block text-legende text-muet">{aidePaiement(p)}</span>
               </span>
-              <BadgeStatut famille="paiement" valeur={p.statut} className="ml-auto" />
+              {p.statut === 'en_attente' && p.url && (
+                // Fenêtre fermée par mégarde : le paiement reste valable, on rouvre la
+                // page hébergée au lieu d'obliger le joueur à refaire un dépôt.
+                <Button variante="secondaire" taille="sm" className="ml-auto" onClick={() => setPaiementOuvert({ url: p.url!, id: p.id })}>
+                  Reprendre le paiement
+                </Button>
+              )}
+              <BadgeStatut famille="paiement" valeur={p.statut} className={p.statut === 'en_attente' && p.url ? '' : 'ml-auto'} />
               <button
                 type="button"
                 onClick={() => setSuivis((liste) => liste.filter((s) => s.id !== p.id))}
@@ -388,6 +405,7 @@ function PagePortefeuille() {
       </section>
 
       <DepotModal ouvert={modalDepot} onFermer={() => setModalDepot(false)} onDeposer={async (d) => mutDepot.mutateAsync(d).then(() => undefined)} chargement={mutDepot.isPending} telephone={session.utilisateur.telephone} prestataires={prestataires} />
+      <PaiementModal ouvert={!!paiementOuvert} url={paiementOuvert?.url ?? null} onFermer={() => setPaiementOuvert(null)} />
       <RetraitModal
         ouvert={modalRetrait}
         onFermer={() => setModalRetrait(false)}

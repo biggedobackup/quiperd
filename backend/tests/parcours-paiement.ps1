@@ -11,6 +11,7 @@
 #     « pending » ne crédite rien ;
 #   - le crédit vaut Montant + frais (`data.Montant` est NET des frais) ;
 #   - un montant fractionnaire est refusé (le XOF n'a pas de subdivision) ;
+#   - un montant sous le plancher de la passerelle est refusé AVANT l'appel ;
 #   - la même notification rejouée ne crédite qu'une fois (idempotence) ;
 #   - « failure » clôt le dépôt en échec sans mouvement d'argent ;
 #   - le polling de secours conclut même si aucun webhook n'arrive ;
@@ -90,7 +91,11 @@ $stubOk = $false
 try { Invoke-RestMethod "$Stub/_recette/transactions" -TimeoutSec 5 | Out-Null; $stubOk = $true } catch { $stubOk = $false }
 Check 'doublure MoneyFusion joignable sur 127.0.0.1:8099' $stubOk 'lancer : .\quiperd-stub-fusion.exe -port 8099'
 if (-not $stubOk) { Write-Host "`nDoublure absente : parcours interrompu." -ForegroundColor Red; exit 1 }
-Check 'FUSIONMONEY_API_URL pointe la doublure' ($DotEnv['FUSIONMONEY_API_URL'] -like '*127.0.0.1:8099*') $DotEnv['FUSIONMONEY_API_URL']
+if ($DotEnv['FUSIONMONEY_API_URL'] -notlike '*127.0.0.1:8099*') {
+  Write-Host "`nCe parcours ne s'exécute que contre la doublure : FUSIONMONEY_API_URL vise actuellement la vraie passerelle." -ForegroundColor Yellow
+  Write-Host "  Pour le lancer : FUSIONMONEY_API_URL=http://127.0.0.1:8099/quiperd/paiement puis redémarrer l'API." -ForegroundColor Yellow
+  exit 2
+}
 Check 'FUSIONMONEY_API_URL sans sous-domaine www. (certificat auto-signé)' (-not ($DotEnv['FUSIONMONEY_API_URL'] -match '://www\.'))
 
 # ------------------------------------------------------------------ 1. Catalogue public
@@ -102,6 +107,9 @@ Check 'réponse : tableau JSON' ($null -ne $r.Body -and $r.Raw.TrimStart().Start
 $fusion = $presta | Where-Object code -eq 'fusionmoney'
 Check 'MoneyFusion listé (URL marchand configurée)' ($null -ne $fusion) (($presta | ForEach-Object code) -join ',')
 Check 'MoneyFusion : libellé et numeroRequis=true' ($fusion.libelle -eq 'MoneyFusion' -and $fusion.numeroRequis -eq $true) $r.Raw
+# Plancher de la passerelle (200 F chez MoneyFusion, constaté contre la vraie API) : sans
+# lui, un dépôt de 100 F partirait dans le vide et resterait « en attente » pour toujours.
+Check 'MoneyFusion : montantMinimum publié (200)' ($fusion.montantMinimum -eq 200) $r.Raw
 $ligdi = $presta | Where-Object code -eq 'ligdicash'
 $ligdiConfigure = ($DotEnv['LIGDICASH_API_KEY']) -and ($DotEnv['LIGDICASH_API_TOKEN'])
 Check 'LigdiCash absent tant qu''aucune clé n''est configurée' (($null -ne $ligdi) -eq [bool]$ligdiConfigure) ("configuré=$ligdiConfigure listé=" + ($null -ne $ligdi))
@@ -133,6 +141,8 @@ $r = Api POST '/paiements/depot' @{ montant = 5000; prestataire = 'inconnu' } -T
 Check 'prestataire inconnu -> 400' ($r.Status -eq 400) $r.Raw
 $r = Api POST '/paiements/depot' @{ montant = 5000; prestataire = 'fusionmoney' } -Token $T
 Check 'MoneyFusion sans numéro -> 400 avec details.numero' ($r.Status -eq 400 -and $r.Body.details.numero) $r.Raw
+$r = Api POST '/paiements/depot' @{ montant = 150; prestataire = 'fusionmoney'; numero = '+2250700009001' } -Token $T
+Check 'sous le plancher de la passerelle (150 < 200) -> 400 avec details.montant' ($r.Status -eq 400 -and $r.Body.details.montant) $r.Raw
 Check 'aucun paiement créé par une demande refusée' ((Sql "select count(*) from paiements where utilisateur_id='$UID'") -eq '0') 'table paiements vide pour ce joueur'
 $r = Api POST '/paiements/depot' @{ montant = 5000; prestataire = 'fusionmoney'; numero = '+2250700009001' }
 Check 'dépôt sans jeton -> 401' ($r.Status -eq 401) $r.Raw
@@ -208,17 +218,17 @@ Check 'dépôt de 100,6 -> 400 avec details.montant' ($r.Status -eq 400 -and $r.
 Check 'aucun paiement créé pour un montant fractionnaire' ((Sql "select count(*) from paiements where utilisateur_id='$UID' and montant='100.6'") -eq '0')
 $r = Api POST '/paiements/retrait' @{ montant = 500.5; prestataire = 'fusionmoney'; numero = '+2250700009001' } -Token $T
 Check 'retrait de 500,5 -> 400 avec details.montant' ($r.Status -eq 400 -and $r.Body.details.montant) $r.Raw
-$r = Api POST '/paiements/depot' @{ montant = 101; prestataire = 'fusionmoney'; numero = '+2250700009001' } -Token $T
-Check 'dépôt de 101 accepté' ($r.Status -in 200, 201) $r.Raw
+$r = Api POST '/paiements/depot' @{ montant = 201; prestataire = 'fusionmoney'; numero = '+2250700009001' } -Token $T
+Check 'dépôt de 201 accepté' ($r.Status -in 200, 201) $r.Raw
 $P2 = $r.Body.paiement.id
 $tok2 = Sql "select reference_prestataire from paiements where id='$P2'"
 $vue2 = (Invoke-RestMethod "$Stub/_recette/transactions") | Where-Object token -eq $tok2
-Check 'la doublure a reçu exactement 101' ($vue2.total -eq 101) "totalPrice=$($vue2.total)"
+Check 'la doublure a reçu exactement 201' ($vue2.total -eq 201) "totalPrice=$($vue2.total)"
 $avant = Solde $T
 $null = Pilote $tok2 'paid'
 $statut = AttendreStatut $P2 'reussi'
 Check 'second dépôt réussi' ($statut -eq 'reussi') "statut=$statut"
-Check 'solde crédité de 101 (Montant NET 100 + frais 1)' (((Solde $T) - $avant) -eq 101) "delta=$((Solde $T) - $avant)"
+Check 'solde crédité de 201 (Montant NET 199 + frais 2)' (((Solde $T) - $avant) -eq 201) "delta=$((Solde $T) - $avant)"
 
 # ------------------------------------------------------------------ 9. Échec
 Section '9. « failure » — dépôt clos en échec, aucun mouvement'

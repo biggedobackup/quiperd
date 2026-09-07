@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../composants/communs/badge_statut.dart';
 import '../composants/communs/bouton.dart';
@@ -24,6 +23,7 @@ import '../services/portefeuille.service.dart';
 import '../theme/couleurs.dart';
 import '../theme/typographie.dart';
 import 'coquille.ecran.dart';
+import 'paiement_web.ecran.dart';
 
 /// Portefeuille : soldes, dépôt, retrait, historique.
 ///
@@ -37,9 +37,16 @@ class PortefeuilleEcran extends StatefulWidget {
   State<PortefeuilleEcran> createState() => _PortefeuilleEcranState();
 }
 
+/// Nom de la route qui porte la page de paiement : il sert à la refermer depuis
+/// l'événement temps réel sans toucher aux écrans empilés en dessous.
+const String routePaiementWeb = 'paiement-web';
+
 class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
   bool _action = false;
   bool _retraitRefuse = false;
+
+  /// Paiement dont la page hébergée est ouverte, s'il y en a une.
+  String? _paiementWebId;
 
   @override
   void initState() {
@@ -55,6 +62,13 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
     final type = '${charge['type']}';
     final statut = '${charge['statut']}';
     final somme = formatMontant(charge['montant'], '${charge['devise'] ?? 'XOF'}');
+
+    // L'issue est connue : la page du prestataire n'a plus rien à montrer, on la
+    // referme pour le joueur au lieu d'attendre qu'il y pense.
+    if (_paiementWebId != null && '${charge['paiementId']}' == _paiementWebId && statut != 'en_attente') {
+      _paiementWebId = null;
+      Navigator.of(context).popUntil((r) => r.settings.name != routePaiementWeb);
+    }
 
     switch (statut) {
       case 'reussi':
@@ -110,24 +124,16 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
         montant: reponse.paiement!.montant,
         devise: reponse.paiement!.devise,
         statut: reponse.paiement!.statut,
+        url: reponse.urlPaiement,
       ));
     }
 
     final url = reponse.urlPaiement;
     if (url != null && url.isNotEmpty) {
-      // Page hébergée du prestataire : navigateur du système, jamais une vue
-      // interne bricolée. Le retour se fait par le socket, pas par un sondage.
-      final ouvert = await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      if (!mounted) return;
-      if (!ouvert) {
-        Message.erreur(context, 'Page de paiement inaccessible', 'Réessayez dans un instant.');
-        return;
-      }
-      Message.info(
-        context,
-        'Paiement ouvert',
-        'Validez sur la page du prestataire : votre solde se mettra à jour ici tout seul.',
-      );
+      // Page hébergée du prestataire, ouverte DANS l'application : le joueur ne
+      // quitte pas QUI PERD, et l'écran se referme tout seul quand le socket
+      // annonce l'issue (voir `_annoncerPaiement`).
+      await _ouvrirPagePaiement(url, reponse.paiement?.id);
       return;
     }
 
@@ -137,6 +143,17 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
       reponse.message ?? 'En attente de confirmation du prestataire.',
     );
     portefeuille.charger(avecTransactions: false);
+  }
+
+  /// Ouvre la page hébergée du prestataire dans l'application et retient de quel
+  /// paiement il s'agit, pour pouvoir refermer l'écran dès que l'issue arrive.
+  Future<void> _ouvrirPagePaiement(String url, String? paiementId) async {
+    _paiementWebId = paiementId;
+    await Navigator.of(context).push(MaterialPageRoute(
+      settings: const RouteSettings(name: routePaiementWeb),
+      builder: (_) => PaiementWebEcran(url: url, titre: 'Dépôt Mobile Money'),
+    ));
+    _paiementWebId = null;
   }
 
   Future<void> _retirer() async {
@@ -277,7 +294,13 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
             ...etat.suivis.map(
               (p) => Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: _CarteSuivi(paiement: p, onMasquer: () => etat.masquerSuivi(p.id)),
+                child: _CarteSuivi(
+                  paiement: p,
+                  onMasquer: () => etat.masquerSuivi(p.id),
+                  onReprendre: p.statut == 'en_attente' && p.url != null
+                      ? () => _ouvrirPagePaiement(p.url!, p.id)
+                      : null,
+                ),
               ),
             ),
           ],
@@ -424,10 +447,14 @@ class _CarteSolde extends StatelessWidget {
 }
 
 class _CarteSuivi extends StatelessWidget {
-  const _CarteSuivi({required this.paiement, required this.onMasquer});
+  const _CarteSuivi({required this.paiement, required this.onMasquer, this.onReprendre});
 
   final PaiementSuivi paiement;
   final VoidCallback onMasquer;
+
+  /// Rouvre la page hébergée quand le paiement est encore en attente : fermer la
+  /// fenêtre par mégarde ne doit pas condamner le dépôt.
+  final VoidCallback? onReprendre;
 
   /// Ce que le joueur doit comprendre, en une phrase, pour chaque issue.
   String get _aide {
@@ -492,6 +519,16 @@ class _CarteSuivi extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(_aide, style: Typo.petit),
+          if (onReprendre != null) ...[
+            const SizedBox(height: 10),
+            Bouton(
+              libelle: 'Reprendre le paiement',
+              bloc: true,
+              variante: VarianteBouton.secondaire,
+              icone: Icons.open_in_full,
+              onPressed: onReprendre,
+            ),
+          ],
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(

@@ -30,6 +30,8 @@ export interface PrestatairePublic {
   libelle: string
   /** MoneyFusion exige le numéro à la création ; LigdiCash le collecte sur sa page. */
   numeroRequis: boolean
+  /** Plancher imposé par la passerelle, en francs entiers (MoneyFusion refuse sous 200). */
+  montantMinimum: number
 }
 
 /** Réponse de `POST /api/paiements/depot`. */

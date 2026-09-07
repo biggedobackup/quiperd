@@ -2,6 +2,7 @@ package paiements
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -55,6 +56,11 @@ func Depot(c fiber.Ctx) error {
 	if !config.Cfg.PrestataireActif(in.Prestataire) || !prestataireConfigure(in.Prestataire) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "prestataire indisponible")
 	}
+	if mini := montantMinimumPrestataire(in.Prestataire); in.Montant.LessThan(decimal.NewFromInt(mini)) {
+		return utils.ErreurValidation(c, "validation échouée", map[string]string{
+			"montant": fmt.Sprintf("minimum %d FCFA pour ce moyen de paiement", mini),
+		})
+	}
 	// MoneyFusion exige le téléphone du payeur dès la création : sans lui, la
 	// passerelle refuse et le joueur se retrouve devant un dépôt sans page de
 	// paiement (skill FusionMoney §2).
@@ -67,8 +73,15 @@ func Depot(c fiber.Ctx) error {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "utilisateur introuvable")
 	}
 	p, urlPaiement, err := Deposer(userID, in.Montant, in.Prestataire, u.NomUtilisateur, u.Email, in.Numero)
-	if err != nil && p == nil {
-		return utils.Erreur(c, fiber.StatusBadGateway, "initiation du paiement impossible")
+	if err != nil {
+		// La passerelle a refusé : le dépôt n'aboutira jamais. On le clôt et on le
+		// dit, au lieu de renvoyer un « en attente de confirmation » qui laisse le
+		// joueur guetter un solde qui n'arrivera pas.
+		if p != nil {
+			_ = AppliquerEchecDepot(p.ID, "refus à la création: "+err.Error())
+		}
+		return utils.Erreur(c, fiber.StatusBadGateway,
+			"Le paiement n'a pas pu être ouvert chez le prestataire. Réessayez dans un instant.")
 	}
 	reponse := fiber.Map{"paiement": p}
 	if urlPaiement != "" {
@@ -324,6 +337,24 @@ type PrestatairePublic struct {
 	// NumeroRequis : MoneyFusion exige `numeroSend` à la création du paiement ;
 	// LigdiCash collecte le numéro sur sa propre page.
 	NumeroRequis bool `json:"numeroRequis"`
+	// MontantMinimum : plancher IMPOSÉ PAR LA PASSERELLE, en francs entiers.
+	// Sous ce seuil, la création est refusée par le prestataire et le joueur se
+	// retrouverait avec un dépôt « en attente » que rien ne confirmera jamais :
+	// les clients s'en servent pour valider avant l'envoi.
+	MontantMinimum int64 `json:"montantMinimum"`
+}
+
+// montantMinimumPrestataire : plancher constaté auprès de chaque passerelle.
+//
+// MoneyFusion refuse la création sous 200 F (« Montant doit etre supérieur a
+// 200 F » — 200 passe, 100 non, vérifié contre la vraie passerelle). Le
+// plancher applicatif de QUI PERD (100 F) est plus bas : sans ce contrôle, un
+// dépôt de 100 F par MoneyFusion partirait en silence dans le vide.
+func montantMinimumPrestataire(code string) int64 {
+	if code == PrestataireFusionMoney {
+		return 200
+	}
+	return 100
 }
 
 // prestataireConfigure dit si les identifiants du prestataire sont réellement
@@ -348,8 +379,10 @@ func prestataireConfigure(code string) bool {
 // @Router /paiements/prestataires [get]
 func ListerPrestataires(c fiber.Ctx) error {
 	catalogue := []PrestatairePublic{
-		{Code: PrestataireLigdicash, Libelle: "LigdiCash", NumeroRequis: false},
-		{Code: PrestataireFusionMoney, Libelle: "MoneyFusion", NumeroRequis: true},
+		{Code: PrestataireLigdicash, Libelle: "LigdiCash", NumeroRequis: false,
+			MontantMinimum: montantMinimumPrestataire(PrestataireLigdicash)},
+		{Code: PrestataireFusionMoney, Libelle: "MoneyFusion", NumeroRequis: true,
+			MontantMinimum: montantMinimumPrestataire(PrestataireFusionMoney)},
 	}
 	out := make([]PrestatairePublic, 0, len(catalogue))
 	for _, p := range catalogue {

@@ -47,6 +47,15 @@ export function DepotModal({
             ctx.addIssue({ code: 'custom', path: ['prestataire'], message: 'Prestataire indisponible' })
             return
           }
+          if (v.montant < choisi.montantMinimum) {
+            // Plancher de la passerelle, pas de la plateforme : sous ce seuil, le
+            // prestataire refuse la création et le dépôt n'aboutirait jamais.
+            ctx.addIssue({
+              code: 'custom',
+              path: ['montant'],
+              message: `Minimum ${choisi.montantMinimum} FCFA avec ${choisi.libelle}`,
+            })
+          }
           if (choisi.numeroRequis && (v.numero ?? '').trim().length < 8) {
             ctx.addIssue({ code: 'custom', path: ['numero'], message: `Numéro Mobile Money requis par ${choisi.libelle}` })
           }
@@ -86,7 +95,18 @@ export function DepotModal({
           className="space-y-5"
           noValidate
         >
-          <Input label="Montant" type="number" inputMode="numeric" min={100} step={100} suffixe="FCFA" className="chiffres" {...register('montant', { valueAsNumber: true })} erreur={errors.montant?.message} />
+          <Input
+            label="Montant"
+            type="number"
+            inputMode="numeric"
+            min={choisi?.montantMinimum ?? 100}
+            step={100}
+            suffixe="FCFA"
+            className="chiffres"
+            {...register('montant', { valueAsNumber: true })}
+            erreur={errors.montant?.message}
+            aide={choisi ? `Minimum ${choisi.montantMinimum} FCFA, en francs entiers.` : undefined}
+          />
           {unique ? (
             // La valeur reste dans le formulaire, simplement sans champ à remplir.
             <>

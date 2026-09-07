@@ -18,6 +18,7 @@ class PaiementSuivi {
     required this.montant,
     required this.devise,
     required this.statut,
+    this.url,
   });
 
   final String id;
@@ -26,12 +27,17 @@ class PaiementSuivi {
   final String devise;
   final String statut;
 
+  /// Page hébergée du prestataire : permet de rouvrir un paiement refermé par
+  /// mégarde plutôt que d'obliger le joueur à refaire un dépôt.
+  final String? url;
+
   PaiementSuivi copieAvec({String? statut}) => PaiementSuivi(
         id: id,
         type: type,
         montant: montant,
         devise: devise,
         statut: statut ?? this.statut,
+        url: url,
       );
 }
 

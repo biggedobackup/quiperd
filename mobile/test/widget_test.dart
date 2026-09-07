@@ -207,7 +207,7 @@ void main() {
     testWidgets('une seule passerelle : pas de liste déroulante à un choix',
         (WidgetTester tester) async {
       await ouvrir(tester, const [
-        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true),
+        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true, montantMinimum: 200),
       ]);
       expect(find.text('Paiement via MoneyFusion.'), findsOneWidget);
       expect(find.text('PRESTATAIRE'), findsNothing);
@@ -219,8 +219,8 @@ void main() {
     testWidgets('deux passerelles : le choix est rendu au joueur',
         (WidgetTester tester) async {
       await ouvrir(tester, const [
-        PrestatairePublic(code: 'ligdicash', libelle: 'LigdiCash', numeroRequis: false),
-        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true),
+        PrestatairePublic(code: 'ligdicash', libelle: 'LigdiCash', numeroRequis: false, montantMinimum: 100),
+        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true, montantMinimum: 200),
       ]);
       expect(find.text('PRESTATAIRE'), findsOneWidget);
       // Premier de la liste : LigdiCash, qui collecte le numéro sur sa propre page.

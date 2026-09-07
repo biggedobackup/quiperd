@@ -56,6 +56,10 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
   /// Le serveur fait foi : on ne devine pas la règle à partir du code.
   bool get _numeroRequis => _choisi?.numeroRequis ?? false;
 
+  /// Plancher de la passerelle choisie, jamais une constante : MoneyFusion refuse
+  /// sous 200 F là où la plateforme accepte 100.
+  int get _minimum => _choisi?.montantMinimum ?? 100;
+
   @override
   void dispose() {
     _montant.dispose();
@@ -100,10 +104,11 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
                   chiffres: true,
                   clavier: const TextInputType.numberWithOptions(decimal: false),
                   formateurs: [FilteringTextInputFormatter.digitsOnly],
+                  aide: 'Minimum : ${formatMontant(_minimum)}',
                   validateur: (valeur) {
                     final n = double.tryParse((valeur ?? '').trim());
                     if (n == null || n <= 0) return 'Entrez un montant valide';
-                    if (n < 100) return 'Minimum : ${formatMontant(100)}';
+                    if (n < _minimum) return 'Minimum : ${formatMontant(_minimum)}';
                     return null;
                   },
                 ),
@@ -112,6 +117,7 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [1000, 2000, 5000, 10000]
+                      .where((m) => m >= _minimum)
                       .map((m) => _MiseRapide(
                             montant: m,
                             onTap: () => setState(() => _montant.text = '$m'),

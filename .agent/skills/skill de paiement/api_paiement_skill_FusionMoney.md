@@ -28,6 +28,23 @@ https://www.pay.moneyfusion.net/<NomApplication>/<identifiant>/pay/
 FUSIONMONEY_API_URL=https://www.pay.moneyfusion.net/MonApp/xxxxxxxxxxxx/pay/
 ```
 
+### Compte marchand de QUI PERD
+
+| | |
+|---|---|
+| Application | **AvisResto** |
+| Statut d'approbation | **Approuvé** |
+| Hôte | `www.pay.moneyfusion.net` → normalisé en `pay.moneyfusion.net` (§5, piège TLS) |
+| Lien d'API | `https://www.pay.moneyfusion.net/AvisResto/<identifiant>/pay/` |
+| Page hébergée servie | `https://payin.moneyfusion.net/payment/<token>/<montant>/AvisResto` |
+
+**L'identifiant complet du lien ne figure pas ici : c'est le secret du compte, et ce
+fichier est versionné.** Sa valeur vit dans `backend/.env` (`FUSIONMONEY_API_URL`, non
+versionné) et dans la configuration de production. À noter pour l'exploitation : le nom
+affiché au joueur sur la page de paiement est celui de l'application marchande —
+« AvisResto » aujourd'hui, donc à renommer côté tableau de bord MoneyFusion si l'on veut
+que les joueurs de QUI PERD lisent « QUI PERD » au moment de payer.
+
 ---
 
 ## 2. Payin — créer un paiement
@@ -252,3 +269,116 @@ polling de secours peut conclure). Le parcours
 `backend/tests/parcours-paiement.ps1` déroule les deux, plus le crédit brut
 (`Montant` NET + `frais`), l'idempotence du rejeu, l'échec, et vérifie que le
 `return_url` reçu par le prestataire pointe bien le site.
+
+**Deux constats faits contre la vraie passerelle** (compte marchand réel, paiements créés
+puis laissés impayés — aucun fonds ne bouge tant que personne ne paie) :
+
+- **Plancher de 200 F.** Sous 200, la création est refusée avec
+  `{"statut": false, "message": "Montant doit etre supérieur a 200 F"}` ; 200 passe.
+  Le plancher applicatif était à 100 : un dépôt de 100 F partait donc dans le vide, et le
+  joueur restait avec une ligne « en attente » que rien ne confirmerait. Le plancher est
+  désormais publié par prestataire dans `GET /api/paiements/prestataires`
+  (`montantMinimum`) et vérifié côté API **avant** l'appel. Corollaire : quand la passerelle
+  refuse malgré tout à la création, le dépôt est clos en échec et l'API répond 502 — jamais
+  un 201 « en attente de confirmation » qui ferait patienter le joueur pour rien.
+- **La page hébergée est encadrable.** Elle est servie par `payin.moneyfusion.net` (et non
+  par l'hôte d'API) et n'envoie **ni `X-Frame-Options` ni `Content-Security-Policy`** : elle
+  s'affiche donc dans une `<iframe>` sur le web et dans une `WebView` sur mobile. C'est ce
+  qui permet de garder le joueur sur la plateforme au lieu de le rediriger, et surtout de
+  refermer la fenêtre de paiement toute seule quand `paiement.statut` arrive par le socket —
+  l'application reste vivante derrière. Prévoir malgré tout l'échappatoire « ouvrir dans le
+  navigateur » : si le prestataire ajoutait un jour un en-tête d'encadrement, le cadre
+  deviendrait blanc sans le moindre message d'erreur.
+
+---
+
+## 7. Garder le joueur sur la plateforme — WebView (mobile) et cadre (web)
+
+Rediriger le joueur vers la page hébergée le fait **sortir** du produit : sur mobile il
+atterrit dans le navigateur du système, sur le web il perd l'onglet de la plateforme. Dans
+les deux cas il revient — ou pas — sans savoir où en est son dépôt, et l'application n'est
+plus là pour lui annoncer l'issue. La page de MoneyFusion s'affiche donc **dans** le
+produit, et c'est ce qui rend possible le comportement le plus utile de tout le parcours :
+la fenêtre de paiement se referme d'elle-même quand `paiement.statut` arrive par le socket.
+
+### Ce qui rend l'encadrement possible
+
+La page hébergée est servie par **`payin.moneyfusion.net`** (et non par l'hôte d'API) et
+n'envoie **ni `X-Frame-Options` ni `Content-Security-Policy`** — vérifié en interrogeant
+directement une page de paiement réelle. Elle est donc encadrable. Ce fait dépend du
+prestataire : le revérifier avant de reprendre ce montage ailleurs, et **toujours prévoir
+l'échappatoire** (« ouvrir dans le navigateur » / « ouvrir dans un nouvel onglet »), car un
+cadre interdit devient blanc, sans le moindre message d'erreur.
+
+### Mobile — `webview_flutter`
+
+Un écran plein, poussé sur une **route nommée** (`paiement-web`) pour pouvoir être refermé
+depuis l'événement temps réel sans toucher aux écrans en dessous :
+
+```dart
+_controleur = WebViewController()
+  ..setJavaScriptMode(JavaScriptMode.unrestricted)   // la page est une application Angular
+  ..setBackgroundColor(Couleurs.papier)
+  ..setNavigationDelegate(NavigationDelegate(
+    onProgress: (p) => setState(() => _progression = p),
+    onWebResourceError: (e) {
+      // Une ressource secondaire qui échoue (police, pixel de suivi) ne doit pas faire
+      // croire au joueur que le paiement est cassé.
+      if (!e.isForMainFrame!) return;
+      setState(() => _erreur = e.description);
+    },
+  ))
+  ..loadRequest(Uri.parse(url));
+```
+
+Puis, dans le gestionnaire d'événement du portefeuille :
+
+```dart
+if (_paiementWebId != null && '${charge['paiementId']}' == _paiementWebId
+    && statut != 'en_attente') {
+  _paiementWebId = null;
+  Navigator.of(context).popUntil((r) => r.settings.name != routePaiementWeb);
+}
+```
+
+- `JavaScriptMode.unrestricted` est indispensable : la page est une application web.
+- Barre de progression pendant le chargement, écran d'erreur avec « Réessayer » et
+  « Ouvrir dans le navigateur » (`url_launcher` reste dans les dépendances pour cela).
+- Une note fixe sous la vue : « Ne quittez pas cet écran avant d'avoir validé la demande
+  sur votre téléphone. Votre solde se met à jour tout seul. »
+
+### Web — cadre dans une modale
+
+```tsx
+<iframe
+  src={url}
+  title="Page de paiement sécurisée du prestataire"
+  allow="payment *; clipboard-write"
+  className="-mx-5 h-[68dvh] w-[calc(100%+2.5rem)] … sm:mx-0 sm:w-full"
+/>
+```
+
+- Le portefeuille reste monté derrière : le socket ferme la modale dès que l'issue arrive
+  (`setPaiementOuvert((o) => (o?.id === paiementId ? null : o))`).
+- Sur téléphone, le cadre déborde volontairement le rembourrage de la modale (`-mx-5`)
+  pour offrir toute la largeur utile — 348 px sur un écran de 375.
+- Lien « ouvrir dans un nouvel onglet » toujours affiché sous le cadre.
+
+### Ne pas condamner un paiement fermé par mégarde
+
+L'URL hébergée est **mémorisée dans le paiement suivi**, et la carte « paiements en cours »
+propose « **Reprendre le paiement** » tant que le dépôt est en attente. Sans cela, un clic
+malheureux sur le fond de la modale oblige le joueur à refaire un dépôt, et laisse derrière
+lui une transaction fantôme. Corollaire d'implémentation : la fusion du suivi doit préserver
+l'URL, car les événements de statut ne la portent pas
+(`{...ancien, ...nouveau, url: nouveau.url ?? ancien.url}`).
+
+### Ce qu'on ne fait jamais
+
+- Reconstruire le formulaire de paiement soi-même (numéro, choix de l'opérateur) : c'est la
+  page du prestataire qui collecte ces données, et c'est ce qui garde QUI PERD hors du
+  périmètre de conformité.
+- Intercepter ou réécrire la navigation à l'intérieur de la vue : l'opérateur y redirige
+  vers ses propres pages de confirmation.
+- Conclure quoi que ce soit depuis la vue (URL de retour, titre de page…) : **seul
+  `paiementNotif` fait foi**, comme partout ailleurs dans ce document.

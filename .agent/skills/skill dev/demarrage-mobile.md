@@ -90,7 +90,8 @@ Document de référence pour le développement de l'application mobile **QUI PER
 | **Stockage local** | `shared_preferences` | Jeton de session, pseudo, préférences d'affichage |
 | **Formatage** | `intl` | Montants, dates et durées en fr-FR (`NumberFormat`, `DateFormat`) |
 | **Média** | `image_picker` | Capture d'écran et vidéo de preuve (galerie **et** appareil photo) |
-| **Ouverture externe** | `url_launcher` | Page de paiement hébergée du prestataire Mobile Money |
+| **Page de paiement** | `webview_flutter` | Page hébergée du prestataire, affichée DANS l'application (`ecrans/paiement_web.ecran.dart`) |
+| **Ouverture externe** | `url_launcher` | Échappatoire « ouvrir dans le navigateur » si la WebView échoue |
 | **Icônes** | `cupertino_icons` + `Icons` Material | Aucune icône SVG copiée, aucun emoji dans l'interface |
 | **Lint** | `flutter_lints` | `flutter analyze` doit rester à zéro avertissement |
 
@@ -373,7 +374,16 @@ appel réseau). À l'expiration, on ne devine pas l'issue : on demande **une foi
   à couvrir : liste vide → encart « Aucun moyen de paiement n'est disponible pour le moment »
   sans formulaire ; un seul → « Paiement via <nom>. » et pas de liste déroulante à un choix ;
   plusieurs → `ListeDeroulante`. Le caractère obligatoire du numéro vient du champ `numeroRequis`
-  du serveur, pas d'un test sur le code du prestataire.
+  du serveur, pas d'un test sur le code du prestataire, et le plancher du montant vient de
+  `montantMinimum` (200 F chez MoneyFusion, 100 ailleurs) — les mises rapides sous ce seuil
+  disparaissent.
+  Quand l'API renvoie `urlPaiement`, la page hébergée s'ouvre dans **`PaiementWebEcran`**
+  (route nommée `paiement-web`) : le joueur ne quitte pas l'application, et l'écran se referme
+  tout seul dès que l'événement `paiement.statut` annonce l'issue. Jamais de redirection vers
+  le navigateur du système, qui laissait le joueur hors de l'application avec un solde à
+  vérifier lui-même. La carte « paiements en cours » garde l'URL et propose **« Reprendre le
+  paiement »** tant que le dépôt est en attente : refermer l'écran par mégarde ne doit pas
+  condamner un paiement encore valable.
 - **Feuille Retrait** : « Montant à recevoir » (min. 500, entier), prestataire (même liste, même
   trois cas), numéro ; **les frais sont calculés par le backend et affichés avant confirmation**
   — « le montant et les frais sont débités immédiatement ; en cas d'échec, tout est recrédité ».
