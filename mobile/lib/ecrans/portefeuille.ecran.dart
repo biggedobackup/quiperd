@@ -80,7 +80,11 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
 
   Future<void> _deposer() async {
     final session = context.read<SessionEtat>();
-    final demande = await ouvrirDepot(context, telephone: session.utilisateur?.telephone);
+    final demande = await ouvrirDepot(
+      context,
+      prestataires: context.read<CatalogueEtat>().prestataires,
+      telephone: session.utilisateur?.telephone,
+    );
     if (demande == null || !mounted) return;
 
     setState(() => _action = true);
@@ -144,6 +148,7 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
       context,
       disponible: versNombre(etat.portefeuille.soldeDisponible),
       tauxFrais: regles.fraisRetrait,
+      prestataires: context.read<CatalogueEtat>().prestataires,
       telephone: session.utilisateur?.telephone,
     );
     if (demande == null || !mounted) return;

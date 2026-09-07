@@ -10,6 +10,12 @@ import '../noyau/resultat.dart';
 class PaiementsService {
   const PaiementsService._();
 
+  /// Moyens de paiement que le backend acceptera vraiment (activés **et**
+  /// configurés). Public : appelable avant même d'ouvrir la feuille de dépôt.
+  static Future<Resultat<List<PrestatairePublic>>> prestataires() async =>
+      (await ClientApi.get('/paiements/prestataires'))
+          .vers((corps) => liste(corps, PrestatairePublic.depuisJson));
+
   /// Le dépôt reste ouvert même sans adresse confirmée : faire entrer de
   /// l'argent ne présente pas le même risque qu'en faire sortir.
   static Future<Resultat<ReponseDepot>> deposer({

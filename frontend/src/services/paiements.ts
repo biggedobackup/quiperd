@@ -1,9 +1,17 @@
 /** Module `paiements` — dépôt, retrait (joueur) ; suivi et validation manuelle (admin). */
 import { createServerFn } from '@tanstack/react-start'
-import { enResultat, requete, type Resultat } from '@/server/http-client'
+import { appelBackend, enResultat, requete, type Resultat } from '@/server/http-client'
 import { appelAdmin, appelJoueur } from '@/server/session'
 import { TAILLE_PAGE_ADMIN, type Page } from '@/models/pagination'
-import type { DemandeDepot, DemandeRetrait, Paiement, ReponseDepot, StatutPaiement } from '@/models/paiement'
+import type { DemandeDepot, DemandeRetrait, Paiement, PrestatairePublic, ReponseDepot, StatutPaiement } from '@/models/paiement'
+
+/**
+ * `GET /api/paiements/prestataires` (public) — les seuls moyens de paiement que le
+ * backend acceptera. Ne jamais proposer au joueur un prestataire codé en dur côté
+ * client : une passerelle non configurée renvoie 400 et le joueur ne comprend pas.
+ */
+export const listerPrestataires = createServerFn({ method: 'GET' })
+  .handler(async () => appelBackend<PrestatairePublic[]>('/paiements/prestataires'))
 
 export const deposer = createServerFn({ method: 'POST' })
   .inputValidator((d: DemandeDepot) => d)

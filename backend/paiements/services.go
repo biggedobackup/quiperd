@@ -206,8 +206,90 @@ func AppliquerReussiteDepot(paiementID uuid.UUID, paidEffectif decimal.Decimal, 
 	return nil
 }
 
+// AppliquerEchecDepot marque un dépôt échoué (idempotent), sur constat du
+// prestataire uniquement — jamais sur la seule foi d'un webhook.
+//
+// Aucun mouvement d'argent : rien n'avait été crédité, et rien n'a été prélevé
+// sur le portefeuille au moment du dépôt. Ce qui compte ici est de PRÉVENIR le
+// joueur : sans cela, un paiement refusé laisse une ligne « en attente » pour
+// toujours et le joueur guette un solde qui n'arrivera jamais.
+func AppliquerEchecDepot(paiementID uuid.UUID, motif string) error {
+	tampon := tempsreel.NouveauTampon()
+	err := config.DB.Transaction(func(tx *gorm.DB) error {
+		// Même transition atomique que la réussite : deux webhooks simultanés ne
+		// produisent qu'une notification.
+		res := tx.Model(&Paiement{}).
+			Where("id = ? AND type = ? AND statut = ? AND traite = false", paiementID, TypeDepot, StatutEnAttente).
+			Updates(map[string]any{"traite": true, "statut": StatutEchoue})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil // déjà traité
+		}
+		var p Paiement
+		if err := tx.First(&p, "id = ?", paiementID).Error; err != nil {
+			return err
+		}
+		_ = notifications.Creer(tx, p.UtilisateurID, "Dépôt échoué",
+			"Aucun montant n'a été débité. Vérifiez votre solde Mobile Money, puis réessayez.",
+			notifications.TypePaiementEchoue, tampon)
+		administration.Journaliser(tx, administration.ParamsAudit{
+			UtilisateurID: &p.UtilisateurID, Action: "paiement:depot_echoue", TableCible: "paiements",
+			IdentifiantCible: &p.ID, Nouvelle: map[string]any{"motif": motif},
+		})
+		AjouterStatut(tampon, &p, StatutEchoue)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	tampon.Diffuser()
+	return nil
+}
+
+// appliquerEtatPrestataire traduit l'état constaté chez le prestataire en
+// transition côté plateforme, et dit si le dépôt est clos.
+//
+// `pending` et `no paid` ne CLÔTURENT rien : la page de paiement peut encore
+// être honorée, un paiement tardif reste valide (skill FusionMoney §3 et §4).
+func appliquerEtatPrestataire(p *Paiement) (clos bool) {
+	switch p.Prestataire {
+	case PrestataireLigdicash:
+		statut, amount, op, err := ConfirmerLigdicash(p.ReferencePrestataire)
+		if err != nil {
+			return false
+		}
+		switch statut {
+		case "completed":
+			_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(amount), op)
+			return true
+		case "notcompleted":
+			_ = AppliquerEchecDepot(p.ID, "ligdicash: notcompleted")
+			return true
+		}
+	case PrestataireFusionMoney:
+		statut, montant, frais, op, err := VerifierFusion(p.ReferencePrestataire)
+		if err != nil {
+			return false
+		}
+		switch statut {
+		case "paid":
+			// `Montant` est NET des frais : le montant réellement payé par le
+			// joueur est la somme des deux (skill FusionMoney §3).
+			_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(montant+frais), op)
+			return true
+		case "failure":
+			_ = AppliquerEchecDepot(p.ID, "moneyfusion: failure")
+			return true
+		}
+	}
+	return false
+}
+
 // Reverifier est appelé par le worker (polling de secours). Interroge le
-// prestataire ; crédite si payé, se replanifie si toujours en attente.
+// prestataire ; crédite si payé, marque échoué si refusé, se replanifie tant
+// que le paiement reste en attente.
 func Reverifier(paiementID uuid.UUID, tentative int) {
 	var p Paiement
 	if err := config.DB.First(&p, "id = ?", paiementID).Error; err != nil {
@@ -220,19 +302,8 @@ func Reverifier(paiementID uuid.UUID, tentative int) {
 		return
 	}
 
-	switch p.Prestataire {
-	case PrestataireLigdicash:
-		statut, amount, op, err := ConfirmerLigdicash(p.ReferencePrestataire)
-		if err == nil && statut == "completed" {
-			_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(amount), op)
-			return
-		}
-	case PrestataireFusionMoney:
-		statut, montant, frais, op, err := VerifierFusion(p.ReferencePrestataire)
-		if err == nil && statut == "paid" {
-			_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(montant+frais), op)
-			return
-		}
+	if appliquerEtatPrestataire(&p) {
+		return
 	}
 
 	// Toujours en attente → replanifier (max 10 tentatives, intervalle 30 s).
@@ -242,6 +313,7 @@ func Reverifier(paiementID uuid.UUID, tentative int) {
 }
 
 // TraiterCallbackLigdicash traite un callback (déjà journalisé) en arrière-plan.
+// Le callback ne dit RIEN de l'état : il ne fait que déclencher la vérification.
 func TraiterCallbackLigdicash(transactionID string) {
 	id, err := uuid.Parse(transactionID)
 	if err != nil {
@@ -251,26 +323,37 @@ func TraiterCallbackLigdicash(transactionID string) {
 	if err := config.DB.First(&p, "id = ?", id).Error; err != nil {
 		return
 	}
-	if p.ReferencePrestataire == "" {
+	if p.ReferencePrestataire == "" || p.Traite {
 		return
 	}
-	statut, amount, op, err := ConfirmerLigdicash(p.ReferencePrestataire)
-	if err == nil && statut == "completed" {
-		_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(amount), op)
-	}
+	appliquerEtatPrestataire(&p)
 }
 
 // TraiterCallbackFusion traite un webhook MoneyFusion (déjà journalisé).
-func TraiterCallbackFusion(refInterne string) {
+//
+// MoneyFusion envoie plusieurs notifications pour une même transaction (pending
+// répété, puis completed/cancelled) : l'idempotence est assurée en aval par la
+// transition atomique du paiement. On ne croit jamais l'événement sur parole,
+// on interroge `paiementNotif` (skill FusionMoney §4).
+//
+// [refInterne] est notre référence, lue dans `personal_Info` ; [tokenPay] sert
+// de repli quand le prestataire ne la renvoie pas.
+func TraiterCallbackFusion(refInterne, tokenPay string) {
 	var p Paiement
-	if err := config.DB.First(&p, "reference = ?", refInterne).Error; err != nil {
+	requete := config.DB.Where("prestataire = ?", PrestataireFusionMoney)
+	switch {
+	case refInterne != "":
+		requete = requete.Where("reference = ?", refInterne)
+	case tokenPay != "":
+		requete = requete.Where("reference_prestataire = ?", tokenPay)
+	default:
 		return
 	}
-	if p.ReferencePrestataire == "" {
+	if err := requete.First(&p).Error; err != nil {
 		return
 	}
-	statut, montant, frais, op, err := VerifierFusion(p.ReferencePrestataire)
-	if err == nil && statut == "paid" {
-		_ = AppliquerReussiteDepot(p.ID, decimal.NewFromFloat(montant+frais), op)
+	if p.ReferencePrestataire == "" || p.Traite {
+		return
 	}
+	appliquerEtatPrestataire(&p)
 }

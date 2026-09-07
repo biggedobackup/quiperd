@@ -366,11 +366,17 @@ appel réseau). À l'expiration, on ne devine pas l'issue : on demande **une foi
   Statut, Montant signé — crédit en vert, débit en rouge, commission liée à un match en gris
   (informative, déjà déduite). Un mouvement reçu en direct alors qu'on lit une page ancienne
   affiche un bandeau « *n* nouveaux mouvements » avec un bouton « Voir la page 1 ».
-- **Feuille Dépôt** : montant (min. 100), prestataire (**LigdiCash** / **MoneyFusion**), numéro
-  Mobile Money (obligatoire pour MoneyFusion).
-- **Feuille Retrait** : « Montant à recevoir » (min. 500), prestataire, numéro ; **les frais sont
-  calculés par le backend et affichés avant confirmation** — « le montant et les frais sont
-  débités immédiatement ; en cas d'échec, tout est recrédité ».
+- **Feuille Dépôt** : montant (min. 100, **entier** — le XOF n'a pas de subdivision), prestataire,
+  numéro Mobile Money. La liste des prestataires vient de `GET /api/paiements/prestataires` via
+  `CatalogueEtat.prestataires` : **jamais de liste écrite en dur**, car une passerelle non
+  configurée côté serveur est refusée par un 400 que le joueur ne peut pas comprendre. Trois cas
+  à couvrir : liste vide → encart « Aucun moyen de paiement n'est disponible pour le moment »
+  sans formulaire ; un seul → « Paiement via <nom>. » et pas de liste déroulante à un choix ;
+  plusieurs → `ListeDeroulante`. Le caractère obligatoire du numéro vient du champ `numeroRequis`
+  du serveur, pas d'un test sur le code du prestataire.
+- **Feuille Retrait** : « Montant à recevoir » (min. 500, entier), prestataire (même liste, même
+  trois cas), numéro ; **les frais sont calculés par le backend et affichés avant confirmation**
+  — « le montant et les frais sont débités immédiatement ; en cas d'échec, tout est recrédité ».
 
 ### 3.9 Litiges (`/joueur/litiges`)
 

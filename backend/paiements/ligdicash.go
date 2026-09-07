@@ -23,7 +23,8 @@ func CreerFactureLigdicash(p *Paiement, nomClient, email string) (urlPaiement, t
 	if cfg.LigdicashAPIKey == "" || cfg.LigdicashAPIToken == "" {
 		return "", "", fmt.Errorf("ligdicash non configuré")
 	}
-	montant := p.Montant.IntPart()
+	// Arrondi, jamais troncature (voir CreerPaiementFusion).
+	montant := p.Montant.Round(0).IntPart()
 	corps := map[string]any{
 		"commande": map[string]any{
 			"invoice": map[string]any{
@@ -42,10 +43,10 @@ func CreerFactureLigdicash(p *Paiement, nomClient, email string) (urlPaiement, t
 				"customer_lastname":  "",
 				"customer_email":     email,
 			},
-			"store": map[string]any{"name": "QUI PERD", "website_url": cfg.AppBaseURL},
+			"store": map[string]any{"name": "QUI PERD", "website_url": cfg.SiteURL},
 			"actions": map[string]any{
-				"cancel_url":   cfg.AppBaseURL + "/portefeuille?paiement=annule",
-				"return_url":   cfg.AppBaseURL + "/portefeuille?paiement=retour&ref=" + p.Reference,
+				"cancel_url":   cfg.URLRetourPortefeuille("paiement=annule"),
+				"return_url":   cfg.URLRetourPortefeuille("paiement=retour&ref=" + url.QueryEscape(p.Reference)),
 				"callback_url": cfg.LigdicashCallbackURL,
 			},
 			"custom_data": map[string]any{"transaction_id": p.ID.String()},

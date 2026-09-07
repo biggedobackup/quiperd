@@ -20,6 +20,18 @@ export interface Paiement {
   dateModification: string
 }
 
+/**
+ * Un moyen de paiement réellement proposable, tel que le backend l'annonce sur
+ * `GET /api/paiements/prestataires` : activé en configuration **et** effectivement
+ * paramétré (clés LigdiCash, URL marchand MoneyFusion). La liste peut être vide.
+ */
+export interface PrestatairePublic {
+  code: Prestataire
+  libelle: string
+  /** MoneyFusion exige le numéro à la création ; LigdiCash le collecte sur sa page. */
+  numeroRequis: boolean
+}
+
 /** Réponse de `POST /api/paiements/depot`. */
 export interface ReponseDepot {
   paiement: Paiement

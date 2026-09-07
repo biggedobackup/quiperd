@@ -365,7 +365,11 @@ par les pages dédiées d'authentification et légales :
    (`retrait-modal`, **frais de retrait calculés par le backend et affichés avant confirmation**)
    via LigdiCash/MoneyFusion (redirection vers la page de paiement hébergée quand l'API renvoie
    `urlPaiement`, jamais une iframe ; sinon message « en attente de confirmation »), historique
-   paginé, état vide si aucune transaction.
+   paginé, état vide si aucune transaction. Les prestataires proposés viennent de
+   `GET /api/paiements/prestataires` (`optionsPrestataires`) — **jamais une liste en dur** : le
+   backend refuse une passerelle non configurée. Liste vide → encart explicatif sans formulaire ;
+   un seul prestataire → pas de `<select>` à un choix ; le numéro n'est obligatoire que si le
+   serveur le dit (`numeroRequis`). Les montants sont des entiers de FCFA.
 6. **Litiges** — ouverture depuis l'écran de match (confirmation avant envoi), suivi de la
    décision arbitrale avec `badge-statut` dédié.
 7. **Notifications / Profil** — liste des notifications (marquage lu), gestion des comptes

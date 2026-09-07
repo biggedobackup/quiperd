@@ -2,6 +2,7 @@ package paiements
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -26,6 +27,15 @@ type entreeDepot struct {
 // @Tags paiements
 // @Security BearerAuth
 // @Router /paiements/depot [post]
+// montantEntier vérifie qu'un montant tient en francs CFA entiers.
+//
+// Le XOF n'a pas de subdivision en usage, et MoneyFusion n'accepte qu'un
+// `totalPrice` entier : accepter 100,6 reviendrait à faire payer 101 au joueur
+// pour ne lui en créditer que 100,6. On refuse à la porte plutôt que d'arrondir
+// en silence — sur une plateforme d'argent réel, un écart, même de 0,4, est une
+// anomalie comptable.
+func montantEntier(m decimal.Decimal) bool { return m.Equal(m.Truncate(0)) }
+
 func Depot(c fiber.Ctx) error {
 	userID := auth.UtilisateurIDDe(c)
 	var in entreeDepot
@@ -38,8 +48,19 @@ func Depot(c fiber.Ctx) error {
 	if in.Montant.LessThanOrEqual(decimal.Zero) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "le montant doit être positif")
 	}
-	if !config.Cfg.PrestataireActif(in.Prestataire) {
+	if !montantEntier(in.Montant) {
+		return utils.ErreurValidation(c, "validation échouée",
+			map[string]string{"montant": "le montant doit être un nombre entier de FCFA"})
+	}
+	if !config.Cfg.PrestataireActif(in.Prestataire) || !prestataireConfigure(in.Prestataire) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "prestataire indisponible")
+	}
+	// MoneyFusion exige le téléphone du payeur dès la création : sans lui, la
+	// passerelle refuse et le joueur se retrouve devant un dépôt sans page de
+	// paiement (skill FusionMoney §2).
+	if in.Prestataire == PrestataireFusionMoney && strings.TrimSpace(in.Numero) == "" {
+		return utils.ErreurValidation(c, "validation échouée",
+			map[string]string{"numero": "numéro Mobile Money requis pour MoneyFusion"})
 	}
 	u, err := auth.TrouverUtilisateur(userID)
 	if err != nil {
@@ -81,6 +102,10 @@ func Retrait(c fiber.Ctx) error {
 	if in.Montant.LessThanOrEqual(decimal.Zero) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "le montant doit être positif")
 	}
+	if !montantEntier(in.Montant) {
+		return utils.ErreurValidation(c, "validation échouée",
+			map[string]string{"montant": "le montant doit être un nombre entier de FCFA"})
+	}
 	if !config.Cfg.PrestataireActif(in.Prestataire) {
 		return utils.Erreur(c, fiber.StatusBadRequest, "prestataire indisponible")
 	}
@@ -119,9 +144,9 @@ func CallbackFusion(c fiber.Ctx) error {
 	brut := string(c.Body())
 	config.DB.Create(&PaiementEvenement{Prestataire: PrestataireFusionMoney, Source: "callback", Corps: brut})
 
-	ref := extraireReferenceFusion(c, brut)
-	if ref != "" {
-		go TraiterCallbackFusion(ref)
+	ref, token := extraireReferenceFusion(c, brut)
+	if ref != "" || token != "" {
+		go TraiterCallbackFusion(ref, token)
 	}
 	return c.SendStatus(fiber.StatusOK)
 }
@@ -259,20 +284,80 @@ func extraireTransactionID(c fiber.Ctx, brut string) string {
 	return ""
 }
 
-// extraireReferenceFusion cherche notre référence dans personal_Info.
-func extraireReferenceFusion(c fiber.Ctx, brut string) string {
+// extraireReferenceFusion cherche NOTRE référence dans `personal_Info`, et à
+// défaut le `tokenPay` du prestataire.
+//
+// `personal_Info` est le seul moyen fiable de retrouver notre paiement, mais il
+// est renvoyé « tel quel » par MoneyFusion : rien ne garantit sa présence dans
+// chaque événement. Le token, lui, est stocké sur la ligne à la création — il
+// fait un repli sûr (skill FusionMoney §5).
+func extraireReferenceFusion(c fiber.Ctx, brut string) (reference, tokenPay string) {
 	var corps struct {
 		PersonalInfo []struct {
 			Reference string `json:"reference"`
 		} `json:"personal_Info"`
+		TokenPay string `json:"tokenPay"`
+		Token    string `json:"token"`
 	}
-	if err := json.Unmarshal([]byte(brut), &corps); err == nil && len(corps.PersonalInfo) > 0 {
-		return corps.PersonalInfo[0].Reference
+	if err := json.Unmarshal([]byte(brut), &corps); err == nil {
+		if len(corps.PersonalInfo) > 0 {
+			reference = corps.PersonalInfo[0].Reference
+		}
+		tokenPay = corps.TokenPay
+		if tokenPay == "" {
+			tokenPay = corps.Token
+		}
 	}
-	if v := c.FormValue("personal_Info[0][reference]"); v != "" {
-		return v
+	if reference == "" {
+		reference = c.FormValue("personal_Info[0][reference]")
 	}
-	return ""
+	if tokenPay == "" {
+		tokenPay = c.FormValue("tokenPay")
+	}
+	return reference, tokenPay
+}
+
+// PrestatairePublic décrit un moyen de paiement réellement proposable au joueur.
+type PrestatairePublic struct {
+	Code    string `json:"code"`
+	Libelle string `json:"libelle"`
+	// NumeroRequis : MoneyFusion exige `numeroSend` à la création du paiement ;
+	// LigdiCash collecte le numéro sur sa propre page.
+	NumeroRequis bool `json:"numeroRequis"`
+}
+
+// prestataireConfigure dit si les identifiants du prestataire sont réellement
+// présents. Un prestataire activé mais non configuré crée un paiement que rien
+// ne viendra jamais confirmer : le joueur attend un solde qui n'arrivera pas.
+func prestataireConfigure(code string) bool {
+	cfg := config.Cfg
+	switch code {
+	case PrestataireLigdicash:
+		return cfg.LigdicashAPIKey != "" && cfg.LigdicashAPIToken != ""
+	case PrestataireFusionMoney:
+		return cfg.FusionMoneyAPIURL != ""
+	}
+	return false
+}
+
+// ListerPrestataires godoc
+// @Summary Moyens de paiement disponibles (public) — activés ET configurés
+// @Description Les clients n'affichent que cette liste : proposer un prestataire indisponible mène le joueur dans une impasse.
+// @Tags paiements
+// @Success 200 {array} PrestatairePublic
+// @Router /paiements/prestataires [get]
+func ListerPrestataires(c fiber.Ctx) error {
+	catalogue := []PrestatairePublic{
+		{Code: PrestataireLigdicash, Libelle: "LigdiCash", NumeroRequis: false},
+		{Code: PrestataireFusionMoney, Libelle: "MoneyFusion", NumeroRequis: true},
+	}
+	out := make([]PrestatairePublic, 0, len(catalogue))
+	for _, p := range catalogue {
+		if config.Cfg.PrestataireActif(p.Code) && prestataireConfigure(p.Code) {
+			out = append(out, p)
+		}
+	}
+	return utils.OK(c, out)
 }
 
 // Enregistrer monte les routes des paiements.
@@ -280,6 +365,9 @@ func Enregistrer(api fiber.Router) {
 	// Webhooks publics (aucune authentification, réponse 200 immédiate).
 	api.Post("/paiements/callback-ligdicash", CallbackLigdicash)
 	api.Post("/paiements/callback-fusion", CallbackFusion)
+	// Catalogue public des moyens de paiement, déclaré AVANT le groupe protégé :
+	// Fiber parcourt la pile dans l'ordre (même schéma que jeux/plateformes).
+	api.Get("/paiements/prestataires", ListerPrestataires)
 
 	grp := api.Group("/paiements", auth.Connecte())
 	// Le DÉPÔT reste ouvert même sans adresse confirmée : faire entrer de l'argent ne

@@ -5,8 +5,10 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:quiperd/composants/communs/badge_statut.dart';
 import 'package:quiperd/composants/communs/liste_deroulante.dart';
 import 'package:quiperd/composants/joueur/compte_a_rebours.dart';
+import 'package:quiperd/composants/joueur/feuilles/depot.feuille.dart';
 import 'package:quiperd/composants/joueur/tableau_score.dart';
 import 'package:quiperd/modeles/match_defi.modele.dart';
+import 'package:quiperd/modeles/paiement.modele.dart';
 import 'package:quiperd/noyau/format.dart';
 import 'package:quiperd/noyau/statuts.dart';
 
@@ -172,5 +174,57 @@ void main() {
 
     expect(fins, 1);
     expect(find.text('échu'), findsOneWidget);
+  });
+
+  group('Feuille de dépôt', () {
+    /// Ouvre la feuille comme le fait l'écran du portefeuille.
+    Future<void> ouvrir(WidgetTester tester, List<PrestatairePublic> prestataires) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => ouvrirDepot(context, prestataires: prestataires),
+                child: const Text('ouvrir'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('ouvrir'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('sans passerelle configurée, aucun formulaire n’est proposé',
+        (WidgetTester tester) async {
+      // Le backend refuse un prestataire non configuré : proposer le formulaire
+      // reviendrait à envoyer le joueur droit sur un 400 incompréhensible.
+      await ouvrir(tester, const []);
+      expect(find.textContaining('Aucun moyen de paiement'), findsOneWidget);
+      expect(find.text('MONTANT'), findsNothing);
+    });
+
+    testWidgets('une seule passerelle : pas de liste déroulante à un choix',
+        (WidgetTester tester) async {
+      await ouvrir(tester, const [
+        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true),
+      ]);
+      expect(find.text('Paiement via MoneyFusion.'), findsOneWidget);
+      expect(find.text('PRESTATAIRE'), findsNothing);
+      // `numeroRequis` vient du serveur : le champ n'est pas annoncé comme optionnel.
+      expect(find.text('NUMÉRO MOBILE MONEY'), findsOneWidget);
+      expect(find.text('NUMÉRO MOBILE MONEY (OPTIONNEL)'), findsNothing);
+    });
+
+    testWidgets('deux passerelles : le choix est rendu au joueur',
+        (WidgetTester tester) async {
+      await ouvrir(tester, const [
+        PrestatairePublic(code: 'ligdicash', libelle: 'LigdiCash', numeroRequis: false),
+        PrestatairePublic(code: 'fusionmoney', libelle: 'MoneyFusion', numeroRequis: true),
+      ]);
+      expect(find.text('PRESTATAIRE'), findsOneWidget);
+      // Premier de la liste : LigdiCash, qui collecte le numéro sur sa propre page.
+      expect(find.text('NUMÉRO MOBILE MONEY (OPTIONNEL)'), findsOneWidget);
+    });
   });
 }

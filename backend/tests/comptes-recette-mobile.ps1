@@ -82,7 +82,9 @@ foreach ($profil in @(
 
   # Dépôt réel, puis validation manuelle par l'administrateur — le même chemin
   # qu'un retour de webhook réussi.
-  $r = Api POST '/paiements/depot' @{ montant = 20000; prestataire = 'ligdicash'; numero = $profil.tel } -Token $jeton
+  # La passerelle vient de la route publique : le backend refuse celle qui n'est pas configurée.
+  $presta = @((Api GET '/paiements/prestataires').Body)[0]
+  $r = Api POST '/paiements/depot' @{ montant = 20000; prestataire = $presta.code; numero = $profil.tel } -Token $jeton
   if ($r.Status -ne 201) { Write-Host "ÉCHEC dépôt : $($r.Raw)" -ForegroundColor Red; continue }
   $paiementId = $r.Body.paiement.id
   $r = Api PATCH "/paiements/$paiementId/statut" @{ statut = 'reussi' } -Token $jetonAdmin

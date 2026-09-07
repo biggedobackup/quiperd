@@ -199,3 +199,56 @@ frais change). En cas d'écart : ne PAS créditer, journaliser une alerte.
   completed) → `paiementNotif` à états + mode « payé sans webhook » pour
   éprouver le polling. Créer un paiement réel ne déplace aucun fonds tant que
   personne ne paie — ne jamais automatiser le paiement lui-même.
+
+---
+
+## 6. Retour d'expérience — intégration QUI PERD (septembre 2026, Go/Fiber + TanStack Start + Flutter)
+
+Quatre écarts trouvés en branchant ce skill sur une plateforme d'argent réel, avec
+le correctif retenu. Ils valent pour toute intégration à trois clients (API, web,
+mobile).
+
+- **Le client ne doit jamais deviner les passerelles disponibles.** Les deux
+  frontends proposaient `ligdicash` et `fusionmoney` en dur : sans clés
+  configurées, le joueur recevait un 400 « prestataire indisponible » après avoir
+  rempli le formulaire. Correctif : une route publique
+  `GET /api/paiements/prestataires` qui ne renvoie que les passerelles **activées
+  (`PAIEMENT_PRESTATAIRES`) ET configurées** (clés LigdiCash présentes, URL
+  marchand MoneyFusion présente), avec pour chacune `{code, libelle,
+  numeroRequis}`. Le web et le mobile s'en servent pour bâtir la liste, masquer
+  le sélecteur quand il n'y a qu'un choix, et afficher un message clair quand il
+  n'y en a aucun. `numeroRequis` vient du serveur : ne pas rejouer côté client la
+  règle « MoneyFusion exige le numéro ». La réponse ne contient évidemment aucun
+  secret — surtout pas l'URL d'API du marchand.
+- **`return_url` doit pointer le SITE, jamais l'API.** Les URL de retour et
+  d'annulation étaient construites sur `APP_BASE_URL`, qui désigne le backend :
+  le payeur atterrissait sur un 404 de l'API juste après avoir payé, au pire
+  moment possible. Correctif : les fabriquer depuis l'adresse publique du
+  frontend (`SITE_URL`, à défaut `CORS_ORIGIN`) et vers la **vraie route** du
+  portefeuille (`/joueur/portefeuille`, pas `/portefeuille`), avec la référence
+  encodée. Une seule fonction (`Config.URLRetourPortefeuille`) pour tous les
+  prestataires, sinon l'erreur se répète au suivant.
+- **Arrondir le montant ne suffit pas : refuser le fractionnaire.** MoneyFusion
+  n'accepte qu'un `totalPrice` entier. Arrondir en silence à l'envoi tout en
+  créditant le montant demandé fait payer 101 au joueur pour lui créditer 100,6.
+  Le franc CFA n'ayant pas de subdivision en usage, la bonne réponse est de
+  refuser le montant fractionnaire à l'entrée de l'API (400 avec
+  `details.montant`), et de le valider aussi dans les formulaires.
+- **L'échec doit clore le dépôt, pas le laisser en attente.** Seul le succès
+  était traité : un `failure` (ou un `notcompleted` LigdiCash) laissait la ligne
+  « en attente » pour toujours et le joueur guettait un solde qui n'arriverait
+  jamais. Correctif : une transition idempotente `en_attente → echoue`
+  (aucun mouvement d'argent, mais notification, audit et diffusion temps réel),
+  partagée par les deux prestataires via une seule fonction qui traduit l'état
+  constaté (`paid`/`completed` → réussite, `failure`/`notcompleted` → échec,
+  `pending`/`no paid` → on ne conclut rien).
+
+**Recette.** La doublure du §5 est écrite ici en Go
+(`backend/tests/outils/stub-fusion`), pilotable par
+`POST /_recette/<token>/<etat>` avec deux paramètres qui isolent les règles :
+`?annonce=paid` envoie un webhook menteur sur une transaction restée `pending`
+(rien ne doit être crédité), `?webhook=non` ne notifie pas du tout (seul le
+polling de secours peut conclure). Le parcours
+`backend/tests/parcours-paiement.ps1` déroule les deux, plus le crédit brut
+(`Montant` NET + `frais`), l'idempotence du rejeu, l'échec, et vérifie que le
+`return_url` reçu par le prestataire pointe bien le site.

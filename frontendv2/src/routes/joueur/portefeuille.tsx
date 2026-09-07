@@ -7,7 +7,7 @@ import { icone } from '@/lib/icones'
 import { cles } from '@/lib/query'
 import { formatDateHeure, formatMontant, formatMontantSigne, formatReference, versNombre } from '@/lib/format'
 import { typesTransaction } from '@/lib/statuts'
-import { TAILLE_PAGE, optionsPortefeuille, optionsRegles, optionsTransactions } from '@/lib/requetes'
+import { TAILLE_PAGE, optionsPortefeuille, optionsPrestataires, optionsRegles, optionsTransactions } from '@/lib/requetes'
 import { deposer, retirer } from '@/services/paiements'
 import type { DemandeDepot, DemandeRetrait, Paiement } from '@/models/paiement'
 import type { TransactionPortefeuille } from '@/models/transaction-portefeuille'
@@ -40,6 +40,7 @@ export const Route = createFileRoute('/joueur/portefeuille')({
     await Promise.all([
       context.queryClient.ensureQueryData(optionsPortefeuille),
       context.queryClient.ensureQueryData(optionsRegles),
+      context.queryClient.ensureQueryData(optionsPrestataires),
       context.queryClient.ensureQueryData(optionsTransactions(deps.page)),
     ])
   },
@@ -103,6 +104,7 @@ function PagePortefeuille() {
   const { session } = routeJoueur.useRouteContext()
   const { data: portefeuille } = useSuspenseQuery(optionsPortefeuille)
   const { data: regles } = useSuspenseQuery(optionsRegles)
+  const { data: prestataires } = useSuspenseQuery(optionsPrestataires)
   const transactions = useQuery(optionsTransactions(page))
   const queryClient = useQueryClient()
   const depot = useServerFn(deposer)
@@ -385,7 +387,7 @@ function PagePortefeuille() {
         )}
       </section>
 
-      <DepotModal ouvert={modalDepot} onFermer={() => setModalDepot(false)} onDeposer={async (d) => mutDepot.mutateAsync(d).then(() => undefined)} chargement={mutDepot.isPending} telephone={session.utilisateur.telephone} />
+      <DepotModal ouvert={modalDepot} onFermer={() => setModalDepot(false)} onDeposer={async (d) => mutDepot.mutateAsync(d).then(() => undefined)} chargement={mutDepot.isPending} telephone={session.utilisateur.telephone} prestataires={prestataires} />
       <RetraitModal
         ouvert={modalRetrait}
         onFermer={() => setModalRetrait(false)}
@@ -394,6 +396,7 @@ function PagePortefeuille() {
         disponible={versNombre(portefeuille.soldeDisponible)}
         fraisRetrait={regles.fraisRetrait}
         telephone={session.utilisateur.telephone}
+        prestataires={prestataires}
       />
     </>
   )

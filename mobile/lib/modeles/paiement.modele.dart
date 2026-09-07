@@ -59,6 +59,33 @@ class Paiement {
       );
 }
 
+/// Moyen de paiement réellement proposable, tel que le backend l'annonce sur
+/// `GET /api/paiements/prestataires`.
+///
+/// La liste peut être **vide** : une passerelle désactivée ou non configurée ne
+/// doit jamais apparaître dans une feuille de dépôt, sans quoi le joueur reçoit
+/// un 400 qu'il ne peut pas comprendre.
+class PrestatairePublic {
+  const PrestatairePublic({
+    required this.code,
+    required this.libelle,
+    required this.numeroRequis,
+  });
+
+  /// ligdicash | fusionmoney
+  final String code;
+  final String libelle;
+
+  /// MoneyFusion exige le numéro à la création ; LigdiCash le collecte sur sa page.
+  final bool numeroRequis;
+
+  factory PrestatairePublic.depuisJson(Map<String, dynamic> json) => PrestatairePublic(
+        code: texte(json, 'code'),
+        libelle: texte(json, 'libelle'),
+        numeroRequis: booleen(json, 'numeroRequis'),
+      );
+}
+
 /// Réponse de `POST /api/paiements/depot`.
 ///
 /// Quand le prestataire héberge la page de paiement, [urlPaiement] est renseignée

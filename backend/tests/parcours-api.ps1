@@ -342,13 +342,22 @@ $w = Wallet $TK
 Check 'GET /portefeuille initial -> 0 / 0 XOF' ($w.soldeDisponible -eq 0 -and $w.soldeBloque -eq 0 -and $w.devise -eq 'XOF' -and $w.utilisateurId -eq $KID) ($w | ConvertTo-Json -Compress)
 $r = Api GET '/portefeuille/transactions' -Token $TK
 Check 'GET /portefeuille/transactions vide -> 200' ($r.Status -eq 200 -and @($r.Body).Count -eq 0)
+# Le prestataire n'est plus écrit en dur : le backend refuse une passerelle non
+# configurée (400), et seule la route publique dit lesquelles le sont vraiment.
+$r = Api GET '/paiements/prestataires'
+Check 'GET /paiements/prestataires (public) -> 200, liste des passerelles utilisables' ($r.Status -eq 200) $r.Raw
+$PRESTA = @($r.Body)[0]
+Check 'au moins une passerelle configurée pour la recette' ($null -ne $PRESTA) 'sinon : configurer LIGDICASH_* ou FUSIONMONEY_API_URL'
+$Pay = { param($m, $tok) $c = @{ montant = $m; prestataire = $PRESTA.code }; if ($PRESTA.numeroRequis) { $c['numero'] = '+2250700000009' }; Api POST '/paiements/depot' $c -Token $tok }
 $r = Api POST '/paiements/depot' @{ montant = 10000; prestataire = 'paypal' } -Token $TK
 Check 'POST /paiements/depot prestataire invalide -> 400' ($r.Status -eq 400) $r.Raw
-$r = Api POST '/paiements/depot' @{ montant = -5; prestataire = 'ligdicash' } -Token $TK
+$r = & $Pay (-5) $TK
 Check 'POST /paiements/depot montant négatif -> 400' ($r.Status -eq 400) "status=$($r.Status) $($r.Raw)"
+$r = & $Pay 100.6 $TK
+Check 'POST /paiements/depot montant fractionnaire -> 400 (le XOF n''a pas de subdivision)' ($r.Status -eq 400 -and $r.Body.details.montant) $r.Raw
 $DEP = @{}
 foreach ($u in @(@{ n = 'Kader'; t = $TK }, @{ n = 'Moussa'; t = $TM }, @{ n = 'Ali'; t = $TA })) {
-  $r = Api POST '/paiements/depot' @{ montant = 10000; prestataire = 'ligdicash' } -Token $u.t
+  $r = & $Pay 10000 $u.t
   Check "POST /paiements/depot 10000 $($u.n) -> 201 en_attente" ($r.Status -eq 201 -and $r.Body.paiement.statut -eq 'en_attente' -and $r.Body.paiement.type -eq 'depot') $r.Raw.Substring(0, [Math]::Min(180, $r.Raw.Length))
   $DEP[$u.n] = $r.Body.paiement.id
 }

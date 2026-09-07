@@ -150,6 +150,20 @@ func normaliserFusion(u string) string {
 	return strings.Replace(u, "://www.pay.moneyfusion.net", "://pay.moneyfusion.net", 1)
 }
 
+// URLRetourPortefeuille fabrique l'adresse où le prestataire renvoie le joueur
+// après (ou à l'abandon d') un paiement.
+//
+// Elle part de SiteURL — l'adresse publique du FRONTEND — et non d'AppBaseURL,
+// qui désigne l'API : renvoyer le joueur sur l'API le ferait atterrir sur un 404
+// juste après avoir payé. Le chemin est celui de la vraie route du portefeuille.
+func (c *Config) URLRetourPortefeuille(requete string) string {
+	base := strings.TrimRight(c.SiteURL, "/") + "/joueur/portefeuille"
+	if requete == "" {
+		return base
+	}
+	return base + "?" + requete
+}
+
 func (c *Config) EstProduction() bool {
 	return c.AppEnv == "production"
 }

@@ -39,7 +39,7 @@ Vous mettrez en place une équipe d'agents composée de :
 - **Vérification = tout le module** : `go build ./...` **et** `go vet ./...` doivent passer
   (paquet `docs/` inclus). Un `go build .` qui réussit ne prouve rien : le paquet `docs/`
   généré par `swag` ne compile pas si `swaggo/swag` n'est pas dans `go.mod`.
-- **Recettes obligatoires** — les deux passent à **100 %** avant de déclarer le backend terminé :
+- **Recettes obligatoires** — les trois passent à **100 %** avant de déclarer le backend terminé :
   - `backend/tests/parcours-api.ps1` (parcours HTTP complet, ~520 vérifications en 20 sections :
     auth, CRUD de chaque module, escrow, **machine à états du match** — accord immédiat,
     confirmation, désaccord → `preuve_requise` → litige, nul avec rejeu/partage et manches, les
@@ -47,7 +47,12 @@ Vous mettrez en place une équipe d'agents composée de :
     administration, contact, scénarios concurrents et invariants comptables en base) ;
   - `backend/tests/parcours-temps-reel.ps1` (recette WebSocket : ticket à usage unique, salons
     et cloisonnement, événements reçus dans l'ordre, reconnexion, compteur en ligne, diffusion
-    depuis le worker via Redis Pub/Sub).
+    depuis le worker via Redis Pub/Sub) ;
+  - `backend/tests/parcours-paiement.ps1` (dépôt Mobile Money de bout en bout contre la doublure
+    `tests/outils/stub-fusion`, qui remplace un prestataire dépourvu de bac à sable : catalogue
+    public, refus d'une passerelle non configurée, webhook menteur qui ne crédite rien, crédit
+    brut = `Montant` NET + `frais`, idempotence du rejeu, échec, polling de secours, et
+    `return_url` pointant bien le site). Elle exige `FUSIONMONEY_API_URL` pointé sur la doublure.
 
   Toute nouvelle route y ajoute ses cas (succès + 400/401/403/404/409/422) ; tout nouvel
   événement temps réel ajoute les siens dans la recette WebSocket. Leçon retenue : un backend
@@ -243,6 +248,13 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
     configuration financière n'est pas décorative, chaque type de `configurations_financieres`
     a un point d'application dans le code (`commission_defi` → règlement, `mise_minimale` /
     `mise_maximale` → création de défi, `frais_retrait` → retrait).
+    Trois règles apprises en recette, valables pour **tout** prestataire ajouté ensuite :
+    l'issue d'un paiement se lit toujours auprès du prestataire, jamais dans le webhook, et
+    l'échec constaté clôt le dépôt (`AppliquerEchecDepot`) au lieu de le laisser « en attente »
+    à vie ; l'adresse de retour du payeur se fabrique avec `Config.URLRetourPortefeuille`, bâtie
+    sur `SITE_URL` (le **site**, pas `APP_BASE_URL` qui désigne l'API — sinon le joueur atterrit
+    sur un 404 juste après avoir payé) ; et un montant non entier est refusé à l'entrée plutôt
+    qu'arrondi en silence à l'envoi.
 12. **notifications/** — notifications utilisateur poussées en push via FCM. Types et
     événements déclencheurs (tous obligatoires) : `defi_rejoint` (créateur, au rejoindre),
     `defi_expire` (créateur, job `defi:expiration`), `match_score` (l'adversaire du déclarant,
@@ -330,7 +342,8 @@ backend/
 ├── tests/
 │   ├── parcours-api.ps1           # recette HTTP complète (voir « Processus de développement ») — tests/tmp/ ignoré par git
 │   ├── parcours-temps-reel.ps1    # recette WebSocket (ticket, salons, événements, reconnexion)
-│   └── outils/                    # client WebSocket PowerShell partagé par la recette temps réel
+│   ├── parcours-paiement.ps1      # recette dépôt MoneyFusion contre la doublure locale
+│   └── outils/                    # client WebSocket PowerShell, déclencheur d'échéances, doublure MoneyFusion (stub-fusion/)
 └── docs/                    # généré par `swag init` (docs.go, swagger.json, swagger.yaml) — ne jamais éditer à la main
 ```
 
@@ -417,7 +430,8 @@ backend/
 | PATCH | `/api/litiges/:id` | Admin | Décision arbitrale → règlement au gagnant ou remboursement croisé (chaque mise moins la commission) |
 | GET | `/api/portefeuille` | Connecté | Solde disponible / bloqué |
 | GET | `/api/portefeuille/transactions` | Connecté | Historique des mouvements |
-| POST | `/api/paiements/depot` | Connecté | Dépôt via LigdiCash/MoneyFusion |
+| GET | `/api/paiements/prestataires` | Public | Moyens de paiement réellement proposables : activés (`PAIEMENT_PRESTATAIRES`) **et** configurés (clés LigdiCash, URL marchand MoneyFusion) → `[{code, libelle, numeroRequis}]`, éventuellement vide. Déclarée avant le groupe protégé. Les clients bâtissent leur liste avec elle — jamais en dur |
+| POST | `/api/paiements/depot` | Connecté | Dépôt via LigdiCash/MoneyFusion — refuse un prestataire non configuré, un montant non entier (le XOF n'a pas de subdivision) et, pour MoneyFusion, un `numero` absent |
 | POST | `/api/paiements/retrait` | Connecté | Retrait vers Mobile Money |
 | GET | `/api/paiements` | Admin | Suivi des dépôts/retraits **paginé** (`?page&taille`, `?type=depot|retrait`, `?statut=en_attente|reussi|echoue|rembourse`) → `{ elements, total, page, taille, pages }` |
 | PATCH | `/api/paiements/:id/statut` | Admin | Validation / échec / remboursement manuel |

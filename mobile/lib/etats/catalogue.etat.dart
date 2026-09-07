@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 
 import '../modeles/jeu.modele.dart';
+import '../modeles/paiement.modele.dart';
 import '../modeles/plateforme.modele.dart';
 import '../modeles/regles_financieres.modele.dart';
 import '../noyau/catalogue.dart';
 import '../noyau/resultat.dart';
 import '../services/catalogue.service.dart';
+import '../services/paiements.service.dart';
 
-/// Catalogue et règles financières, chargés une fois puis réutilisés par la
-/// création de défi, les filtres, le profil et la FAQ.
+/// Catalogue, règles financières et moyens de paiement, chargés une fois puis
+/// réutilisés par la création de défi, les filtres, le profil, la FAQ et le
+/// portefeuille.
 ///
 /// Ces trois listes ne changent qu'à l'initiative d'un administrateur : les
 /// garder en mémoire évite trois appels à chaque ouverture d'écran, sans jamais
@@ -17,12 +20,17 @@ class CatalogueEtat extends ChangeNotifier {
   List<Jeu> _jeux = const [];
   List<Plateforme> _plateformes = const [];
   ReglesFinancieres _regles = ReglesFinancieres.defaut;
+  List<PrestatairePublic> _prestataires = const [];
   bool _charge = false;
   bool _enCours = false;
 
   List<Jeu> get jeux => _jeux;
   List<Plateforme> get plateformes => _plateformes;
   ReglesFinancieres get regles => _regles;
+
+  /// Passerelles Mobile Money réellement utilisables. Vide = dépôt et retrait
+  /// indisponibles ; c'est le serveur qui en décide, jamais une liste en dur.
+  List<PrestatairePublic> get prestataires => _prestataires;
   bool get charge => _charge;
 
   Jeu? jeu(String id) => _jeux.where((j) => j.id == id).firstOrNull;
@@ -70,6 +78,7 @@ class CatalogueEtat extends ChangeNotifier {
       CatalogueService.jeux(),
       CatalogueService.plateformes(),
       CatalogueService.regles(),
+      PaiementsService.prestataires(),
     ]);
 
     final rJeux = resultats[0];
@@ -78,6 +87,8 @@ class CatalogueEtat extends ChangeNotifier {
     if (rPlateformes is Succes<List<Plateforme>>) _plateformes = rPlateformes.donnees;
     final rRegles = resultats[2];
     if (rRegles is Succes<ReglesFinancieres>) _regles = rRegles.donnees;
+    final rPrestataires = resultats[3];
+    if (rPrestataires is Succes<List<PrestatairePublic>>) _prestataires = rPrestataires.donnees;
 
     _charge = _jeux.isNotEmpty || _plateformes.isNotEmpty;
     _enCours = false;

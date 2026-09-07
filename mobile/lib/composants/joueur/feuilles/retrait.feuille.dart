@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../modeles/paiement.modele.dart';
 import '../../../noyau/format.dart';
-import '../../../noyau/statuts.dart';
 import '../../../theme/couleurs.dart';
 import '../../../theme/typographie.dart';
 import '../../communs/bouton.dart';
 import '../../communs/champ_texte.dart';
 import '../../communs/liste_deroulante.dart';
 import '../../communs/message.dart';
+import 'depot.feuille.dart' show AucunPrestataire;
 
 class DemandeRetrait {
   const DemandeRetrait(this.montant, this.prestataire, this.numero);
@@ -26,6 +27,7 @@ Future<DemandeRetrait?> ouvrirRetrait(
   BuildContext context, {
   required double disponible,
   required double tauxFrais,
+  required List<PrestatairePublic> prestataires,
   String? telephone,
 }) {
   return showModalBottomSheet<DemandeRetrait>(
@@ -35,6 +37,7 @@ Future<DemandeRetrait?> ouvrirRetrait(
     builder: (context) => _FeuilleRetrait(
       disponible: disponible,
       tauxFrais: tauxFrais,
+      prestataires: prestataires,
       telephone: telephone,
     ),
   );
@@ -44,11 +47,15 @@ class _FeuilleRetrait extends StatefulWidget {
   const _FeuilleRetrait({
     required this.disponible,
     required this.tauxFrais,
+    required this.prestataires,
     this.telephone,
   });
 
   final double disponible;
   final double tauxFrais;
+
+  /// Moyens de paiement annoncés par le backend — jamais une liste en dur ici.
+  final List<PrestatairePublic> prestataires;
   final String? telephone;
 
   @override
@@ -59,7 +66,7 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
   final _cleFormulaire = GlobalKey<FormState>();
   final _montant = TextEditingController(text: '1000');
   late final _numero = TextEditingController(text: widget.telephone ?? '');
-  String _prestataire = 'ligdicash';
+  late String _prestataire = widget.prestataires.isEmpty ? '' : widget.prestataires.first.code;
 
   double get _valeur => double.tryParse(_montant.text.trim().replaceAll(',', '.')) ?? 0;
   double get _frais => _valeur * widget.tauxFrais;
@@ -79,6 +86,8 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.prestataires.isEmpty) return const AucunPrestataire(pour: 'retrait');
+
     final insuffisant = _total > widget.disponible;
 
     return SafeArea(
@@ -142,14 +151,18 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                ListeDeroulante(
-                  label: 'Prestataire',
-                  valeur: _prestataire,
-                  options: libellesPrestataires.entries
-                      .map((e) => OptionListe(e.key, e.value))
-                      .toList(),
-                  onChanged: (v) => setState(() => _prestataire = v ?? 'ligdicash'),
-                ),
+                if (widget.prestataires.length > 1)
+                  ListeDeroulante(
+                    label: 'Prestataire',
+                    valeur: _prestataire,
+                    options: widget.prestataires
+                        .map((p) => OptionListe(p.code, p.libelle))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _prestataire = v ?? widget.prestataires.first.code),
+                  )
+                else
+                  Text('Transfert via ${widget.prestataires.first.libelle}.', style: Typo.petit),
                 const SizedBox(height: 18),
                 ChampTexte(
                   controleur: _numero,

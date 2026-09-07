@@ -129,7 +129,3 @@ const Map<String, IconData> iconesNotification = {
   'paiement_echoue': Icons.error_outline,
 };
 
-const Map<String, String> libellesPrestataires = {
-  'ligdicash': 'LigdiCash',
-  'fusionmoney': 'MoneyFusion',
-};

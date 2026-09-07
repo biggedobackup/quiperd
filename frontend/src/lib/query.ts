@@ -10,6 +10,7 @@ export const cles = {
   jeux: ['jeux'] as const,
   plateformes: ['plateformes'] as const,
   regles: ['regles-financieres'] as const,
+  prestataires: ['prestataires'] as const,
   defis: {
     tous: ['defis'] as const,
     /** Liste publique (site vitrine), sans jeton. */

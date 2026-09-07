@@ -16,7 +16,7 @@ import { lirePortefeuille, listerTransactions } from '@/services/portefeuilles'
 import { listerNotifications } from '@/services/notifications'
 import { listerComptesGamers } from '@/services/comptes-gamers'
 import { detailUtilisateur, listerUtilisateurs } from '@/services/utilisateurs'
-import { listerPaiements } from '@/services/paiements'
+import { listerPaiements, listerPrestataires } from '@/services/paiements'
 import type { FiltresDefis, FiltresDefisPublics } from '@/models/defi'
 
 export const TAILLE_PAGE = 20
@@ -35,6 +35,13 @@ export const optionsDefisOuverts = (filtres: FiltresDefisPublics = {}) =>
 export const optionsRegles = queryOptions({
   queryKey: cles.regles,
   queryFn: () => lireReglesFinancieres(),
+  staleTime: 5 * 60_000,
+})
+
+/** Moyens de paiement réellement disponibles — change avec la configuration serveur, pas avec l'écran. */
+export const optionsPrestataires = queryOptions({
+  queryKey: cles.prestataires,
+  queryFn: () => listerPrestataires(),
   staleTime: 5 * 60_000,
 })
 

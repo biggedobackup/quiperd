@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../modeles/paiement.modele.dart';
 import '../../../noyau/format.dart';
-import '../../../noyau/statuts.dart';
 import '../../../theme/couleurs.dart';
 import '../../../theme/typographie.dart';
 import '../../communs/bouton.dart';
 import '../../communs/champ_texte.dart';
 import '../../communs/liste_deroulante.dart';
+import '../../communs/message.dart';
 
 class DemandeDepot {
   const DemandeDepot(this.montant, this.prestataire, this.numero);
@@ -18,18 +19,24 @@ class DemandeDepot {
 
 /// Dépôt Mobile Money. Le paiement se termine sur la page hébergée du
 /// prestataire ; le solde, lui, se met à jour tout seul par le socket.
-Future<DemandeDepot?> ouvrirDepot(BuildContext context, {String? telephone}) {
+Future<DemandeDepot?> ouvrirDepot(
+  BuildContext context, {
+  required List<PrestatairePublic> prestataires,
+  String? telephone,
+}) {
   return showModalBottomSheet<DemandeDepot>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Couleurs.papier,
-    builder: (context) => _FeuilleDepot(telephone: telephone),
+    builder: (context) => _FeuilleDepot(prestataires: prestataires, telephone: telephone),
   );
 }
 
 class _FeuilleDepot extends StatefulWidget {
-  const _FeuilleDepot({this.telephone});
+  const _FeuilleDepot({required this.prestataires, this.telephone});
 
+  /// Moyens de paiement annoncés par le backend — jamais une liste en dur ici.
+  final List<PrestatairePublic> prestataires;
   final String? telephone;
 
   @override
@@ -40,10 +47,14 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
   final _cleFormulaire = GlobalKey<FormState>();
   final _montant = TextEditingController(text: '5000');
   late final _numero = TextEditingController(text: widget.telephone ?? '');
-  String _prestataire = 'ligdicash';
+  late String _prestataire = widget.prestataires.isEmpty ? '' : widget.prestataires.first.code;
+
+  PrestatairePublic? get _choisi =>
+      widget.prestataires.where((p) => p.code == _prestataire).firstOrNull;
 
   /// MoneyFusion exige le numéro ; LigdiCash le demande sur sa propre page.
-  bool get _numeroRequis => _prestataire == 'fusionmoney';
+  /// Le serveur fait foi : on ne devine pas la règle à partir du code.
+  bool get _numeroRequis => _choisi?.numeroRequis ?? false;
 
   @override
   void dispose() {
@@ -62,6 +73,8 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.prestataires.isEmpty) return const AucunPrestataire(pour: 'dépôt');
+
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.viewInsetsOf(context).bottom + 20),
@@ -106,21 +119,27 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
                       .toList(),
                 ),
                 const SizedBox(height: 18),
-                ListeDeroulante(
-                  label: 'Prestataire',
-                  valeur: _prestataire,
-                  options: libellesPrestataires.entries
-                      .map((e) => OptionListe(e.key, e.value))
-                      .toList(),
-                  onChanged: (v) => setState(() => _prestataire = v ?? 'ligdicash'),
-                ),
+                if (widget.prestataires.length > 1)
+                  ListeDeroulante(
+                    label: 'Prestataire',
+                    valeur: _prestataire,
+                    options: widget.prestataires
+                        .map((p) => OptionListe(p.code, p.libelle))
+                        .toList(),
+                    onChanged: (v) =>
+                        setState(() => _prestataire = v ?? widget.prestataires.first.code),
+                  )
+                else
+                  // Un seul moyen actif : on l'annonce en clair plutôt que d'imposer
+                  // une liste déroulante à un choix.
+                  Text('Paiement via ${widget.prestataires.first.libelle}.', style: Typo.petit),
                 const SizedBox(height: 18),
                 ChampTexte(
                   controleur: _numero,
                   label: _numeroRequis ? 'Numéro Mobile Money' : 'Numéro Mobile Money (optionnel)',
                   placeholder: '+225 07 00 00 00 00',
                   clavier: TextInputType.phone,
-                  aide: _numeroRequis ? 'Requis par MoneyFusion.' : null,
+                  aide: _numeroRequis ? 'Requis par ${_choisi?.libelle}.' : null,
                   validateur: (valeur) {
                     if (!_numeroRequis) return null;
                     return (valeur ?? '').trim().isEmpty ? 'Numéro obligatoire' : null;
@@ -175,5 +194,53 @@ class _MiseRapide extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Aucune passerelle Mobile Money active : on le dit, au lieu de laisser le
+/// joueur remplir un formulaire que le backend refusera par un 400.
+class AucunPrestataire extends StatelessWidget {
+  const AucunPrestataire({super.key, required this.pour});
+
+  final String pour;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(pour == 'dépôt' ? 'Déposer des fonds' : 'Retirer des fonds', style: Typo.h3),
+            const SizedBox(height: 14),
+            Encart(
+              ton: TonMessage.attention,
+              texte: pour == 'dépôt'
+                  ? 'Aucun moyen de paiement n’est disponible pour le moment. Le dépôt '
+                      'rouvrira dès qu’une passerelle Mobile Money sera de nouveau active.'
+                  : 'Aucun moyen de paiement n’est disponible pour le moment. Votre solde '
+                      'reste intact : le retrait rouvrira dès qu’une passerelle Mobile Money '
+                      'sera de nouveau active.',
+            ),
+            const SizedBox(height: 18),
+            Bouton(
+              libelle: 'Fermer',
+              bloc: true,
+              variante: VarianteBouton.secondaire,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+extension _Premier<T> on Iterable<T> {
+  T? get firstOrNull {
+    final it = iterator;
+    return it.moveNext() ? it.current : null;
   }
 }

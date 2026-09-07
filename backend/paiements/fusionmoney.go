@@ -6,10 +6,28 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"quiperd/backend/config"
 )
+
+// Hôte par défaut de MoneyFusion. JAMAIS de `www.` : ce sous-domaine sert un
+// certificat auto-signé et tout client Go strict échoue avec
+// « x509: certificate signed by unknown authority » (skill FusionMoney §5).
+const hoteFusionParDefaut = "https://pay.moneyfusion.net"
+
+// baseFusion déduit l'hôte de vérification de l'URL d'API du marchand. En
+// production les deux vivent sur le même domaine ; en recette, cela permet de
+// pointer `paiementNotif` vers le même stub que la création de paiement, sans
+// quoi le parcours ne serait testable qu'avec des clés réelles.
+func baseFusion() string {
+	u, err := url.Parse(config.Cfg.FusionMoneyAPIURL)
+	if err != nil || u.Scheme == "" || u.Host == "" {
+		return hoteFusionParDefaut
+	}
+	return u.Scheme + "://" + u.Host
+}
 
 // CreerPaiementFusion crée un paiement MoneyFusion et renvoie l'URL hébergée + le token.
 // numeroSend (téléphone du client) est obligatoire côté MoneyFusion.
@@ -21,14 +39,16 @@ func CreerPaiementFusion(p *Paiement, nomClient, numeroSend string) (urlPaiement
 	if numeroSend == "" {
 		return "", "", fmt.Errorf("numéro de téléphone requis")
 	}
-	montant := p.Montant.IntPart()
+	// Arrondi, jamais troncature : `IntPart()` sur 100,60 enverrait 100 et le
+	// joueur paierait moins que ce que la plateforme s'apprête à créditer.
+	montant := p.Montant.Round(0).IntPart()
 	corps := map[string]any{
 		"totalPrice":    montant,
 		"article":       []map[string]any{{"depot": montant}},
 		"personal_Info": []map[string]any{{"reference": p.Reference}},
 		"numeroSend":    numeroSend,
 		"nomclient":     nomClient,
-		"return_url":    cfg.AppBaseURL + "/portefeuille?paiement=retour&ref=" + p.Reference,
+		"return_url":    cfg.URLRetourPortefeuille("paiement=retour&ref=" + url.QueryEscape(p.Reference)),
 		"webhook_url":   cfg.FusionMoneyCallbackURL,
 	}
 	data, _ := json.Marshal(corps)
@@ -60,9 +80,8 @@ func CreerPaiementFusion(p *Paiement, nomClient, numeroSend string) (urlPaiement
 // VerifierFusion interroge paiementNotif avec le token stocké.
 // `Montant` renvoyé est NET des frais (voir skill §3).
 func VerifierFusion(token string) (statut string, montant, frais float64, operateur string, err error) {
-	base := "https://pay.moneyfusion.net"
-	u := base + "/paiementNotif/" + strings.TrimSpace(token)
-	resp, err := clientHTTP.Get(u)
+	adresse := baseFusion() + "/paiementNotif/" + url.PathEscape(strings.TrimSpace(token))
+	resp, err := clientHTTP.Get(adresse)
 	if err != nil {
 		return "", 0, 0, "", err
 	}
