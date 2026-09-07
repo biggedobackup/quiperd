@@ -131,7 +131,7 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
     final url = reponse.urlPaiement;
     if (url != null && url.isNotEmpty) {
       // Page hébergée du prestataire, ouverte DANS l'application : le joueur ne
-      // quitte pas QUI PERD, et l'écran se referme tout seul quand le socket
+      // quitte pas Défis en Ligne, et l'écran se referme tout seul quand le socket
       // annonce l'issue (voir `_annoncerPaiement`).
       await _ouvrirPagePaiement(url, reponse.paiement?.id);
       return;

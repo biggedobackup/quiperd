@@ -50,7 +50,7 @@ const schema = z
 type Valeurs = z.infer<typeof schema>
 
 export const Route = createFileRoute('/_public/inscription')({
-  head: () => ({ meta: [{ title: 'Créer un compte — QUI PERD' }, { name: 'description', content: 'Créez votre compte QUI PERD pour lancer votre premier défi.' }] }),
+  head: () => ({ meta: [{ title: 'Créer un compte — Défis en Ligne' }, { name: 'description', content: 'Créez votre compte Défis en Ligne pour lancer votre premier défi.' }] }),
   beforeLoad: () => gardeInvite(),
   component: PageInscription,
 })
@@ -109,7 +109,7 @@ function PageInscription() {
       }
     >
       <form onSubmit={soumettre} className="space-y-4" noValidate>
-        <Input label="Pseudo QUI PERD" autoComplete="username" iconeDebut={icone.profil} placeholder="kader225" {...register('nomUtilisateur')} erreur={errors.nomUtilisateur?.message} />
+        <Input label="Pseudo Défis en Ligne" autoComplete="username" iconeDebut={icone.profil} placeholder="kader225" {...register('nomUtilisateur')} erreur={errors.nomUtilisateur?.message} />
         <Input label="E-mail" type="email" autoComplete="email" iconeDebut={icone.courriel} placeholder="vous@exemple.com" {...register('email')} erreur={errors.email?.message} />
         {/* Un champ par ligne, à toutes les largeurs. Aucune paire côte à côte dans ce
             formulaire : les deux mots de passe se ressemblent trop (même masque de points, même

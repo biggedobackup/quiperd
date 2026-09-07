@@ -69,7 +69,7 @@ class _AideEcranState extends State<AideEcran> {
           question: 'Combien puis-je miser ?',
           reponse: 'Entre ${formatMontant(regles.miseMinimale)} et '
               '${formatMontant(regles.miseMaximale)} par joueur et par défi. Ces bornes sont '
-              'fixées par l’équipe QUI PERD et peuvent évoluer.',
+              'fixées par l’équipe Défis en Ligne et peuvent évoluer.',
         ),
         (
           question: 'Que gagne le vainqueur ?',
@@ -102,7 +102,7 @@ class _AideEcranState extends State<AideEcran> {
         (
           question: 'Puis-je jouer sur mobile ?',
           reponse: 'Oui : l’espace joueur du site fonctionne sur téléphone, et une application '
-              'mobile QUI PERD utilise la même plateforme. Vos défis, votre portefeuille et vos '
+              'mobile Défis en Ligne utilise la même plateforme. Vos défis, votre portefeuille et vos '
               'notifications sont identiques partout.',
         ),
       ];

@@ -29,7 +29,7 @@ type Denouement = { genre: 'rejoint'; matchId: string } | { genre: 'annule' } | 
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/defis/$defiId')({
-  head: () => ({ meta: [{ title: 'Détail du défi — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Détail du défi — Défis en Ligne' }] }),
   loader: async ({ context, params }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(optionsDetailDefi(params.defiId)),

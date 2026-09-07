@@ -10,7 +10,7 @@ import '../theme/typographie.dart';
 
 /// Page de paiement du prestataire, affichée **dans** l'application.
 ///
-/// Le joueur ne quitte plus QUI PERD pour payer : l'application reste vivante
+/// Le joueur ne quitte plus Défis en Ligne pour payer : l'application reste vivante
 /// derrière, socket connecté, ce qui permet de refermer cet écran tout seul dès
 /// que le statut du paiement arrive — au lieu de compter sur le joueur pour
 /// revenir depuis le navigateur du système.

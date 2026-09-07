@@ -1,8 +1,8 @@
-// QUI PERD — API backend.
+// Défis en Ligne — API backend.
 //
-// @title QUI PERD API
+// @title Défis en Ligne API
 // @version 1.0
-// @description API de la plateforme QUI PERD (défis de match, escrow, paiements Mobile Money).
+// @description API de la plateforme Défis en Ligne (défis de match, escrow, paiements Mobile Money).
 // @BasePath /api
 // @securityDefinitions.apikey BearerAuth
 // @in header
@@ -87,7 +87,7 @@ func main() {
 	tempsreel.SurEvenement = administration.KpiSiConcerne
 
 	app := fiber.New(fiber.Config{
-		AppName:      "QUI PERD API",
+		AppName:      "Défis en Ligne API",
 		BodyLimit:    int(cfg.UploadMaxOctets) + 1024*1024,
 		ErrorHandler: gestionErreur,
 	})
@@ -126,7 +126,7 @@ func main() {
 	// serveur HTTP. Sans cela, les clients reconnectent sur un socle déjà mort.
 	go arretPropre(app)
 
-	utils.Log.Info("QUI PERD API démarrée sur " + cfg.AppHost + ":" + cfg.AppPort)
+	utils.Log.Info("Défis en Ligne API démarrée sur " + cfg.AppHost + ":" + cfg.AppPort)
 	if err := app.Listen(cfg.AppHost + ":" + cfg.AppPort); err != nil {
 		utils.Log.Fatal("démarrage du serveur impossible: " + err.Error())
 	}

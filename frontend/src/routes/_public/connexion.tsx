@@ -21,7 +21,7 @@ const schema = z.object({
 type Valeurs = z.infer<typeof schema>
 
 export const Route = createFileRoute('/_public/connexion')({
-  head: () => ({ meta: [{ title: 'Connexion — QUI PERD' }, { name: 'robots', content: 'noindex' }] }),
+  head: () => ({ meta: [{ title: 'Connexion — Défis en Ligne' }, { name: 'robots', content: 'noindex' }] }),
   // `vers` : page de l'espace joueur à rouvrir après connexion (ex. un défi vu depuis le site public).
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput): { vers?: string } => ({
     vers: typeof s.vers === 'string' && s.vers.startsWith('/joueur/') ? s.vers : undefined,

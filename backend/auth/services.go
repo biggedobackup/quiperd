@@ -24,7 +24,7 @@ const (
 
 var ErrJetonInvalide = errors.New("jeton invalide ou session expirée")
 
-// Claims du JWT QUI PERD.
+// Claims du JWT Défis en Ligne.
 type Claims struct {
 	Role string `json:"role"`
 	jwt.RegisteredClaims

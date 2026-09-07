@@ -59,7 +59,7 @@ function ConnexionAdmin() {
         </div>
         <form onSubmit={soumettre} className="space-y-4 rounded-2xl border border-trait bg-papier p-6 shadow-carte-forte" noValidate>
           <h1 className="text-h2">Arbitrage & gestion</h1>
-          <p className="text-legende text-muet">Accès réservé aux administrateurs QUI PERD.</p>
+          <p className="text-legende text-muet">Accès réservé aux administrateurs Défis en Ligne.</p>
           <Input label="E-mail" type="email" autoComplete="username" iconeDebut={icone.courriel} {...register('email')} erreur={errors.email?.message} />
           <InputMotDePasse label="Mot de passe" {...register('motDePasse')} erreur={errors.motDePasse?.message} />
           {erreurGlobale && (

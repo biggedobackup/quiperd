@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { PageLegale } from '@/components/public/page-legale'
 
 export const Route = createFileRoute('/_public/confidentialite')({
-  head: () => ({ meta: [{ title: 'Politique de confidentialité — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Politique de confidentialité — Défis en Ligne' }] }),
   component: () => (
     <PageLegale
       titre="Politique de confidentialité"

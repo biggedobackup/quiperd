@@ -24,7 +24,7 @@ import { toastErreur } from '@/components/partages/toast/toast'
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/notifications')({
-  head: () => ({ meta: [{ title: 'Notifications — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Notifications — Défis en Ligne' }] }),
   loader: async ({ context }) => {
     await context.queryClient.ensureQueryData(optionsNotifications)
   },

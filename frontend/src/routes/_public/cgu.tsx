@@ -5,7 +5,7 @@ import { formatMontant, formatPourcentage } from '@/lib/format'
 import { PageLegale } from '@/components/public/page-legale'
 
 export const Route = createFileRoute('/_public/cgu')({
-  head: () => ({ meta: [{ title: 'Conditions générales d’utilisation — QUI PERD' }, { name: 'robots', content: 'index,follow' }] }),
+  head: () => ({ meta: [{ title: 'Conditions générales d’utilisation — Défis en Ligne' }, { name: 'robots', content: 'index,follow' }] }),
   component: PageCgu,
 })
 
@@ -20,7 +20,7 @@ function PageCgu() {
           titre: 'Objet',
           contenu: (
             <p>
-              QUI PERD met en relation des joueurs majeurs pour des défis 1 contre 1 sur des jeux vidéo. La plateforme conserve les mises en
+              Défis en Ligne met en relation des joueurs majeurs pour des défis 1 contre 1 sur des jeux vidéo. La plateforme conserve les mises en
               séquestre, enregistre les déclarations et les preuves, et règle le match au gagnant. Elle n’organise pas les parties : elles se jouent
               sur les serveurs des éditeurs, avec les comptes des joueurs.
             </p>

@@ -83,7 +83,7 @@ export function Hero({ regles, connecte, nombreDefis }: { regles: ReglesFinancie
             <source srcSet="/images/hero-gaming.webp" type="image/webp" />
             <img
               src="/images/hero-gaming.jpg"
-              alt="Écran de jeu, manette et casque : les défis QUI PERD se jouent sur PlayStation, Xbox, PC et mobile."
+              alt="Écran de jeu, manette et casque : les défis Défis en Ligne se jouent sur PlayStation, Xbox, PC et mobile."
               width={1077}
               height={705}
               fetchPriority="high"

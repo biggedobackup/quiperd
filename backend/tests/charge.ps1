@@ -1,7 +1,7 @@
 #Requires -Version 7
 <#
 .SYNOPSIS
-  Montée en charge de QUI PERD : combien de joueurs tiennent en même temps sur le socket temps
+  Montée en charge de Défis en Ligne : combien de joueurs tiennent en même temps sur le socket temps
   réel de la page /defis, et combien de défis peuvent être créés et rejoints simultanément.
 
 .DESCRIPTION

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Charte des e-mails QUI PERD — miroir du système de design du frontend :
+// Charte des e-mails Défis en Ligne — miroir du système de design du frontend :
 // fond blanc, texte noir, un seul accent vert, aucun dégradé, aucune image externe
 // (pas de pixel espion, rien à charger : le message s'affiche même hors ligne), une
 // seule colonne de 600 px maximum pour rester lisible sur téléphone.
@@ -20,7 +20,7 @@ const (
 	couleurMuet   = "#6b7280" // texte secondaire
 )
 
-// gabarit habille un contenu HTML : en-tête « QUI PERD », corps, pied de page.
+// gabarit habille un contenu HTML : en-tête « Défis en Ligne », corps, pied de page.
 // Aucun style externe (les clients de messagerie ignorent <style>), tout est en ligne.
 func gabarit(titre, contenu string) string {
 	return `<div style="margin:0;padding:24px 12px;background-color:#ffffff;">` +
@@ -31,7 +31,7 @@ func gabarit(titre, contenu string) string {
 		contenu +
 		`</div>` +
 		`<p style="margin:16px 0 0;font-size:13px;line-height:1.5;color:` + couleurMuet + `;">` +
-		`Message automatique de la plateforme QUI PERD — merci de ne pas y répondre.` +
+		`Message automatique de la plateforme Défis en Ligne — merci de ne pas y répondre.` +
 		`</p>` +
 		`</div></div>`
 }
@@ -86,7 +86,7 @@ func bonjour(pseudo string) string {
 func MessageVerification(pseudo, code string, minutes int) Message {
 	texte := fmt.Sprintf(`%s
 
-Bienvenue sur QUI PERD.
+Bienvenue sur Défis en Ligne.
 
 Votre code de confirmation est : %s
 
@@ -98,10 +98,10 @@ créer ni rejoindre un défi, ni demander un retrait.
 
 Si vous n'êtes pas à l'origine de cette inscription, ignorez ce message.
 
-— L'équipe QUI PERD`, bonjour(pseudo), code, minutes)
+— L'équipe Défis en Ligne`, bonjour(pseudo), code, minutes)
 
 	contenu := paragraphe(bonjour(pseudo)) +
-		paragraphe("Bienvenue sur QUI PERD. Voici votre code de confirmation :") +
+		paragraphe("Bienvenue sur Défis en Ligne. Voici votre code de confirmation :") +
 		`<p style="margin:0 0 16px;text-align:center;">` +
 		`<span style="display:inline-block;background-color:` + couleurFondOK + `;border:2px solid ` + couleurEncre +
 		`;color:` + couleurEncre + `;font-size:30px;font-weight:700;letter-spacing:8px;padding:14px 20px;font-family:'Courier New',Courier,monospace;">` +
@@ -110,7 +110,7 @@ Si vous n'êtes pas à l'origine de cette inscription, ignorez ce message.
 		paragraphe("Tant que votre adresse n'est pas confirmée, vous pouvez déposer de l'argent mais pas créer ni rejoindre un défi, ni demander un retrait.") +
 		`<p style="margin:0;font-size:14px;color:` + couleurMuet + `;">Si vous n'êtes pas à l'origine de cette inscription, ignorez ce message.</p>`
 
-	return Message{Sujet: "Votre code de confirmation QUI PERD", Texte: texte, HTML: gabarit("Confirmez votre adresse e-mail", contenu)}
+	return Message{Sujet: "Votre code de confirmation Défis en Ligne", Texte: texte, HTML: gabarit("Confirmez votre adresse e-mail", contenu)}
 }
 
 // ─── Réinitialisation de mot de passe ─────────────────────────────────────────
@@ -121,7 +121,7 @@ Si vous n'êtes pas à l'origine de cette inscription, ignorez ce message.
 func MessageMotDePasseOublie(pseudo, lien string, minutes int) Message {
 	texte := fmt.Sprintf(`%s
 
-Vous avez demandé la réinitialisation de votre mot de passe QUI PERD.
+Vous avez demandé la réinitialisation de votre mot de passe Défis en Ligne.
 
 Ouvrez ce lien pour choisir un nouveau mot de passe :
 %s
@@ -132,15 +132,15 @@ sessions seront fermées après le changement.
 Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de
 passe actuel reste valable.
 
-— L'équipe QUI PERD`, bonjour(pseudo), lien, minutes)
+— L'équipe Défis en Ligne`, bonjour(pseudo), lien, minutes)
 
 	contenu := paragraphe(bonjour(pseudo)) +
-		paragraphe("Vous avez demandé la réinitialisation de votre mot de passe QUI PERD.") +
+		paragraphe("Vous avez demandé la réinitialisation de votre mot de passe Défis en Ligne.") +
 		bouton("Choisir un nouveau mot de passe", lien) +
 		paragraphe(fmt.Sprintf("Ce lien est valable %d minutes et ne sert qu'une fois. Toutes vos sessions seront fermées après le changement.", minutes)) +
 		`<p style="margin:0;font-size:14px;color:` + couleurMuet + `;">Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe actuel reste valable.</p>`
 
-	return Message{Sujet: "Réinitialisation de votre mot de passe QUI PERD", Texte: texte, HTML: gabarit("Réinitialisation de mot de passe", contenu)}
+	return Message{Sujet: "Réinitialisation de votre mot de passe Défis en Ligne", Texte: texte, HTML: gabarit("Réinitialisation de mot de passe", contenu)}
 }
 
 // ─── Retraits ─────────────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ Le virement est en cours de traitement. Vous recevrez un message dès qu'il aura
 abouti. En cas d'échec, la totalité (montant + frais) est recréditée sur votre
 portefeuille.
 
-— L'équipe QUI PERD`, bonjour(pseudo), montant, devise, frais, devise, total, devise, numeroMasque)
+— L'équipe Défis en Ligne`, bonjour(pseudo), montant, devise, frais, devise, total, devise, numeroMasque)
 
 	contenu := paragraphe(bonjour(pseudo)) +
 		paragraphe("Votre demande de retrait a bien été enregistrée.") +
@@ -175,7 +175,7 @@ portefeuille.
 		paragraphe("Le virement est en cours de traitement. Vous recevrez un message dès qu'il aura abouti.") +
 		`<p style="margin:0;font-size:14px;color:` + couleurMuet + `;">En cas d'échec, la totalité (montant + frais) est recréditée sur votre portefeuille.</p>`
 
-	return Message{Sujet: "Votre demande de retrait QUI PERD", Texte: texte, HTML: gabarit("Demande de retrait enregistrée", contenu)}
+	return Message{Sujet: "Votre demande de retrait Défis en Ligne", Texte: texte, HTML: gabarit("Demande de retrait enregistrée", contenu)}
 }
 
 // MessageRetraitReussi confirme que le virement Mobile Money est parti.
@@ -190,7 +190,7 @@ Frais retenus  : %s %s
 La somme est en route vers votre compte Mobile Money. Le délai de mise à disposition
 dépend de votre opérateur.
 
-— L'équipe QUI PERD`, bonjour(pseudo), montant, devise, frais, devise)
+— L'équipe Défis en Ligne`, bonjour(pseudo), montant, devise, frais, devise)
 
 	contenu := paragraphe(bonjour(pseudo)) +
 		`<p style="margin:0 0 14px;color:` + couleurGain + `;font-weight:700;">Votre retrait a été effectué.</p>` +
@@ -200,7 +200,7 @@ dépend de votre opérateur.
 		}) +
 		paragraphe("La somme est en route vers votre compte Mobile Money. Le délai de mise à disposition dépend de votre opérateur.")
 
-	return Message{Sujet: "Votre retrait QUI PERD a été effectué", Texte: texte, HTML: gabarit("Retrait effectué", contenu)}
+	return Message{Sujet: "Votre retrait Défis en Ligne a été effectué", Texte: texte, HTML: gabarit("Retrait effectué", contenu)}
 }
 
 // MessageRetraitEchoue annonce l'échec du virement ET le recrédit intégral
@@ -218,7 +218,7 @@ Recrédité sur votre portefeuille : %s %s
 La totalité, frais compris, a été recréditée sur votre solde disponible : vous ne
 perdez rien. Vous pouvez relancer une demande de retrait quand vous le souhaitez.
 
-— L'équipe QUI PERD`, bonjour(pseudo), montant, devise, frais, devise, total, devise)
+— L'équipe Défis en Ligne`, bonjour(pseudo), montant, devise, frais, devise, total, devise)
 
 	contenu := paragraphe(bonjour(pseudo)) +
 		paragraphe("Votre retrait n'a pas pu être effectué.") +
@@ -230,7 +230,7 @@ perdez rien. Vous pouvez relancer une demande de retrait quand vous le souhaitez
 		`<p style="margin:0 0 14px;color:` + couleurGain + `;font-weight:700;">La totalité, frais compris, a été recréditée sur votre solde disponible : vous ne perdez rien.</p>` +
 		paragraphe("Vous pouvez relancer une demande de retrait quand vous le souhaitez.")
 
-	return Message{Sujet: "Votre retrait QUI PERD n'a pas abouti", Texte: texte, HTML: gabarit("Retrait non abouti", contenu)}
+	return Message{Sujet: "Votre retrait Défis en Ligne n'a pas abouti", Texte: texte, HTML: gabarit("Retrait non abouti", contenu)}
 }
 
 // MasquerNumero ne conserve que les 4 derniers chiffres d'un numéro Mobile Money :

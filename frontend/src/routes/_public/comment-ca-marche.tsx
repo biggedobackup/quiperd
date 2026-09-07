@@ -13,8 +13,8 @@ const routeParent = getRouteApi('/_public')
 export const Route = createFileRoute('/_public/comment-ca-marche')({
   head: () => ({
     meta: [
-      { title: 'Comment ça marche — QUI PERD' },
-      { name: 'description', content: 'Créer un défi, rejoindre, jouer, déclarer le résultat, envoyer une preuve : le parcours complet d’un défi QUI PERD et le règlement des mises.' },
+      { title: 'Comment ça marche — Défis en Ligne' },
+      { name: 'description', content: 'Créer un défi, rejoindre, jouer, déclarer le résultat, envoyer une preuve : le parcours complet d’un défi Défis en Ligne et le règlement des mises.' },
     ],
   }),
   component: CommentCaMarche,
@@ -57,7 +57,7 @@ function CommentCaMarche() {
               <Ligne libelle="Mise de Kader225 (bloquée)" valeur={formatMontant(mise)} />
               <Ligne libelle="Mise de Moussa10 (bloquée)" valeur={formatMontant(mise)} />
               <Ligne libelle="Total en séquestre" valeur={formatMontant(total)} fort />
-              <Ligne libelle={`Commission QUI PERD (${formatPourcentage(regles.commissionDefi)})`} valeur={`− ${formatMontant(commission)}`} />
+              <Ligne libelle={`Commission Défis en Ligne (${formatPourcentage(regles.commissionDefi)})`} valeur={`− ${formatMontant(commission)}`} />
               <Ligne libelle="Gain crédité au gagnant" valeur={formatMontant(gain)} fort volt />
             </dl>
             <p className="mt-4 flex items-start gap-2 text-legende text-muet">

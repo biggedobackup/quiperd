@@ -120,7 +120,7 @@ class _InscriptionEcranState extends State<InscriptionEcran> {
                 const SizedBox(height: 28),
                 ChampTexte(
                   controleur: _pseudo,
-                  label: 'Pseudo QUI PERD',
+                  label: 'Pseudo Défis en Ligne',
                   placeholder: 'kader225',
                   icone: Icons.person_outline,
                   saisieAutomatique: const [AutofillHints.username],

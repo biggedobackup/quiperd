@@ -24,7 +24,7 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
         <EnTeteSection
           numero={numero}
           titre={complete ? 'Tout le catalogue' : 'Jeux disponibles'}
-          intro={`${jeux.length} jeux compétitifs répartis en ${groupes.length} catégories, jouables sur ${plateformes.length} plateformes. Le catalogue est géré par l’équipe QUI PERD et suit les sorties.`}
+          intro={`${jeux.length} jeux compétitifs répartis en ${groupes.length} catégories, jouables sur ${plateformes.length} plateformes. Le catalogue est géré par l’équipe Défis en Ligne et suit les sorties.`}
         />
 
         {familles.length > 0 && (

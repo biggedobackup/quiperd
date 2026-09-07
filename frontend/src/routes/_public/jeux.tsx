@@ -11,10 +11,10 @@ const routeParent = getRouteApi('/_public')
 export const Route = createFileRoute('/_public/jeux')({
   head: () => ({
     meta: [
-      { title: 'Jeux & plateformes — QUI PERD' },
+      { title: 'Jeux & plateformes — Défis en Ligne' },
       {
         name: 'description',
-        content: 'Le catalogue des jeux (sport, combat, course, tir, stratégie, cartes, arcade) et des plateformes (PC, consoles, mobile) sur lesquels lancer un défi QUI PERD.',
+        content: 'Le catalogue des jeux (sport, combat, course, tir, stratégie, cartes, arcade) et des plateformes (PC, consoles, mobile) sur lesquels lancer un défi Défis en Ligne.',
       },
     ],
   }),
@@ -35,7 +35,7 @@ function PageJeux() {
           fond="noir"
           surtitre="Catalogue"
           titre="Jeux & plateformes."
-          intro="Vous jouez avec vos propres identifiants sur PC, console ou mobile ; QUI PERD ne fait que tenir les comptes et l’argent."
+          intro="Vous jouez avec vos propres identifiants sur PC, console ou mobile ; Défis en Ligne ne fait que tenir les comptes et l’argent."
         >
           {connecte ? (
             <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>

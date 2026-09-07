@@ -3,7 +3,7 @@
 // Elle sert à prouver une chose qu'aucun appel en HTTP en clair ne peut prouver : que
 // l'application mobile joint bien un serveur interne dont le certificat n'est signé par
 // aucune autorité connue de l'appareil. C'est la situation de tous les serveurs internes
-// de QUI PERD (poste de développement, machine de recette, API derrière un reverse proxy
+// de Défis en Ligne (poste de développement, machine de recette, API derrière un reverse proxy
 // maison), et sans le mode permissif de `mobile/lib/noyau/reseau.dart`, Dart coupe la
 // poignée de main (`CERTIFICATE_VERIFY_FAILED`) et l'application paraît hors ligne.
 //
@@ -109,7 +109,7 @@ func fabriquerCertificat() (tls.Certificate, string, []string, error) {
 
 	modele := x509.Certificate{
 		SerialNumber:          serie,
-		Subject:               pkix.Name{CommonName: "quiperd-recette", Organization: []string{"QUI PERD (recette)"}},
+		Subject:               pkix.Name{CommonName: "quiperd-recette", Organization: []string{"Défis en Ligne (recette)"}},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,

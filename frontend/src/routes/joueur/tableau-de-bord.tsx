@@ -16,7 +16,7 @@ import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/tableau-de-bord')({
-  head: () => ({ meta: [{ title: 'Tableau de bord — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Tableau de bord — Défis en Ligne' }] }),
   // Toutes les données affichées sont attendues ici, et pas seulement le solde.
   // Sinon chaque section (matchs en cours, défis ouverts, notifications) se peint
   // d'abord en squelette puis se remplace : c'est le clignotement qu'on voit en

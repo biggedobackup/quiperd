@@ -31,7 +31,7 @@ import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/profil')({
-  head: () => ({ meta: [{ title: 'Profil — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Profil — Défis en Ligne' }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(optionsJeux()),

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Palette de QUI PERD — transcription littérale du bloc `@theme` de
+/// Palette de Défis en Ligne — transcription littérale du bloc `@theme` de
 /// `frontend/src/styles/app.css`. C'est la SEULE source de couleurs de
 /// l'application : aucune valeur hexadécimale n'est écrite dans un widget.
 ///

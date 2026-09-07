@@ -20,8 +20,8 @@ const routeParent = getRouteApi('/_public')
 export const Route = createFileRoute('/_public/')({
   head: () => ({
     meta: [
-      { title: 'QUI PERD — Défiez un adversaire, misez, le gagnant remporte tout' },
-      { property: 'og:title', content: 'QUI PERD — le défi entre gamers' },
+      { title: 'Défis en Ligne — Défiez un adversaire, misez, le gagnant remporte tout' },
+      { property: 'og:title', content: 'Défis en Ligne — le défi entre gamers' },
       {
         name: 'description',
         content:

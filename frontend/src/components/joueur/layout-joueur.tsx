@@ -89,7 +89,7 @@ function Sidebar({ nonLues }: { nonLues: number }) {
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-[76px] flex-col bg-encre text-craie md:flex lg:w-[264px]">
       {/*
         Rail de 76 px (md → lg) : 76 − 2 px de bordure droite − 2 × 16 px de padding = 42 px utiles.
-        Le logotype complet `sm` (carré 24 px + gap 10 px + « QUI PERD » ≈ 90 px ≈ 124 px) y débordait
+        Le logotype complet `sm` (carré 24 px + gap 10 px + « Défis en Ligne » ≈ 90 px ≈ 124 px) y débordait
         et se peignait par-dessus le header (z-30 > z-20) : on n'y montre que la marque (carré de
         28,8 px), centrée. Le nom complet n'apparaît qu'à partir de lg, où le rail fait 264 px.
       */}

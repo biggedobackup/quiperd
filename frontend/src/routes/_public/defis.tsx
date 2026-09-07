@@ -20,7 +20,7 @@ const routeParent = getRouteApi('/_public')
 export const Route = createFileRoute('/_public/defis')({
   head: () => ({
     meta: [
-      { title: 'Défis ouverts — QUI PERD' },
+      { title: 'Défis ouverts — Défis en Ligne' },
       {
         name: 'description',
         content: 'Tous les défis en attente d’un adversaire, en direct : choisissez votre jeu, votre plateforme, votre mise et rejoignez la partie.',

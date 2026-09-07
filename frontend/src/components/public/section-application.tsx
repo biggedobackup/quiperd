@@ -20,7 +20,7 @@ export function SectionApplication({ liens, numero = '02' }: { liens: LiensAppli
       <Conteneur>
         <EnTeteSection
           numero={numero}
-          titre="L’application QUI PERD"
+          titre="L’application Défis en Ligne"
           intro="Vos défis, vos matchs et votre solde dans la poche. Les notifications vous préviennent dès qu’un adversaire rejoint, déclare un résultat ou qu’un gain est crédité."
         />
         {/*

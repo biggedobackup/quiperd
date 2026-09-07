@@ -1,4 +1,4 @@
-// Package courriel envoie les e-mails transactionnels de QUI PERD (code de confirmation
+// Package courriel envoie les e-mails transactionnels de Défis en Ligne (code de confirmation
 // d'inscription, réinitialisation de mot de passe, accusés de retrait).
 //
 // Règles du paquet :
@@ -208,7 +208,7 @@ func transmettre(destinataire string, corps []byte) error {
 	return client.Quit()
 }
 
-// adresseExpediteur extrait l'adresse nue de EMAIL_EXPEDITEUR (« QUI PERD <no-reply@… > »)
+// adresseExpediteur extrait l'adresse nue de EMAIL_EXPEDITEUR (« Défis en Ligne <no-reply@… > »)
 // pour l'enveloppe SMTP ; l'en-tête From garde le nom d'affichage.
 func adresseExpediteur() (string, error) {
 	a, err := mail.ParseAddress(strings.TrimSpace(config.Cfg.EmailExpediteur))

@@ -60,6 +60,14 @@ definitions:
         type: string
       email:
         type: string
+      emailVerifie:
+        description: |-
+          EmailVerifie : l'adresse a été confirmée par le code à 6 chiffres envoyé à
+          l'inscription (POST /auth/verification-email). Tant qu'il vaut false, le joueur
+          peut déposer de l'argent mais ne peut ni créer/rejoindre un défi ni demander un
+          retrait. Les comptes antérieurs à la migration sont passés à true (voir
+          migrations.preparerVerificationEmail) : personne n'est bloqué rétroactivement.
+        type: boolean
       id:
         type: string
       nomUtilisateur:
@@ -71,6 +79,45 @@ definitions:
       statut:
         type: string
       telephone:
+        type: string
+    type: object
+  auth.entreeVerificationEmail:
+    properties:
+      code:
+        type: string
+    required:
+    - code
+    type: object
+  classement.Ligne:
+    properties:
+      devise:
+        type: string
+      gains:
+        type: number
+      matchs:
+        type: integer
+      nomUtilisateur:
+        type: string
+      pays:
+        type: string
+      photoProfil:
+        type: string
+      rang:
+        type: integer
+      utilisateurId:
+        type: string
+      victoires:
+        type: integer
+    type: object
+  classement.Reponse:
+    properties:
+      elements:
+        items:
+          $ref: '#/definitions/classement.Ligne'
+        type: array
+      moi:
+        $ref: '#/definitions/classement.Ligne'
+      periode:
         type: string
     type: object
   comptes_gamers.CompteGamer:
@@ -232,9 +279,20 @@ definitions:
         type: string
       joueur1Nom:
         type: string
+      joueur1Photo:
+        description: |-
+          Photos de profil des deux joueurs. On expose le **chemin stocké**, pas une URL : le
+          fichier est servi par une route protégée (`GET /utilisateurs/{id}/photo`) que les
+          clients construisent eux-mêmes à partir de l'identifiant du joueur. Ce champ ne sert
+          donc qu'à deux choses — savoir s'il Y A une photo (chaîne vide = aucune, on retombe
+          sur le monogramme) et servir de version pour le cache du navigateur, comme le fait
+          déjà la barre du joueur pour sa propre photo.
+        type: string
       joueur2Id:
         type: string
       joueur2Nom:
+        type: string
+      joueur2Photo:
         type: string
       manche:
         description: |-
@@ -304,6 +362,25 @@ definitions:
       utilisateurId:
         type: string
     type: object
+  paiements.PrestatairePublic:
+    properties:
+      code:
+        type: string
+      libelle:
+        type: string
+      montantMinimum:
+        description: |-
+          MontantMinimum : plancher IMPOSÉ PAR LA PASSERELLE, en francs entiers.
+          Sous ce seuil, la création est refusée par le prestataire et le joueur se
+          retrouverait avec un dépôt « en attente » que rien ne confirmera jamais :
+          les clients s'en servent pour valider avant l'envoi.
+        type: integer
+      numeroRequis:
+        description: |-
+          NumeroRequis : MoneyFusion exige `numeroSend` à la création du paiement ;
+          LigdiCash collecte le numéro sur sa propre page.
+        type: boolean
+    type: object
   plateformes.Plateforme:
     properties:
       dateCreation:
@@ -330,6 +407,18 @@ definitions:
       soldeBloque:
         type: number
       soldeDisponible:
+        type: number
+      soldeNonJoue:
+        description: |-
+          SoldeNonJoue — part du solde disponible qui vient d'un dépôt et n'a pas encore été
+          misée sur un défi. Elle N'EST PAS retirable : on ne dépose pas de l'argent pour le
+          reprendre aussitôt, il faut l'avoir engagé dans l'arène. Le solde vraiment retirable
+          est donc `SoldeDisponible − SoldeNonJoue`, exposé tel quel sous `soldeRetirable`
+          pour que les clients n'aient pas à refaire la soustraction.
+
+          Alimenté par un dépôt confirmé, consommé par une mise bloquée, et remis en place si
+          la mise revient SANS avoir été jouée (défi annulé ou expiré). Une mise qui a donné
+          lieu à un match, elle, a joué : ce qui en revient est librement retirable.
         type: number
       utilisateurId:
         type: string
@@ -403,8 +492,6 @@ definitions:
         type: string
       pays:
         type: string
-      photoProfil:
-        type: string
       statut:
         enum:
         - actif
@@ -429,6 +516,14 @@ definitions:
         type: string
       email:
         type: string
+      emailVerifie:
+        description: |-
+          EmailVerifie : l'adresse a été confirmée par le code à 6 chiffres envoyé à
+          l'inscription (POST /auth/verification-email). Tant qu'il vaut false, le joueur
+          peut déposer de l'argent mais ne peut ni créer/rejoindre un défi ni demander un
+          retrait. Les comptes antérieurs à la migration sont passés à true (voir
+          migrations.preparerVerificationEmail) : personne n'est bloqué rétroactivement.
+        type: boolean
       id:
         type: string
       nomUtilisateur:
@@ -506,9 +601,9 @@ definitions:
     type: object
 info:
   contact: {}
-  description: API de la plateforme QUI PERD (défis de match, escrow, paiements Mobile
-    Money).
-  title: QUI PERD API
+  description: API de la plateforme Défis en Ligne (défis de match, escrow, paiements
+    Mobile Money).
+  title: Défis en Ligne API
   version: "1.0"
 paths:
   /administration/configurations-financieres:
@@ -574,12 +669,6 @@ paths:
       summary: Changer son mot de passe
       tags:
       - auth
-  /auth/connexion:
-    post:
-      responses: {}
-      summary: Connexion joueur
-      tags:
-      - auth
   /auth/deconnexion:
     post:
       responses: {}
@@ -621,6 +710,90 @@ paths:
       summary: Réinitialiser le mot de passe avec un token
       tags:
       - auth
+  /auth/verification-email:
+    post:
+      parameters:
+      - description: Code reçu par e-mail
+        in: body
+        name: corps
+        required: true
+        schema:
+          $ref: '#/definitions/auth.entreeVerificationEmail'
+      responses:
+        "200":
+          description: '{ emailVerifie: true }'
+          schema:
+            additionalProperties:
+              type: boolean
+            type: object
+        "400":
+          description: code invalide, avec essaisRestants
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: adresse déjà confirmée
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: trop de tentatives
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Confirmer son adresse e-mail avec le code à 6 chiffres
+      tags:
+      - auth
+  /auth/verification-email/renvoyer:
+    post:
+      responses:
+        "200":
+          description: '{ envoye: true, prochainEnvoiDans: 60 }'
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: adresse déjà confirmée
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "429":
+          description: renvoi trop rapproché, avec prochainEnvoiDans
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Renvoyer le code de confirmation (corps vide)
+      tags:
+      - auth
+  /classement:
+    get:
+      description: Classement par gains crédités sur la période. `moi` n'est renseigné
+        que si un jeton joueur est présent ET que le joueur ne figure pas déjà dans
+        `elements`.
+      parameters:
+      - description: general (défaut), mois ou semaine
+        in: query
+        name: periode
+        type: string
+      - description: Nombre de lignes renvoyées (1..100, défaut 50)
+        in: query
+        name: limite
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/classement.Reponse'
+      summary: Classement des joueurs (public)
+      tags:
+      - classement
   /comptes-gamers:
     get:
       responses:
@@ -823,6 +996,21 @@ paths:
         existe
       tags:
       - defis
+  /defis/{id}/public:
+    get:
+      description: |-
+        Sert les liens de partage : le destinataire voit le défi avant même d'avoir un
+        compte. Mêmes colonnes que `/defis/ouverts` — rien de plus que ce que la liste
+        publique montre déjà. Le match éventuel n'est PAS joint : il regarde deux joueurs
+        identifiés, pas un visiteur.
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/defis.DefiListe'
+      summary: Fiche publique d'un défi (lien partagé, aucune authentification)
+      tags:
+      - defis
   /defis/{id}/rejoindre:
     post:
       responses: {}
@@ -970,8 +1158,8 @@ paths:
       responses: {}
       security:
       - BearerAuth: []
-      summary: 'Déclarer le score d''un match (première déclaration : chrono de confirmation
-        ; seconde : règlement immédiat, nul ou désaccord)'
+      summary: 'Déclarer l''issue d''un match — gagne, perdu ou nul (première déclaration
+        : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)'
       tags:
       - matchs
   /matchs/{id}/litige:
@@ -1091,6 +1279,20 @@ paths:
       security:
       - BearerAuth: []
       summary: Dépôt via LigdiCash/MoneyFusion
+      tags:
+      - paiements
+  /paiements/prestataires:
+    get:
+      description: 'Les clients n''affichent que cette liste : proposer un prestataire
+        indisponible mène le joueur dans une impasse.'
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/paiements.PrestatairePublic'
+            type: array
+      summary: Moyens de paiement disponibles (public) — activés ET configurés
       tags:
       - paiements
   /paiements/retrait:
@@ -1387,12 +1589,69 @@ paths:
         email, statut, motDePasse)'
       tags:
       - utilisateurs
+  /utilisateurs/{id}/photo:
+    get:
+      description: 'Route protégée : les photos ne sont jamais servies depuis un dossier
+        statique ouvert.'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Photo de profil d'un joueur
+      tags:
+      - utilisateurs
   /utilisateurs/{id}/statut:
     patch:
       responses: {}
       security:
       - BearerAuth: []
       summary: Activer / suspendre un compte (admin)
+      tags:
+      - utilisateurs
+  /utilisateurs/moi/photo:
+    delete:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.Utilisateur'
+      security:
+      - BearerAuth: []
+      summary: Retirer sa photo de profil
+      tags:
+      - utilisateurs
+    post:
+      consumes:
+      - multipart/form-data
+      description: Le joueur téléverse un fichier ; aucune adresse externe n'est acceptée.
+        L'ancienne photo est remplacée.
+      parameters:
+      - description: Image (jpg, jpeg, png, webp, heic), 3 Mo maximum
+        in: formData
+        name: fichier
+        required: true
+        type: file
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/auth.Utilisateur'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Envoyer sa photo de profil (fichier image)
       tags:
       - utilisateurs
 securityDefinitions:

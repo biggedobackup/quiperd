@@ -21,7 +21,7 @@ import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 export const Route = createFileRoute('/_public/aide')({
   head: () => ({
     meta: [
-      { title: 'Aide & FAQ — QUI PERD' },
+      { title: 'Aide & FAQ — Défis en Ligne' },
       { name: 'description', content: 'Réponses aux questions sur les mises, le séquestre, les preuves, les litiges, les dépôts et retraits Mobile Money, et formulaire pour contacter l’équipe.' },
     ],
   }),

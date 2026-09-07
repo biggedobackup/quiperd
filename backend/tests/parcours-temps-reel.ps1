@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Parcours de recette du temps réel WebSocket de QUI PERD — plusieurs clients connectés en même
+# Parcours de recette du temps réel WebSocket de Défis en Ligne — plusieurs clients connectés en même
 # temps, comme deux joueurs sur leurs téléphones plus un visiteur du site public.
 #
 # Le serveur testé est le hub Go/Fiber (backend/tempsreel). Ce script n'est qu'un CLIENT : il utilise

@@ -19,20 +19,22 @@ export const Route = createRootRouteWithContext<ContexteRouteur>()({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'QUI PERD — Défiez un adversaire, misez, le gagnant remporte tout' },
+      { title: 'Défis en Ligne — Défiez un adversaire, misez, le gagnant remporte tout' },
       {
         name: 'description',
         content:
-          'QUI PERD connecte les gamers : créez un défi sur votre jeu, un adversaire rejoint, le gagnant remporte les deux mises.',
+          'Défis en Ligne connecte les gamers : créez un défi sur votre jeu, un adversaire rejoint, le gagnant remporte les deux mises.',
       },
-      { property: 'og:site_name', content: 'QUI PERD' },
+      { property: 'og:site_name', content: 'Défis en Ligne' },
       { property: 'og:type', content: 'website' },
       { property: 'og:image', content: `${loaderData?.siteUrl ?? ''}/og/accueil.svg` },
       { name: 'theme-color', content: '#ffffff' },
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      { rel: 'icon', href: '/icons/favicon.svg', type: 'image/svg+xml' },
+      { rel: 'icon', href: '/icons/favicon-40.png', type: 'image/png', sizes: '40x40' },
+      { rel: 'icon', href: '/icons/icone-192.png', type: 'image/png', sizes: '192x192' },
+      { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png', sizes: '180x180' },
     ],
   }),
   shellComponent: RootDocument,

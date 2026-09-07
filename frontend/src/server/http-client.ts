@@ -77,7 +77,7 @@ export async function appelBackend<T>(chemin: string, options: OptionsAppel = {}
       body,
     })
   } catch {
-    throw new ErreurApi(503, 'Le serveur QUI PERD est injoignable. Réessayez dans un instant.')
+    throw new ErreurApi(503, 'Le serveur Défis en Ligne est injoignable. Réessayez dans un instant.')
   }
 
   if (reponse.status === 204) return undefined as T

@@ -62,7 +62,7 @@ export function Footer({ connecte }: { connecte: boolean }) {
       </div>
       <div className="border-t border-trait">
         <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-legende text-muet sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span className="chiffres">© {new Date().getFullYear()} QUI PERD</span>
+          <span className="chiffres">© {new Date().getFullYear()} Défis en Ligne</span>
         </div>
       </div>
     </footer>

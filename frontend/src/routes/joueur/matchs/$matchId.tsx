@@ -65,7 +65,7 @@ import { toastErreur, toastInfo, toastSucces } from '@/components/partages/toast
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/matchs/$matchId')({
-  head: () => ({ meta: [{ title: 'Match — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Match — Défis en Ligne' }] }),
   // Les deux requêtes sont ATTENDUES, en parallèle. Un `prefetchQuery` non attendu se
   // résolvait après l'envoi du HTML mais avant l'hydratation : le serveur rendait le
   // squelette et le compteur vide, le client la liste — React signalait une différence

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'couleurs.dart';
 
-/// Échelle typographique de QUI PERD — déclarée UNE seule fois, jamais improvisée
+/// Échelle typographique de Défis en Ligne — déclarée UNE seule fois, jamais improvisée
 /// écran par écran.
 ///
 /// Identité identique au site : Unbounded pour les titres (en capitales), Manrope

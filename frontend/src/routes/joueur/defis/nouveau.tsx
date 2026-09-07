@@ -22,7 +22,7 @@ import { Textarea } from '@/components/partages/textarea/textarea'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
 export const Route = createFileRoute('/joueur/defis/nouveau')({
-  head: () => ({ meta: [{ title: 'Nouveau défi — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Nouveau défi — Défis en Ligne' }] }),
   loader: async ({ context }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(optionsJeux()),

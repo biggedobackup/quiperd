@@ -1,13 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { icone } from '@/lib/icones'
 
 export interface ProprietesLogo {
   /** `clair` sur fond encre (sidebar), `encre` sur fond craie. */
   ton?: 'encre' | 'clair'
   taille?: 'sm' | 'md' | 'lg'
   /**
-   * `complet` (défaut) : pastille + « QUI PERD ». `marque` : la pastille seule, pour les
+   * `complet` (défaut) : dessin + « Défis en Ligne ». `marque` : le dessin seul, pour les
    * conteneurs trop étroits pour le nom (rail latéral de 76 px du layout joueur). Le nom reste
    * annoncé aux lecteurs d'écran.
    */
@@ -19,29 +17,29 @@ export interface ProprietesLogo {
 const TAILLES = { sm: 'text-[15px]', md: 'text-[19px]', lg: 'text-[26px]' }
 
 /**
- * Logotype de la refonte : pastille verte arrondie portant une manette blanche, puis
- * « QUI » en noir et « PERD » en vert. Sur fond sombre, « QUI » passe en blanc.
+ * Logotype : le « D » couronné à la manette, puis « Défis en » dans la couleur du texte et
+ * « Ligne » en vert.
+ *
+ * L'image est le calque avant de l'icône d'application (`ic_launcher_foreground`), en PNG
+ * transparent : le même dessin sur l'écran d'accueil du téléphone, dans l'application mobile
+ * et ici, et il se pose aussi bien sur fond craie que sur fond encre. Ce calque réserve la
+ * marge de sécurité des icônes adaptatives Android — d’où le `2.4em`, qui compense ce vide
+ * pour que le logo pèse visuellement autant que le texte à côté.
  */
 export function Logo({ ton = 'encre', taille = 'md', variante = 'complet', lien = true, className = '' }: ProprietesLogo) {
   const contenu = (
     <span
-      className={`inline-flex items-center gap-2.5 font-titre font-extrabold uppercase tracking-tight ${TAILLES[taille]} ${
+      className={`inline-flex items-center gap-1.5 font-titre font-extrabold uppercase tracking-tight ${TAILLES[taille]} ${
         ton === 'clair' ? 'text-craie' : 'text-encre'
       } ${className}`}
     >
-      <span
-        aria-hidden="true"
-        className="flex size-[1.75em] items-center justify-center rounded-[0.45em] bg-vert text-craie"
-        style={{ fontSize: '1em' }}
-      >
-        <FontAwesomeIcon icon={icone.jeu} className="text-[0.78em]" />
-      </span>
+      <img src="/icons/logo.png" alt="" aria-hidden="true" className="size-[2.4em] shrink-0" />
       {variante === 'marque' ? (
-        /* `sr-only` est en position absolue : hors du flux, il n'ouvre pas le `gap` — la boîte visible est la pastille seule. */
-        <span className="sr-only">Qui perd</span>
+        /* `sr-only` est en position absolue : hors du flux, il n'ouvre pas le `gap` — la boîte visible est le dessin seul. */
+        <span className="sr-only">Défis en Ligne</span>
       ) : (
         <span className="leading-none">
-          Qui <span className="text-vert">perd</span>
+          Défis en <span className="text-vert">Ligne</span>
         </span>
       )}
     </span>
@@ -51,7 +49,7 @@ export function Logo({ ton = 'encre', taille = 'md', variante = 'complet', lien 
   // est plus petit. Le rendu ne bouge pas — le contenu reste centré — mais le doigt trouve la
   // cible du premier coup sur téléphone.
   return (
-    <Link to="/" aria-label="QUI PERD — accueil" className="inline-flex min-h-11 items-center">
+    <Link to="/" aria-label="Défis en Ligne — accueil" className="inline-flex min-h-11 items-center">
       {contenu}
     </Link>
   )

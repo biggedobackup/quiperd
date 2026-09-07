@@ -4,7 +4,7 @@ import { Button } from '@/components/partages/button/button'
 /**
  * Page de paiement du prestataire, affichée **dans** la plateforme.
  *
- * Le joueur ne quitte plus QUI PERD pour payer : la page hébergée s'ouvre dans un
+ * Le joueur ne quitte plus Défis en Ligne pour payer : la page hébergée s'ouvre dans un
  * cadre, et le portefeuille reste monté derrière — socket connecté. C'est ce qui
  * permet de refermer cette fenêtre tout seul dès que `paiement.statut` arrive, sans
  * que le joueur ait à revenir par lui-même.

@@ -1,5 +1,5 @@
 #Requires -Version 7
-# Parcours de test complet de l'API QUI PERD (requêtes HTTP réelles) — 20 sections, ~490 vérifications.
+# Parcours de test complet de l'API Défis en Ligne (requêtes HTTP réelles) — 20 sections, ~490 vérifications.
 # Usage : l'API doit tourner (go run . ou quiperd-backend.exe), PostgreSQL + Redis accessibles, psql dans le PATH.
 #   pwsh -File tests/parcours-api.ps1
 # Le script lit la connexion PostgreSQL dans ../.env, crée 3 joueurs (suffixe horaire) et un jeu/plateforme

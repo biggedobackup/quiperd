@@ -37,7 +37,7 @@ function chiffresDe(tampon: string): string {
 }
 
 export const Route = createFileRoute('/joueur/confirmation-email')({
-  head: () => ({ meta: [{ title: 'Confirmer mon e-mail — QUI PERD' }, { name: 'robots', content: 'noindex' }] }),
+  head: () => ({ meta: [{ title: 'Confirmer mon e-mail — Défis en Ligne' }, { name: 'robots', content: 'noindex' }] }),
   // `vers` : écran de l'espace joueur à rouvrir après confirmation (le défi qu'on voulait
   // rejoindre, le portefeuille…). `nouveau` : on arrive de l'inscription, un code vient de partir.
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput): { vers?: string; nouveau?: boolean } => ({

@@ -29,7 +29,7 @@ func CreerFactureLigdicash(p *Paiement, nomClient, email string) (urlPaiement, t
 		"commande": map[string]any{
 			"invoice": map[string]any{
 				"items": []map[string]any{{
-					"name":        "Dépôt QUI PERD",
+					"name":        "Dépôt Défis en Ligne",
 					"unit_price":  montant,
 					"total_price": montant,
 					"price":       montant,
@@ -37,13 +37,13 @@ func CreerFactureLigdicash(p *Paiement, nomClient, email string) (urlPaiement, t
 				}},
 				"total_amount":       montant,
 				"devise":             "XOF",
-				"description":        "Dépôt sur le portefeuille QUI PERD",
+				"description":        "Dépôt sur le portefeuille Défis en Ligne",
 				"customer":           "",
 				"customer_firstname": nomClient,
 				"customer_lastname":  "",
 				"customer_email":     email,
 			},
-			"store": map[string]any{"name": "QUI PERD", "website_url": cfg.SiteURL},
+			"store": map[string]any{"name": "Défis en Ligne", "website_url": cfg.SiteURL},
 			"actions": map[string]any{
 				"cancel_url":   cfg.URLRetourPortefeuille("paiement=annule"),
 				"return_url":   cfg.URLRetourPortefeuille("paiement=retour&ref=" + url.QueryEscape(p.Reference)),

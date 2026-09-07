@@ -23,7 +23,7 @@ const schema = z
 type Valeurs = z.infer<typeof schema>
 
 export const Route = createFileRoute('/_public/reinitialisation-mot-de-passe')({
-  head: () => ({ meta: [{ title: 'Nouveau mot de passe — QUI PERD' }, { name: 'robots', content: 'noindex' }] }),
+  head: () => ({ meta: [{ title: 'Nouveau mot de passe — Défis en Ligne' }, { name: 'robots', content: 'noindex' }] }),
   validateSearch: (recherche: Record<string, unknown> & SearchSchemaInput) => ({ token: typeof recherche.token === 'string' ? recherche.token : '' }),
   component: PageReinitialisation,
 })

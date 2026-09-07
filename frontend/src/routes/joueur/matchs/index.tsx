@@ -31,7 +31,7 @@ const routeJoueur = getRouteApi('/joueur')
 const STATUTS = ['', 'en_cours', 'preuve_requise', 'nul_en_attente', 'litige', 'termine'] as const
 
 export const Route = createFileRoute('/joueur/matchs/')({
-  head: () => ({ meta: [{ title: 'Mes matchs — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Mes matchs — Défis en Ligne' }] }),
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
     statut: typeof s.statut === 'string' && (STATUTS as readonly string[]).includes(s.statut) ? (s.statut as (typeof STATUTS)[number]) : '',
   }),

@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <!-- Ticket QUI PERD : carré volt à coin coupé, point d'interrogation encre -->
-  <path d="M10 0 H64 V54 L54 64 H0 V10 Z" fill="#22C55E"/>
-  <path d="M10 0 H64 V54 L54 64 H0 V10 Z" fill="none" stroke="#0E0F12" stroke-width="4"/>
-  <text x="32" y="46" text-anchor="middle" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="40" fill="#0E0F12">?</text>
-</svg>

@@ -48,7 +48,7 @@ class ApplicationQuiPerd extends StatelessWidget {
         ),
       ],
       child: MaterialApp(
-        title: 'QUI PERD',
+        title: 'Défis en Ligne',
         debugShowCheckedModeBanner: false,
         navigatorKey: cleNavigateur,
         theme: construireTheme(),

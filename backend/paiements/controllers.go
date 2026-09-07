@@ -354,7 +354,7 @@ type PrestatairePublic struct {
 //
 // MoneyFusion refuse la création sous 200 F (« Montant doit etre supérieur a
 // 200 F » — 200 passe, 100 non, vérifié contre la vraie passerelle). Le
-// plancher applicatif de QUI PERD (100 F) est plus bas : sans ce contrôle, un
+// plancher applicatif de Défis en Ligne (100 F) est plus bas : sans ce contrôle, un
 // dépôt de 100 F par MoneyFusion partirait en silence dans le vide.
 func montantMinimumPrestataire(code string) int64 {
 	if code == PrestataireFusionMoney {

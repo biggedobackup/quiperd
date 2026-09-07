@@ -119,15 +119,6 @@ const docTemplate = `{
                 "responses": {}
             }
         },
-        "/auth/connexion": {
-            "post": {
-                "tags": [
-                    "auth"
-                ],
-                "summary": "Connexion joueur",
-                "responses": {}
-            }
-        },
         "/auth/deconnexion": {
             "post": {
                 "security": [
@@ -192,6 +183,135 @@ const docTemplate = `{
                 ],
                 "summary": "Réinitialiser le mot de passe avec un token",
                 "responses": {}
+            }
+        },
+        "/auth/verification-email": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Confirmer son adresse e-mail avec le code à 6 chiffres",
+                "parameters": [
+                    {
+                        "description": "Code reçu par e-mail",
+                        "name": "corps",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/auth.entreeVerificationEmail"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "{ emailVerifie: true }",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "boolean"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "code invalide, avec essaisRestants",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "adresse déjà confirmée",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "trop de tentatives",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/verification-email/renvoyer": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "Renvoyer le code de confirmation (corps vide)",
+                "responses": {
+                    "200": {
+                        "description": "{ envoye: true, prochainEnvoiDans: 60 }",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "409": {
+                        "description": "adresse déjà confirmée",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "renvoi trop rapproché, avec prochainEnvoiDans",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/classement": {
+            "get": {
+                "description": "Classement par gains crédités sur la période. ` + "`" + `moi` + "`" + ` n'est renseigné que si un jeton joueur est présent ET que le joueur ne figure pas déjà dans ` + "`" + `elements` + "`" + `.",
+                "tags": [
+                    "classement"
+                ],
+                "summary": "Classement des joueurs (public)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "general (défaut), mois ou semaine",
+                        "name": "periode",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Nombre de lignes renvoyées (1..100, défaut 50)",
+                        "name": "limite",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/classement.Reponse"
+                        }
+                    }
+                }
             }
         },
         "/comptes-gamers": {
@@ -536,6 +656,23 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/defis/{id}/public": {
+            "get": {
+                "description": "Sert les liens de partage : le destinataire voit le défi avant même d'avoir un\ncompte. Mêmes colonnes que ` + "`" + `/defis/ouverts` + "`" + ` — rien de plus que ce que la liste\npublique montre déjà. Le match éventuel n'est PAS joint : il regarde deux joueurs\nidentifiés, pas un visiteur.",
+                "tags": [
+                    "defis"
+                ],
+                "summary": "Fiche publique d'un défi (lien partagé, aucune authentification)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/defis.DefiListe"
+                        }
+                    }
+                }
+            }
+        },
         "/defis/{id}/rejoindre": {
             "post": {
                 "security": [
@@ -755,7 +892,7 @@ const docTemplate = `{
                 "tags": [
                     "matchs"
                 ],
-                "summary": "Déclarer le score d'un match (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)",
+                "summary": "Déclarer l'issue d'un match — gagne, perdu ou nul (première déclaration : chrono de confirmation ; seconde : règlement immédiat, nul ou désaccord)",
                 "responses": {}
             }
         },
@@ -942,6 +1079,26 @@ const docTemplate = `{
                 ],
                 "summary": "Dépôt via LigdiCash/MoneyFusion",
                 "responses": {}
+            }
+        },
+        "/paiements/prestataires": {
+            "get": {
+                "description": "Les clients n'affichent que cette liste : proposer un prestataire indisponible mène le joueur dans une impasse.",
+                "tags": [
+                    "paiements"
+                ],
+                "summary": "Moyens de paiement disponibles (public) — activés ET configurés",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/paiements.PrestatairePublic"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/paiements/retrait": {
@@ -1305,6 +1462,66 @@ const docTemplate = `{
                 }
             }
         },
+        "/utilisateurs/moi/photo": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Le joueur téléverse un fichier ; aucune adresse externe n'est acceptée. L'ancienne photo est remplacée.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "tags": [
+                    "utilisateurs"
+                ],
+                "summary": "Envoyer sa photo de profil (fichier image)",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image (jpg, jpeg, png, webp, heic), 3 Mo maximum",
+                        "name": "fichier",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.Utilisateur"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "tags": [
+                    "utilisateurs"
+                ],
+                "summary": "Retirer sa photo de profil",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/auth.Utilisateur"
+                        }
+                    }
+                }
+            }
+        },
         "/utilisateurs/{id}": {
             "get": {
                 "security": [
@@ -1399,6 +1616,35 @@ const docTemplate = `{
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/utilisateurs/{id}/photo": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Route protégée : les photos ne sont jamais servies depuis un dossier statique ouvert.",
+                "tags": [
+                    "utilisateurs"
+                ],
+                "summary": "Photo de profil d'un joueur",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
@@ -1512,6 +1758,10 @@ const docTemplate = `{
                 "email": {
                     "type": "string"
                 },
+                "emailVerifie": {
+                    "description": "EmailVerifie : l'adresse a été confirmée par le code à 6 chiffres envoyé à\nl'inscription (POST /auth/verification-email). Tant qu'il vaut false, le joueur\npeut déposer de l'argent mais ne peut ni créer/rejoindre un défi ni demander un\nretrait. Les comptes antérieurs à la migration sont passés à true (voir\nmigrations.preparerVerificationEmail) : personne n'est bloqué rétroactivement.",
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "string"
                 },
@@ -1528,6 +1778,66 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "telephone": {
+                    "type": "string"
+                }
+            }
+        },
+        "auth.entreeVerificationEmail": {
+            "type": "object",
+            "required": [
+                "code"
+            ],
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "classement.Ligne": {
+            "type": "object",
+            "properties": {
+                "devise": {
+                    "type": "string"
+                },
+                "gains": {
+                    "type": "number"
+                },
+                "matchs": {
+                    "type": "integer"
+                },
+                "nomUtilisateur": {
+                    "type": "string"
+                },
+                "pays": {
+                    "type": "string"
+                },
+                "photoProfil": {
+                    "type": "string"
+                },
+                "rang": {
+                    "type": "integer"
+                },
+                "utilisateurId": {
+                    "type": "string"
+                },
+                "victoires": {
+                    "type": "integer"
+                }
+            }
+        },
+        "classement.Reponse": {
+            "type": "object",
+            "properties": {
+                "elements": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/classement.Ligne"
+                    }
+                },
+                "moi": {
+                    "$ref": "#/definitions/classement.Ligne"
+                },
+                "periode": {
                     "type": "string"
                 }
             }
@@ -1757,10 +2067,17 @@ const docTemplate = `{
                 "joueur1Nom": {
                     "type": "string"
                 },
+                "joueur1Photo": {
+                    "description": "Photos de profil des deux joueurs. On expose le **chemin stocké**, pas une URL : le\nfichier est servi par une route protégée (` + "`" + `GET /utilisateurs/{id}/photo` + "`" + `) que les\nclients construisent eux-mêmes à partir de l'identifiant du joueur. Ce champ ne sert\ndonc qu'à deux choses — savoir s'il Y A une photo (chaîne vide = aucune, on retombe\nsur le monogramme) et servir de version pour le cache du navigateur, comme le fait\ndéjà la barre du joueur pour sa propre photo.",
+                    "type": "string"
+                },
                 "joueur2Id": {
                     "type": "string"
                 },
                 "joueur2Nom": {
+                    "type": "string"
+                },
+                "joueur2Photo": {
                     "type": "string"
                 },
                 "manche": {
@@ -1861,6 +2178,25 @@ const docTemplate = `{
                 }
             }
         },
+        "paiements.PrestatairePublic": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "libelle": {
+                    "type": "string"
+                },
+                "montantMinimum": {
+                    "description": "MontantMinimum : plancher IMPOSÉ PAR LA PASSERELLE, en francs entiers.\nSous ce seuil, la création est refusée par le prestataire et le joueur se\nretrouverait avec un dépôt « en attente » que rien ne confirmera jamais :\nles clients s'en servent pour valider avant l'envoi.",
+                    "type": "integer"
+                },
+                "numeroRequis": {
+                    "description": "NumeroRequis : MoneyFusion exige ` + "`" + `numeroSend` + "`" + ` à la création du paiement ;\nLigdiCash collecte le numéro sur sa propre page.",
+                    "type": "boolean"
+                }
+            }
+        },
         "plateformes.Plateforme": {
             "type": "object",
             "properties": {
@@ -1900,6 +2236,10 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "soldeDisponible": {
+                    "type": "number"
+                },
+                "soldeNonJoue": {
+                    "description": "SoldeNonJoue — part du solde disponible qui vient d'un dépôt et n'a pas encore été\nmisée sur un défi. Elle N'EST PAS retirable : on ne dépose pas de l'argent pour le\nreprendre aussitôt, il faut l'avoir engagé dans l'arène. Le solde vraiment retirable\nest donc ` + "`" + `SoldeDisponible − SoldeNonJoue` + "`" + `, exposé tel quel sous ` + "`" + `soldeRetirable` + "`" + `\npour que les clients n'aient pas à refaire la soustraction.\n\nAlimenté par un dépôt confirmé, consommé par une mise bloquée, et remis en place si\nla mise revient SANS avoir été jouée (défi annulé ou expiré). Une mise qui a donné\nlieu à un match, elle, a joué : ce qui en revient est librement retirable.",
                     "type": "number"
                 },
                 "utilisateurId": {
@@ -2007,9 +2347,6 @@ const docTemplate = `{
                 "pays": {
                     "type": "string"
                 },
-                "photoProfil": {
-                    "type": "string"
-                },
                 "statut": {
                     "type": "string",
                     "enum": [
@@ -2045,6 +2382,10 @@ const docTemplate = `{
                 },
                 "email": {
                     "type": "string"
+                },
+                "emailVerifie": {
+                    "description": "EmailVerifie : l'adresse a été confirmée par le code à 6 chiffres envoyé à\nl'inscription (POST /auth/verification-email). Tant qu'il vaut false, le joueur\npeut déposer de l'argent mais ne peut ni créer/rejoindre un défi ni demander un\nretrait. Les comptes antérieurs à la migration sont passés à true (voir\nmigrations.preparerVerificationEmail) : personne n'est bloqué rétroactivement.",
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "string"
@@ -2177,8 +2518,8 @@ var SwaggerInfo = &swag.Spec{
 	Host:             "",
 	BasePath:         "/api",
 	Schemes:          []string{},
-	Title:            "QUI PERD API",
-	Description:      "API de la plateforme QUI PERD (défis de match, escrow, paiements Mobile Money).",
+	Title:            "Défis en Ligne API",
+	Description:      "API de la plateforme Défis en Ligne (défis de match, escrow, paiements Mobile Money).",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

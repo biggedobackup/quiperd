@@ -18,7 +18,7 @@ export function questionsFrequentes(regles: ReglesFinancieres): QuestionReponse[
     },
     {
       question: 'Combien puis-je miser ?',
-      reponse: `Entre ${formatMontant(regles.miseMinimale)} et ${formatMontant(regles.miseMaximale)} par joueur et par défi. Ces bornes sont fixées par l’équipe QUI PERD et peuvent évoluer.`,
+      reponse: `Entre ${formatMontant(regles.miseMinimale)} et ${formatMontant(regles.miseMaximale)} par joueur et par défi. Ces bornes sont fixées par l’équipe Défis en Ligne et peuvent évoluer.`,
     },
     {
       question: 'Que gagne le vainqueur ?',
@@ -41,7 +41,7 @@ export function questionsFrequentes(regles: ReglesFinancieres): QuestionReponse[
     {
       question: 'Puis-je jouer sur mobile ?',
       reponse:
-        'Oui : l’espace joueur du site fonctionne sur téléphone, et une application mobile QUI PERD utilise la même plateforme. Vos défis, votre portefeuille et vos notifications sont identiques partout.',
+        'Oui : l’espace joueur du site fonctionne sur téléphone, et une application mobile Défis en Ligne utilise la même plateforme. Vos défis, votre portefeuille et vos notifications sont identiques partout.',
     },
   ]
 }

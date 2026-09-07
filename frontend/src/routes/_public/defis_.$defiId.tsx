@@ -41,7 +41,7 @@ export const Route = createFileRoute('/_public/defis_/$defiId')({
     // jeu et la mise, pas avec une vignette vide.
     return {
       meta: [
-        { title: `${titre} — QUI PERD` },
+        { title: `${titre} — Défis en Ligne` },
         { name: 'description', content: description },
         { property: 'og:title', content: titre },
         { property: 'og:description', content: description },

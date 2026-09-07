@@ -43,7 +43,7 @@ export function CadreAuth({
 }) {
   return (
     <div className="grid min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <aside className="hidden border-r border-trait bg-craie px-10 py-10 lg:flex xl:px-14" aria-label="Pourquoi QUI PERD">
+      <aside className="hidden border-r border-trait bg-craie px-10 py-10 lg:flex xl:px-14" aria-label="Pourquoi Défis en Ligne">
         <div className="mx-auto flex w-full min-w-0 max-w-lg flex-col justify-between gap-10">
           <Logo taille="lg" />
 

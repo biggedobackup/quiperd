@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Quiperd</string>
+	<string>Défis en Ligne</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -58,7 +58,7 @@
 	</dict>
 	<!-- iOS 14+ demande l'accord du joueur avant de joindre une machine du réseau local. -->
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>QUI PERD se connecte au serveur de la plateforme sur votre réseau local.</string>
+	<string>Défis en Ligne se connecte au serveur de la plateforme sur votre réseau local.</string>
 	<!-- Lien profond par schéma propre : quiperd://defis/<id> ouvre la fiche du défi.
 	     Le lien https, lui, demande un « Universal Link » : capacité Associated Domains dans
 	     Xcode (applinks:quiperd.com) ET un fichier apple-app-site-association servi par le

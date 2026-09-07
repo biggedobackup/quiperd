@@ -140,7 +140,7 @@ func Charger() *Config {
 		FCMCredentialsFile: getEnv("FCM_CREDENTIALS_FILE", ""),
 
 		EmailActif:      getEnvBool("EMAIL_ACTIF", false),
-		EmailExpediteur: getEnv("EMAIL_EXPEDITEUR", "QUI PERD <no-reply@quiperd.local>"),
+		EmailExpediteur: getEnv("EMAIL_EXPEDITEUR", "Défis en Ligne <no-reply@quiperd.local>"),
 		SMTPHote:        getEnv("SMTP_HOTE", ""),
 		SMTPPort:        getEnv("SMTP_PORT", "587"),
 		SMTPUtilisateur: getEnv("SMTP_UTILISATEUR", ""),

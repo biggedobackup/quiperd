@@ -207,7 +207,7 @@ export function Header({ connecte }: { connecte: boolean }) {
           {/* Barre du menu : même gabarit que celle du header, mais membre de l'overlay fixe. */}
           <div className="shrink-0 border-b border-trait bg-craie">
             <div className={CLASSES_BARRE}>
-              <Link to="/" aria-label="QUI PERD — accueil" className="inline-flex" onClick={fermerParLien}>
+              <Link to="/" aria-label="Défis en Ligne — accueil" className="inline-flex" onClick={fermerParLien}>
                 <Logo lien={false} />
               </Link>
               <button

@@ -26,7 +26,7 @@ const routeJoueur = getRouteApi('/joueur')
 const MAX_SALONS_MATCHS = 30
 
 export const Route = createFileRoute('/joueur/litiges')({
-  head: () => ({ meta: [{ title: 'Mes litiges — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Mes litiges — Défis en Ligne' }] }),
   loader: async ({ context }) => {
     await Promise.all([context.queryClient.ensureQueryData(optionsLitiges()), context.queryClient.ensureQueryData(optionsMatchs())])
   },

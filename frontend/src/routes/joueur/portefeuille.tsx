@@ -31,7 +31,7 @@ import { toastErreur, toastInfo, toastSucces } from '@/components/partages/toast
 const routeJoueur = getRouteApi('/joueur')
 
 export const Route = createFileRoute('/joueur/portefeuille')({
-  head: () => ({ meta: [{ title: 'Portefeuille — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Portefeuille — Défis en Ligne' }] }),
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput) => ({
     page: typeof s.page === 'number' && s.page > 0 ? s.page : 1,
     paiement: typeof s.paiement === 'string' ? s.paiement : undefined,
@@ -207,7 +207,7 @@ function PagePortefeuille() {
         return
       }
       if (r.donnees.urlPaiement) {
-        // Le joueur reste sur QUI PERD : la page hébergée s'ouvre dans une fenêtre
+        // Le joueur reste sur Défis en Ligne : la page hébergée s'ouvre dans une fenêtre
         // de la plateforme, et le socket dira ici même comment le paiement finit.
         suivreLePaiement(r.donnees.paiement, r.donnees.urlPaiement)
         setPaiementOuvert({ url: r.donnees.urlPaiement, id: r.donnees.paiement.id })

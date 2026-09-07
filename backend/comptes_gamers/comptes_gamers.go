@@ -1,4 +1,4 @@
-// Package comptes_gamers relie le compte QUI PERD à l'identifiant du joueur
+// Package comptes_gamers relie le compte Défis en Ligne à l'identifiant du joueur
 // dans chaque jeu/plateforme.
 package comptes_gamers
 

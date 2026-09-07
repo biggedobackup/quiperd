@@ -18,7 +18,7 @@ const schema = z.object({ email: z.email(MESSAGES.email) })
 type Valeurs = z.infer<typeof schema>
 
 export const Route = createFileRoute('/_public/mot-de-passe-oublie')({
-  head: () => ({ meta: [{ title: 'Mot de passe oublié — QUI PERD' }, { name: 'robots', content: 'noindex' }] }),
+  head: () => ({ meta: [{ title: 'Mot de passe oublié — Défis en Ligne' }, { name: 'robots', content: 'noindex' }] }),
   beforeLoad: () => gardeInvite(),
   component: PageMotDePasseOublie,
 })

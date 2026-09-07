@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# QUI PERD — image du backend Go. Binaire statique (CGO désactivé), image finale Alpine minimale.
+# Défis en Ligne — image du backend Go. Binaire statique (CGO désactivé), image finale Alpine minimale.
 # Construit par docker compose (deploy/docker-compose.yml) depuis ~/dev/backend.
 
 # Étiquette de version MINEURE volontairement flottante (1.26, pas 1.26.0) : chaque

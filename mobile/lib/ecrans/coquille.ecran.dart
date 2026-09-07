@@ -432,7 +432,7 @@ class _Tiroir extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
               child: Text(
-                'QUI PERD — celui qui perd le match perd sa mise.',
+                'Défis en Ligne — celui qui perd le match perd sa mise.',
                 style: Typo.petit,
               ),
             ),

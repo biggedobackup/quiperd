@@ -39,7 +39,7 @@ interface Recherche {
 }
 
 export const Route = createFileRoute('/joueur/defis/')({
-  head: () => ({ meta: [{ title: 'Défis — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Défis — Défis en Ligne' }] }),
   // `& SearchSchemaInput` : les paramètres d'entrée sont tous optionnels (un <Link> sans `search` reste valide).
   validateSearch: (s: Record<string, unknown> & SearchSchemaInput): Recherche => ({
     onglet: s.onglet === 'mes' ? 'mes' : 'ouverts',

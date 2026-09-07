@@ -1,4 +1,4 @@
-// Outil de recette : MONTÉE EN CHARGE du socle temps réel et des défis de QUI PERD.
+// Outil de recette : MONTÉE EN CHARGE du socle temps réel et des défis de Défis en Ligne.
 //
 // Ce programme n'est qu'un CLIENT : il n'importe aucun paquet du backend, ne touche jamais la
 // base et ne connaît aucun secret. Il peut donc viser indifféremment l'API locale ou le site en
@@ -1098,7 +1098,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Println(`Montée en charge QUI PERD — deux sous-commandes :
+	fmt.Println(`Montée en charge Défis en Ligne — deux sous-commandes :
 
   sockets   combien de joueurs tiennent en même temps sur le socket temps réel,
             et en combien de temps un défi créé leur parvient à tous.

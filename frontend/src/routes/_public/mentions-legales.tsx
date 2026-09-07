@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { PageLegale } from '@/components/public/page-legale'
 
 export const Route = createFileRoute('/_public/mentions-legales')({
-  head: () => ({ meta: [{ title: 'Mentions légales — QUI PERD' }] }),
+  head: () => ({ meta: [{ title: 'Mentions légales — Défis en Ligne' }] }),
   component: () => (
     <PageLegale
       titre="Mentions légales"
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/_public/mentions-legales')({
       sections={[
         {
           titre: 'Éditeur',
-          contenu: <p>QUI PERD — plateforme de défis entre joueurs. Contact : support@quiperd.com. Les informations d’immatriculation et l’adresse du siège sont complétées avant l’ouverture publique du service.</p>,
+          contenu: <p>Défis en Ligne — plateforme de défis entre joueurs. Contact : support@quiperd.com. Les informations d’immatriculation et l’adresse du siège sont complétées avant l’ouverture publique du service.</p>,
         },
         {
           titre: 'Hébergement',
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_public/mentions-legales')({
         },
         {
           titre: 'Propriété intellectuelle',
-          contenu: <p>Les jeux proposés dans le catalogue sont des marques de leurs éditeurs respectifs. QUI PERD n’est affilié à aucun d’eux et n’organise pas les parties.</p>,
+          contenu: <p>Les jeux proposés dans le catalogue sont des marques de leurs éditeurs respectifs. Défis en Ligne n’est affilié à aucun d’eux et n’organise pas les parties.</p>,
         },
         {
           titre: 'Jeu responsable',

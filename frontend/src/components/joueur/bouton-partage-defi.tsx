@@ -29,7 +29,7 @@ export function BoutonPartageDefi({ defiId, className = '' }: { defiId: string; 
     // vers l'hôte par lequel le joueur est réellement passé.
     const lien = `${window.location.origin}/defis/${defiId}`
     const donnees = {
-      title: 'Un défi vous attend sur QUI PERD',
+      title: 'Un défi vous attend sur Défis en Ligne',
       text: 'Rejoignez ce défi : celui qui perd le match perd sa mise.',
       url: lien,
     }
