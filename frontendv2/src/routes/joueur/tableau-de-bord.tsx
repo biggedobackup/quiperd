@@ -11,7 +11,6 @@ import { LienBouton } from '@/components/partages/button/button'
 import { CompteurAnime } from '@/components/partages/compteur-anime/compteur-anime'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonCarte, SkeletonTexte } from '@/components/partages/skeleton/skeleton'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 
 const routeJoueur = getRouteApi('/joueur')
 
@@ -51,8 +50,15 @@ function TableauDeBord() {
         }
       />
 
-      <Cascade className="grid gap-4 md:grid-cols-3">
-        <ElementCascade className="md:col-span-2">
+      {/*
+        Aucune animation d'entrée sur cette page : le tableau de bord est le premier
+        écran après la connexion et celui sur lequel on revient sans arrêt. Voir ses
+        blocs se remettre en place à chaque passage donne l'impression que la page se
+        recharge. Les animations restent là où elles disent quelque chose : un défi qui
+        entre dans la liste en direct, un solde qui vient de bouger.
+      */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-2">
           <div className="flex h-full flex-col justify-between rounded-2xl bg-encre p-6 text-craie">
             <div className="flex items-start justify-between">
               <span className="etiquette text-craie/60">Solde disponible</span>
@@ -60,19 +66,19 @@ function TableauDeBord() {
                 <FontAwesomeIcon icon={icone.portefeuille} />
               </span>
             </div>
-            <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} className="mt-4 text-display-sm font-bold text-volt md:text-display-md" />
+            <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} animerAuMontage={false} className="mt-4 text-display-sm font-bold text-volt md:text-display-md" />
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-craie/15 pt-4 text-legende text-craie/70">
               <span>
                 Bloqué en séquestre :{' '}
-                <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} className="font-bold text-craie" />
+                <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} animerAuMontage={false} className="font-bold text-craie" />
               </span>
               <Link to="/joueur/portefeuille" className="etiquette ml-auto flex min-h-11 items-center gap-1 text-volt hover:underline">
                 Historique <FontAwesomeIcon icon={icone.suivant} />
               </Link>
             </div>
           </div>
-        </ElementCascade>
-        <ElementCascade>
+        </div>
+        <div>
           <div className="flex h-full flex-col rounded-2xl border border-trait bg-papier p-5">
             <div className="flex items-center justify-between">
               <span className="etiquette text-muet">Notifications</span>
@@ -98,8 +104,8 @@ function TableauDeBord() {
               <p className="mt-4 text-legende text-muet">Aucune notification pour l’instant.</p>
             )}
           </div>
-        </ElementCascade>
-      </Cascade>
+        </div>
+      </div>
 
       <section className="mt-10">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">

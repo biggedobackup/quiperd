@@ -825,3 +825,21 @@ l'ancienne. Deux réglages ferment ce trou, et il faut les deux :
   `optionsSessionJoueur` / `optionsSessionAdmin` (cache d'une minute) : mesuré, une
   navigation coûtait 3 appels RPC, puis 1, puis **0**. La sécurité ne bouge pas — le backend
   refuse tout jeton invalide (401 → redirection) et la déconnexion vide le cache.
+
+### Où les animations ont leur place, et où elles n'en ont pas
+
+Décision de l'utilisateur sur le **tableau de bord joueur** : plus aucune animation à
+l'arrivée sur la page. Ni cascade des blocs, ni solde qui repart de « 0 FCFA » pour
+compter jusqu'à sa valeur.
+
+La raison tient au rôle de cet écran : c'est le premier après la connexion et celui sur
+lequel on revient sans cesse. Des blocs qui se remettent en place à chaque passage donnent
+l'impression que la page se recharge, et un solde qui affiche brièvement zéro se lit comme
+une donnée fausse avant d'être la bonne — sur une plateforme d'argent, c'est le pire
+endroit pour ça.
+
+Le mouvement reste là où il **dit** quelque chose : un défi qui entre dans la liste en
+direct, une ligne d'historique qui arrive avec sa pastille « Nouveau », un solde qui vient
+de bouger. `CompteurAnime` garde donc son animation sur les changements de valeur ; c'est
+seulement l'animation *au montage* qui est coupée, par `animerAuMontage={false}`. Le même
+raisonnement s'applique partout où l'on affiche de l'argent au premier rendu.
