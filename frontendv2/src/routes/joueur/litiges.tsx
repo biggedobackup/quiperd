@@ -17,6 +17,7 @@ import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastAttention, toastInfo, toastSucces } from '@/components/partages/toast/toast'
 
@@ -49,6 +50,8 @@ function PageLitiges() {
   const queryClient = useQueryClient()
   const litiges = useQuery(optionsLitiges())
   const matchs = useQuery(optionsMatchs())
+  // Squelette différé : rien si la donnée arrive vite, pas de clignotement si elle tarde.
+  const attenteLitiges = useAttenteDouce(litiges.isPending)
   const matchDe = (id: string) => matchs.data?.find((m) => m.id === id)
 
   /** Mouvements d'argent reçus en direct, rangés par match : le règlement du litige, visible. */
@@ -137,7 +140,7 @@ function PageLitiges() {
         description="Tant qu’un litige est en cours, les deux mises restent bloquées. L’arbitre règle le match au gagnant ou rend leur mise aux deux joueurs, moins la commission."
         actions={<IndicateurDirect variante="etiquette" cliquable className="self-center" />}
       />
-      {litiges.isPending ? (
+      {attenteLitiges ? (
         <SkeletonLignes lignes={3} colonnes={3} />
       ) : litiges.data && litiges.data.length > 0 ? (
         <Cascade className="space-y-3">

@@ -226,7 +226,7 @@ class _MatchsEcranState extends State<MatchsEcran> {
           ),
           const SizedBox(height: 18),
           if (_chargement)
-            const SqueletteCartes(nombre: 3)
+            const SqueletteDiffere(child: SqueletteCartes(nombre: 3))
           else if (_matchs.isEmpty)
             EtatVide(
               icone: Icons.sports_esports_outlined,

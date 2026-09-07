@@ -182,7 +182,7 @@ class _LitigesEcranState extends State<LitigesEcran> {
               ),
               const SizedBox(height: 20),
               if (_chargement)
-                const SqueletteCartes(nombre: 2, hauteur: 150)
+                const SqueletteDiffere(child: SqueletteCartes(nombre: 2, hauteur: 150))
               else if (_litiges.isEmpty)
                 const EtatVide(
                   icone: Icons.gavel_outlined,

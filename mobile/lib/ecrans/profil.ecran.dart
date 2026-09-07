@@ -357,7 +357,7 @@ class _ProfilEcranState extends State<ProfilEcran> {
           ),
           const SizedBox(height: 16),
           if (_chargementComptes)
-            const SqueletteCartes(nombre: 2, hauteur: 68)
+            const SqueletteDiffere(child: SqueletteCartes(nombre: 2, hauteur: 68))
           else if (_comptes.isEmpty)
             const EtatVide(
               icone: Icons.sports_esports_outlined,

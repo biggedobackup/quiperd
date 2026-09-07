@@ -329,7 +329,7 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
             const SizedBox(height: 14),
           ],
           if (etat.chargementTransactions)
-            const SqueletteCartes(nombre: 3, hauteur: 72)
+            const SqueletteDiffere(child: SqueletteCartes(nombre: 3, hauteur: 72))
           else if (etat.transactions.isEmpty)
             EtatVide(
               icone: Icons.swap_horiz,

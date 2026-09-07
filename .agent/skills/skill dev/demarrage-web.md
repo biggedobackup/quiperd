@@ -837,7 +837,14 @@ apparaît puis disparaît aussitôt**. Il se produit dès qu'une section est pei
 la section montre son squelette, puis le contenu le remplace. Sur un réseau rapide, cela
 donne exactement un clignotement.
 
-**Règle : tout ce qu'une route affiche est attendu dans son `loader`**, en parallèle avec
+**Règle 1 : tout squelette passe par `useAttenteDouce`**
+(`components/partages/skeleton/attente.ts`). Le crochet ne rend `true` qu'au bout de
+150 ms et le maintient au moins 350 ms : un chargement de trois images ne fait rien
+apparaître, et un squelette affiché ne bat pas de l'œil. Brancher `isPending` directement
+sur l'affichage est ce qui produit le clignotement. `DataTable` l'applique en interne,
+donc tous les tableaux (portefeuille, paiements, utilisateurs, journal) en héritent.
+
+**Règle 2 : tout ce qu'une route affiche est attendu dans son `loader`**, en parallèle avec
 `Promise.all` et `ensureQueryData` — jamais `prefetchQuery` pour une donnée effectivement
 rendue à l'écran, car le préchargement n'attend pas. C'est ce qui manquait au tableau de
 bord (matchs, défis, notifications), au profil (comptes gamers) et aux litiges (matchs).

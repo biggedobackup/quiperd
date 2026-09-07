@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactNode } from 'react'
 import { SkeletonLignes } from '../skeleton/skeleton'
+import { useAttenteDouce } from '../skeleton/attente'
 
 export interface Colonne<T> {
   cle: string
@@ -45,7 +46,12 @@ function proprietesActivation(activer: () => void) {
  * En mobile (< md), chaque ligne devient une carte « étiquette : valeur ».
  */
 export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, vide, legende, onClicLigne }: ProprietesDataTable<T>) {
-  if (chargement) return <SkeletonLignes colonnes={Math.min(colonnes.length, 5)} />
+  // Squelette différé pour TOUS les tableaux d'un coup : portefeuille, paiements,
+  // utilisateurs, journal. Un chargement de quelques images ne doit rien faire
+  // apparaître, et le squelette affiché ne doit pas battre de l'œil.
+  const attente = useAttenteDouce(chargement)
+  if (attente) return <SkeletonLignes colonnes={Math.min(colonnes.length, 5)} />
+  if (chargement) return null
   if (lignes.length === 0) return <>{vide ?? <p className="rounded-2xl border border-dashed border-trait px-4 py-8 text-legende text-muet">Aucune donnée.</p>}</>
 
   return (

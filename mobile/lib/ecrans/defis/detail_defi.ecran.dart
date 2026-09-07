@@ -147,7 +147,7 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
     if (_chargement) {
       return const Padding(
         padding: EdgeInsets.all(16),
-        child: SqueletteCartes(nombre: 3),
+        child: SqueletteDiffere(child: SqueletteCartes(nombre: 3)),
       );
     }
     if (_erreur != null || _detail == null) {

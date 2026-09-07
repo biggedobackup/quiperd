@@ -54,7 +54,7 @@ class NotificationsEcran extends StatelessWidget {
               ],
               const SizedBox(height: 18),
               if (etat.chargement && etat.liste.isEmpty)
-                const SqueletteCartes(nombre: 4, hauteur: 76)
+                const SqueletteDiffere(child: SqueletteCartes(nombre: 4, hauteur: 76))
               else if (etat.liste.isEmpty)
                 const EtatVide(
                   icone: Icons.notifications_none,

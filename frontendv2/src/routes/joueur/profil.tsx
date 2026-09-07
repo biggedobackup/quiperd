@@ -24,6 +24,7 @@ import { Select } from '@/components/partages/select/select'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 import { ChampPhotoProfil } from '@/components/joueur/champ-photo-profil'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
@@ -206,6 +207,7 @@ function ComptesGamers() {
   const { data: jeux } = useSuspenseQuery(optionsJeux())
   const { data: plateformes } = useSuspenseQuery(optionsPlateformes())
   const comptes = useQuery(optionsComptesGamers)
+  const attenteComptes = useAttenteDouce(comptes.isPending)
   const queryClient = useQueryClient()
   const creer = useServerFn(creerCompteGamer)
   const supprimer = useServerFn(supprimerCompteGamer)
@@ -253,7 +255,7 @@ function ComptesGamers() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div>
-          {comptes.isPending ? (
+          {attenteComptes ? (
             <SkeletonLignes lignes={2} colonnes={3} />
           ) : comptes.data && comptes.data.length > 0 ? (
             <ul className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-papier">

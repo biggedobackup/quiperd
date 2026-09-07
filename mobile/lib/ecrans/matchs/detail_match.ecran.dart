@@ -387,7 +387,7 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
 
   Widget _corps() {
     if (_chargement && _detail == null) {
-      return const Padding(padding: EdgeInsets.all(16), child: SqueletteCartes(nombre: 3));
+      return const Padding(padding: EdgeInsets.all(16), child: SqueletteDiffere(child: SqueletteCartes(nombre: 3)));
     }
     final detail = _detail;
     if (detail == null) {

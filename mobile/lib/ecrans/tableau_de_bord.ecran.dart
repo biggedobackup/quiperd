@@ -201,7 +201,7 @@ class _TableauDeBordEcranState extends State<TableauDeBordEcran> {
             onLien: () => coquille?.allerA(2),
           ),
           if (_chargement)
-            const SqueletteCartes(nombre: 2)
+            const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
           else if (_matchs.isEmpty)
             const EtatVide(
               icone: Icons.sports_esports_outlined,
@@ -227,7 +227,7 @@ class _TableauDeBordEcranState extends State<TableauDeBordEcran> {
             onLien: () => coquille?.allerA(1),
           ),
           if (_chargement)
-            const SqueletteCartes(nombre: 2)
+            const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
           else if (_defis.isEmpty)
             EtatVide(
               icone: Icons.local_fire_department_outlined,
@@ -377,7 +377,7 @@ class _CarteNotifications extends StatelessWidget {
             ],
           ),
           if (etat.chargement)
-            const Padding(padding: EdgeInsets.only(top: 8), child: SqueletteTexte(lignes: 3))
+            const Padding(padding: EdgeInsets.only(top: 8), child: SqueletteDiffere(child: SqueletteTexte(lignes: 3)))
           else if (etat.liste.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),

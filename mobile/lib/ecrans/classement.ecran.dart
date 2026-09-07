@@ -87,7 +87,7 @@ class _ClassementEcranState extends State<ClassementEcran> {
               ),
               const SizedBox(height: 18),
               if (_chargement)
-                const SqueletteCartes(nombre: 5, hauteur: 64)
+                const SqueletteDiffere(child: SqueletteCartes(nombre: 5, hauteur: 64))
               else if (_classement.elements.isEmpty)
                 const EtatVide(
                   icone: Icons.leaderboard_outlined,

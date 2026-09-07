@@ -929,3 +929,17 @@ Le joueur **téléverse** désormais un fichier :
   le fichier sous `STOCKAGE_PHOTOS_DIR/<id joueur>/<uuid>.<ext>` et efface l'ancienne ;
 - `PATCH /api/utilisateurs/{id}` **n'accepte plus** `photoProfil` : laisser passer une
   adresse rouvrirait exactement la porte qu'on vient de fermer.
+
+### Tout squelette passe par `SqueletteDiffere`
+
+`composants/communs/squelette.dart` expose `SqueletteDiffere`, qui n'affiche son enfant
+qu'au bout de 150 ms. Un squelette peint sans délai apparaît puis disparaît dès que la
+donnée arrive vite, et c'est ce clignotement que les joueurs remarquent — pas l'attente.
+Le widget n'étant monté que pendant le chargement, retarder son apparition suffit : quand
+la réponse arrive avant le seuil, rien ne s'est jamais affiché.
+
+Les treize squelettes des écrans (tableau de bord, défis, matchs, portefeuille, litiges,
+notifications, profil, classement, détails) passent par lui, et un test de widget vérifie
+qu'il ne peint rien avant le seuil. Côté web, le même rôle est tenu par le crochet
+`useAttenteDouce`, qui ajoute en plus un plancher de 350 ms — possible là-bas parce que
+l'état survit au retrait du squelette.

@@ -256,7 +256,7 @@ class _DefisEcranState extends State<DefisEcran> {
             ),
             const SizedBox(height: 16),
             if (_chargement)
-              const SqueletteCartes(nombre: 3)
+              const SqueletteDiffere(child: SqueletteCartes(nombre: 3))
             else if (_ouverts.isEmpty)
               EtatVide(
                 icone: Icons.local_fire_department_outlined,
@@ -299,7 +299,7 @@ class _DefisEcranState extends State<DefisEcran> {
               ),
           ] else ...[
             if (_chargement)
-              const SqueletteCartes(nombre: 2)
+              const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
             else if (_mes.isEmpty)
               EtatVide(
                 icone: Icons.confirmation_number_outlined,

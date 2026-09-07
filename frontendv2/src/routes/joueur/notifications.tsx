@@ -18,6 +18,7 @@ import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastErreur } from '@/components/partages/toast/toast'
 
@@ -53,6 +54,8 @@ const ICONES: Record<string, typeof icone.defi> = {
 function PageNotifications() {
   const { session } = routeJoueur.useRouteContext()
   const { data, isPending } = useQuery(optionsNotifications)
+  // Squelette différé : rien si la donnée arrive vite, pas de clignotement si elle tarde.
+  const attente = useAttenteDouce(isPending)
   const queryClient = useQueryClient()
   const marquer = useServerFn(marquerNotificationLue)
   const [recentes, setRecentes] = useState<readonly string[]>([])
@@ -97,7 +100,7 @@ function PageNotifications() {
           </>
         }
       />
-      {isPending ? (
+      {attente ? (
         <SkeletonLignes lignes={5} colonnes={2} />
       ) : data && data.length > 0 ? (
         <Cascade className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-papier">

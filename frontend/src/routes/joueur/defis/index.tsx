@@ -23,6 +23,7 @@ import { Select } from '@/components/partages/select/select'
 import { Input } from '@/components/partages/input/input'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonCarte } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
@@ -70,6 +71,9 @@ function ListeDefis() {
   const filtres = { categorie: recherche.categorie, jeu: recherche.jeu, plateforme: recherche.plateforme, miseMax: recherche.miseMax }
   const ouverts = useQuery({ ...optionsDefis(filtres), enabled: recherche.onglet === 'ouverts' })
   const mes = useQuery({ ...optionsMesDefis, enabled: recherche.onglet === 'mes' })
+  // Squelette différé : rien si la donnée arrive vite, et pas de clignotement si elle tarde.
+  const attenteOuverts = useAttenteDouce(ouverts.isPending)
+  const attenteMes = useAttenteDouce(mes.isPending)
   const filtreActif = Boolean(recherche.categorie || recherche.jeu || recherche.plateforme || recherche.miseMax)
   const jeuxFiltres = recherche.categorie ? (jeux.data ?? []).filter((j) => j.categorie === recherche.categorie) : (jeux.data ?? [])
 
@@ -148,7 +152,7 @@ function ListeDefis() {
       </div>
 
       {recherche.onglet === 'ouverts' ? (
-        ouverts.isPending ? (
+        attenteOuverts ? (
           <SkeletonCarte nombre={6} />
         ) : ouverts.data && ouverts.data.length > 0 ? (
           <ListeAnimee className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -177,7 +181,7 @@ function ListeDefis() {
             }
           />
         )
-      ) : mes.isPending ? (
+      ) : attenteMes ? (
         <SkeletonCarte nombre={3} />
       ) : mes.data && mes.data.length > 0 ? (
         <MesDefis defis={mes.data} />

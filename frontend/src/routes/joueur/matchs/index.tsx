@@ -19,6 +19,7 @@ import { CarteMatch } from '@/components/joueur/carte-match'
 import { LienBouton } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonCarte } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -49,6 +50,8 @@ function MesMatchs() {
   const moi = session.utilisateur
   const queryClient = useQueryClient()
   const { data, isPending } = useQuery(optionsMatchs(statut || undefined))
+  // Squelette différé : rien si la donnée arrive vite, et pas de clignotement si elle tarde.
+  const attente = useAttenteDouce(isPending)
 
   useResynchronisation(cles.matchs.tous)
 
@@ -140,7 +143,7 @@ function MesMatchs() {
           </button>
         ))}
       </div>
-      {isPending ? (
+      {attente ? (
         <SkeletonCarte nombre={4} />
       ) : data && data.length > 0 ? (
         <Cascade className="grid gap-3 lg:grid-cols-2">

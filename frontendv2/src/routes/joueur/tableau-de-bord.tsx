@@ -11,6 +11,7 @@ import { LienBouton } from '@/components/partages/button/button'
 import { CompteurAnime } from '@/components/partages/compteur-anime/compteur-anime'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonCarte, SkeletonTexte } from '@/components/partages/skeleton/skeleton'
+import { useAttenteDouce } from '@/components/partages/skeleton/attente'
 
 const routeJoueur = getRouteApi('/joueur')
 
@@ -38,6 +39,11 @@ function TableauDeBord() {
   const matchs = useQuery(optionsMatchs('en_cours'))
   const defis = useQuery(optionsDefis())
   const notifications = useQuery(optionsNotifications)
+  // Squelette différé : rien ne s'affiche si la donnée arrive vite, et une fois
+  // affiché il reste assez longtemps pour ne pas clignoter.
+  const attenteMatchs = useAttenteDouce(matchs.isPending)
+  const attenteDefis = useAttenteDouce(defis.isPending)
+  const attenteNotifications = useAttenteDouce(notifications.isPending)
   const heure = new Date().getHours()
   const salut = heure < 18 ? 'Bonjour' : 'Bonsoir'
 
@@ -95,7 +101,7 @@ function TableauDeBord() {
                 Tout voir
               </Link>
             </div>
-            {notifications.isPending ? (
+            {attenteNotifications ? (
               <SkeletonTexte lignes={3} className="mt-4" />
             ) : notifications.data && notifications.data.length > 0 ? (
               <ul className="mt-3 divide-y divide-trait">
@@ -123,7 +129,7 @@ function TableauDeBord() {
             Tous mes matchs <FontAwesomeIcon icon={icone.suivant} />
           </Link>
         </div>
-        {matchs.isPending ? (
+        {attenteMatchs ? (
           <SkeletonCarte nombre={2} />
         ) : matchs.data && matchs.data.length > 0 ? (
           <div className="grid gap-3 lg:grid-cols-2">
@@ -143,7 +149,7 @@ function TableauDeBord() {
             Tous les défis <FontAwesomeIcon icon={icone.suivant} />
           </Link>
         </div>
-        {defis.isPending ? (
+        {attenteDefis ? (
           <SkeletonCarte nombre={3} />
         ) : defis.data && defis.data.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">

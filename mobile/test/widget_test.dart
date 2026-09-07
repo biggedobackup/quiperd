@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'package:quiperd/composants/communs/badge_statut.dart';
+import 'package:quiperd/composants/communs/squelette.dart';
 import 'package:quiperd/composants/communs/liste_deroulante.dart';
 import 'package:quiperd/composants/joueur/compte_a_rebours.dart';
 import 'package:quiperd/composants/joueur/feuilles/depot.feuille.dart';
@@ -226,5 +227,21 @@ void main() {
       // Premier de la liste : LigdiCash, qui collecte le numéro sur sa propre page.
       expect(find.text('NUMÉRO MOBILE MONEY (OPTIONNEL)'), findsOneWidget);
     });
+  });
+
+  testWidgets('un squelette n’apparaît pas pour un chargement très court',
+      (WidgetTester tester) async {
+    // Le clignotement que voient les joueurs vient d'un squelette affiché puis retiré
+    // dans la foulée : sous le seuil, il ne doit jamais être peint.
+    await tester.pumpWidget(const MaterialApp(
+      home: Scaffold(body: SqueletteDiffere(child: Text('squelette'))),
+    ));
+    expect(find.text('squelette'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('squelette'), findsNothing);
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('squelette'), findsOneWidget);
   });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../theme/couleurs.dart';
@@ -85,4 +87,54 @@ class SqueletteCartes extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Seuil commun à tous les états d'attente de l'application : en dessous, on ne montre rien.
+/// Une liste qui arrive en 40 ms n'a pas
+/// besoin d'être annoncée, et un squelette qui apparaît puis disparaît aussitôt se lit
+/// comme un clignotement — c'est précisément ce qu'on veut éviter.
+const Duration seuilAttente = Duration(milliseconds: 150);
+
+/// Enrobe un squelette pour qu'il n'apparaisse **qu'au bout de [seuilAttente]**.
+///
+/// ```dart
+/// if (etat.chargement)
+///   const SqueletteDiffere(child: SqueletteCartes(nombre: 3))
+/// ```
+///
+/// Règle du projet : **tout squelette passe par ici**. Affiché sans délai, il apparaît
+/// puis disparaît aussitôt dès que la donnée arrive vite — et c'est ce clignotement que
+/// les joueurs remarquent, pas l'attente elle-même. Le widget n'étant monté que pendant
+/// le chargement, il suffit de retarder son apparition : quand la réponse arrive avant le
+/// seuil, rien ne s'est jamais affiché.
+class SqueletteDiffere extends StatefulWidget {
+  const SqueletteDiffere({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<SqueletteDiffere> createState() => _SqueletteDiffereState();
+}
+
+class _SqueletteDiffereState extends State<SqueletteDiffere> {
+  bool _visible = false;
+  Timer? _minuterie;
+
+  @override
+  void initState() {
+    super.initState();
+    _minuterie = Timer(seuilAttente, () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _minuterie?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _visible ? widget.child : const SizedBox.shrink();
 }
