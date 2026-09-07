@@ -4,7 +4,7 @@
  */
 export function Skeleton({ className = '' }: { className?: string }) {
   return (
-    <div className={`relative overflow-hidden bg-trait/70 ${className}`} aria-hidden="true">
+    <div className={`relative overflow-hidden rounded-lg bg-trait/70 ${className}`} aria-hidden="true">
       <div className="absolute inset-y-0 left-0 w-1/3 animate-shimmer bg-papier/70" />
     </div>
   )
@@ -20,12 +20,12 @@ export function SkeletonTexte({ lignes = 3, className = '' }: { lignes?: number;
   )
 }
 
-/** Carte ticket fantôme (liste de défis / matchs). */
+/** Carte fantôme (liste de défis / matchs). */
 export function SkeletonCarte({ nombre = 3 }: { nombre?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true" aria-live="polite">
       {Array.from({ length: nombre }).map((_, i) => (
-        <div key={i} className="ticket border-2 border-trait bg-papier p-5">
+        <div key={i} className="rounded-2xl border border-trait bg-papier p-5">
           <div className="flex justify-between">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-6 w-16" />
@@ -42,7 +42,7 @@ export function SkeletonCarte({ nombre = 3 }: { nombre?: number }) {
 /** Lignes de tableau fantômes. */
 export function SkeletonLignes({ lignes = 5, colonnes = 4 }: { lignes?: number; colonnes?: number }) {
   return (
-    <div className="divide-y divide-trait border-2 border-trait" aria-busy="true">
+    <div className="overflow-hidden rounded-2xl border border-trait divide-y divide-trait" aria-busy="true">
       {Array.from({ length: lignes }).map((_, i) => (
         <div key={i} className="grid items-center gap-4 px-4 py-3" style={{ gridTemplateColumns: `repeat(${colonnes}, minmax(0, 1fr))` }}>
           {Array.from({ length: colonnes }).map((__, j) => (
@@ -58,7 +58,7 @@ export function SkeletonStat({ nombre = 4 }: { nombre?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true">
       {Array.from({ length: nombre }).map((_, i) => (
-        <div key={i} className="border-2 border-trait bg-papier p-5">
+        <div key={i} className="rounded-2xl border border-trait bg-papier p-5">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="mt-4 h-9 w-32" />
         </div>

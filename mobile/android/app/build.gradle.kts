@@ -27,6 +27,20 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Hôte des liens profonds : celui du site qui sert `/defis/<id>`. Un lien partagé
+        // ouvre alors l'application directement sur le défi, au lieu du navigateur.
+        //
+        // Il ne peut PAS être écrit en dur dans le manifeste : c'est la même application qui
+        // vise le domaine de production et, en développement, l'alias de l'hôte vu depuis
+        // l'émulateur. On le passe donc au build :
+        //   flutter build apk --dart-define=SITE_BASE_URL=https://quiperd.com \
+        //                     -Pdeep-link-host=quiperd.com
+        // Les deux vont ensemble : `SITE_BASE_URL` construit le lien, `deep-link-host` décide
+        // quel lien l'application intercepte. Les désaccorder produit des liens que
+        // l'application ignore, sans le moindre message d'erreur.
+        manifestPlaceholders["deepLinkHost"] =
+            (project.findProperty("deep-link-host") as String?) ?: "10.0.2.2"
     }
 
     buildTypes {

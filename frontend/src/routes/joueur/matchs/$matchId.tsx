@@ -47,6 +47,7 @@ import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { ChronologieMatch } from '@/components/joueur/chronologie-match'
 import { CompteARebours } from '@/components/joueur/compte-a-rebours'
 import { ConfirmationScore } from '@/components/joueur/confirmation-score'
+import { AvatarJoueur } from '@/components/joueur/avatar-joueur'
 import { PresenceAdversaire } from '@/components/joueur/presence-adversaire'
 import { ResultatMatch, type DetailAbandon, type DetailPartage } from '@/components/joueur/resultat-match'
 import { PanneauAttente, PanneauNul, PanneauPreuveRequise } from '@/components/joueur/panneaux-match'
@@ -59,7 +60,6 @@ import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { TableauScore } from '@/components/partages/tableau-score/tableau-score'
 import { LecteurPreuve } from '@/components/partages/lecteur-preuve/lecteur-preuve'
 import { SkeletonTexte } from '@/components/partages/skeleton/skeleton'
-import { Apparition } from '@/components/partages/animation/animation'
 import { toastErreur, toastInfo, toastSucces } from '@/components/partages/toast/toast'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -96,6 +96,7 @@ function EcranMatch() {
   const nomMoi = jeSuisJ1 ? match.joueur1Nom : match.joueur2Nom
   const nomAdversaire = jeSuisJ1 ? match.joueur2Nom : match.joueur1Nom
   const idAdversaire = jeSuisJ1 ? match.joueur2Id : match.joueur1Id
+  const photoAdversaire = jeSuisJ1 ? match.joueur2Photo : match.joueur1Photo
   const nomDe = (id: string) => (id === match.joueur1Id ? match.joueur1Nom : match.joueur2Nom)
 
   // Déclarations et choix de la manche EN COURS : le backend renvoie tout l'historique,
@@ -512,7 +513,6 @@ function EcranMatch() {
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────────────
   const enAttenteAdverse = statut === 'en_cours' && !!maDeclaration && !declarationAdverse
-  const signatureScore = `${statut}-${manche}-${match.scoreJoueur1 ?? ''}-${match.scoreJoueur2 ?? ''}`
 
   return (
     <>
@@ -543,7 +543,7 @@ function EcranMatch() {
       <div className="space-y-6">
         {/* Bloc d'action prioritaire : d'abord dans le flux, donc en haut de l'écran mobile. */}
         {aConfirmer && declarationAdverse && (
-          <Apparition>
+          <div>
             <ConfirmationScore
               nomMoi={nomMoi}
               nomAdversaire={nomAdversaire}
@@ -555,11 +555,11 @@ function EcranMatch() {
               chargement={mutConfirmer.isPending}
               surFinChrono={rattraperEcheance}
             />
-          </Apparition>
+          </div>
         )}
 
         {statut === 'nul_en_attente' && (
-          <Apparition>
+          <div>
             <PanneauNul
               monChoix={monChoix?.choix}
               choixAdverse={choixAdverse?.choix}
@@ -568,11 +568,11 @@ function EcranMatch() {
               surFinChrono={rattraperEcheance}
               onOuvrir={() => setModalNul(true)}
             />
-          </Apparition>
+          </div>
         )}
 
         {statut === 'preuve_requise' && (
-          <Apparition>
+          <div>
             <PanneauPreuveRequise
               matchId={matchId}
               nomAdversaire={nomAdversaire}
@@ -582,7 +582,7 @@ function EcranMatch() {
               surFinChrono={rattraperEcheance}
               onEnvoye={rafraichirPreuves}
             />
-          </Apparition>
+          </div>
         )}
 
         {enAttenteAdverse && (
@@ -594,7 +594,7 @@ function EcranMatch() {
         )}
 
         {statut === 'termine' && (
-          <Apparition>
+          <div>
             <ResultatMatch
               match={match}
               moiId={moi.id}
@@ -603,10 +603,10 @@ function EcranMatch() {
               partage={partage}
               abandon={abandon}
             />
-          </Apparition>
+          </div>
         )}
 
-        <Apparition key={signatureScore}>
+        <div>
           <TableauScore
             joueur1={match.joueur1Nom}
             joueur2={match.joueur2Nom}
@@ -617,11 +617,16 @@ function EcranMatch() {
             enDirect={statut === 'en_cours'}
             sousTitre={sousTitreScore(statut, gagne)}
           />
-        </Apparition>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-legende text-muet">
-            Face à <span className="font-semibold text-encre">{nomAdversaire}</span>
+          {/* La photo de l'adversaire, s'il en a une : on joue de l'argent contre quelqu'un,
+              autant voir son visage et pas seulement son pseudo. Initiales sinon. */}
+          <span className="flex items-center gap-2.5 text-legende text-muet">
+            <AvatarJoueur utilisateurId={idAdversaire} nom={nomAdversaire} photo={photoAdversaire} taille={36} />
+            <span>
+              Face à <span className="font-semibold text-encre">{nomAdversaire}</span>
+            </span>
           </span>
           <PresenceAdversaire enLigne={presenceAdverse} direct={etatDirect === 'connecte'} />
         </div>
@@ -629,7 +634,7 @@ function EcranMatch() {
         <ChronologieMatch statut={statut} />
 
         <section className="grid gap-6 lg:grid-cols-2">
-          <div className="ticket-sm border-2 border-encre bg-papier p-5">
+          <div className="rounded-2xl border border-trait bg-papier p-5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-h3">Déclarations{manche > 1 ? ` — manche ${manche}` : ''}</h3>
               <BadgeStatut famille="match" valeur={statut} />
@@ -655,7 +660,7 @@ function EcranMatch() {
             )}
           </div>
 
-          <div className="ticket-sm border-2 border-encre bg-papier p-5">
+          <div className="rounded-2xl border border-trait bg-papier p-5">
             <h3 className="text-h3">Que faire maintenant ?</h3>
             <ol className="mt-4 space-y-3 text-legende">
               {consignes({ statut, maDeclaration: !!maDeclaration, aConfirmer, nomAdversaire }).map((c) => (
@@ -663,7 +668,7 @@ function EcranMatch() {
               ))}
             </ol>
             {statut === 'litige' && (
-              <p className="mt-4 flex items-start gap-2 border-2 border-perte bg-perte-fond p-3 text-legende text-perte">
+              <p className="mt-4 flex items-start gap-2 rounded-xl border border-perte bg-perte-fond p-3 text-legende text-perte">
                 <FontAwesomeIcon icon={icone.litige} className="mt-0.5" />
                 <span>
                   Un litige est ouvert. Suivez la décision dans{' '}
@@ -783,7 +788,7 @@ function LigneDeclaration({
   nomDe: (id: string) => string
 }) {
   return (
-    <li className="border-2 border-trait bg-gris px-4 py-3">
+    <li className="rounded-xl border border-trait bg-gris px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <span className="min-w-0 truncate font-semibold">{nom}</span>
         {declaration ? (
@@ -865,7 +870,7 @@ function Consigne({ fait, texte }: { fait: boolean; texte: string }) {
   return (
     <li className="flex items-start gap-3">
       <span
-        className={`flex size-5 shrink-0 items-center justify-center border-2 ${fait ? 'border-gain bg-gain text-papier' : 'border-trait'}`}
+        className={`flex size-5 shrink-0 items-center justify-center rounded-sm border ${fait ? 'border-gain bg-gain text-papier' : 'border-trait'}`}
       >
         {fait && <FontAwesomeIcon icon={icone.valider} className="text-[10px]" />}
       </span>

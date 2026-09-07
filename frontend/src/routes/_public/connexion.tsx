@@ -67,7 +67,7 @@ function PageConnexion() {
       pied={
         <>
           Pas encore de compte ?{' '}
-          <Link to="/inscription" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+          <Link to="/inscription" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-vert">
             Créer un compte
           </Link>
         </>
@@ -77,7 +77,7 @@ function PageConnexion() {
         <Input label="E-mail ou pseudo" autoComplete="username" iconeDebut={icone.profil} placeholder="kader225" {...register('email')} erreur={errors.email?.message} />
         <InputMotDePasse label="Mot de passe" placeholder="••••••••" {...register('motDePasse')} erreur={errors.motDePasse?.message} />
         {erreurGlobale && (
-          <p className="border-2 border-perte bg-perte-fond px-3 py-2 text-legende font-semibold text-perte" role="alert">
+          <p className="rounded-xl border border-perte bg-perte-fond px-3.5 py-2.5 text-legende font-semibold text-perte" role="alert">
             {erreurGlobale}
           </p>
         )}

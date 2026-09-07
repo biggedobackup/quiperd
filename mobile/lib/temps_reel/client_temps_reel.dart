@@ -41,6 +41,11 @@ class ClientTempsReel extends ChangeNotifier {
   int _tentatives = 0;
   bool _ferme = false;
   int _reconnexions = 0;
+
+  /// Vrai dès que le socket s'est ouvert une première fois. Sert à distinguer la
+  /// connexion initiale — les écrans viennent de charger, il n'y a rien à
+  /// rattraper — d'une reprise après coupure.
+  bool _dejaConnecte = false;
   int _joueursEnLigne = 0;
 
   /// Flux de tous les événements reçus. Chaque écran filtre ce qui le concerne.
@@ -49,9 +54,15 @@ class ClientTempsReel extends ChangeNotifier {
   EtatDirect get etat => _etat;
   bool get enDirect => _etat == EtatDirect.connecte;
 
-  /// Compteur incrémenté à chaque (re)connexion réussie. Un écran l'observe pour
-  /// se resynchroniser UNE fois après une coupure — c'est un rattrapage, pas du
-  /// rafraîchissement cyclique.
+  /// Nombre de REPRISES après coupure. La toute première connexion ne compte pas :
+  /// un écran l'observe pour se resynchroniser une fois quand le socket revient,
+  /// et rien de plus — ce n'est pas un cycle de rafraîchissement.
+  ///
+  /// La distinction n'est pas cosmétique. Les écrans se construisent avant que le
+  /// socket ne soit ouvert : compter la première connexion leur faisait voir une
+  /// « reprise » une seconde après leur propre chargement, et l'application
+  /// redemandait au démarrage le portefeuille, les notifications, les matchs et
+  /// les défis qu'elle venait tout juste d'obtenir.
   int get reconnexions => _reconnexions;
 
   int get joueursEnLigne => _joueursEnLigne;
@@ -86,7 +97,12 @@ class ClientTempsReel extends ChangeNotifier {
     _ecoute = null;
     _canal?.sink.close();
     _canal = null;
-    if (oublierSalons) _salons.clear();
+    if (oublierSalons) {
+      _salons.clear();
+      // Déconnexion du compte : la session suivante repartira d'écrans neufs, sa
+      // première connexion n'aura donc rien à rattraper non plus.
+      _dejaConnecte = false;
+    }
     _changerEtat(EtatDirect.horsLigne);
   }
 
@@ -133,7 +149,8 @@ class ClientTempsReel extends ChangeNotifier {
         cancelOnError: true,
       );
       _tentatives = 0;
-      _reconnexions++;
+      if (_dejaConnecte) _reconnexions++;
+      _dejaConnecte = true;
       _changerEtat(EtatDirect.connecte);
       _demarrerBattement();
       if (_salons.isNotEmpty) _envoyer({'action': 'abonner', 'salons': _salons.toList()});

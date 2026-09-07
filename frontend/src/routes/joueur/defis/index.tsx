@@ -104,7 +104,7 @@ function ListeDefis() {
 
       <div className="mb-6 flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div role="tablist" className="inline-flex border-2 border-encre bg-papier">
+          <div role="tablist" className="inline-flex gap-1 rounded-full border border-trait bg-papier p-1">
             <Onglet actif={recherche.onglet === 'ouverts'} onClick={() => changer({ onglet: 'ouverts' })}>
               Défis ouverts
             </Onglet>
@@ -207,7 +207,7 @@ function Onglet({ actif, onClick, children }: { actif: boolean; onClick: () => v
       role="tab"
       aria-selected={actif}
       onClick={onClick}
-      className={`etiquette h-11 px-4 transition-colors ${actif ? 'bg-encre text-craie' : 'text-muet hover:bg-volt-fond hover:text-encre'}`}
+      className={`etiquette h-11 rounded-full px-4 transition-colors sm:h-9 ${actif ? 'bg-vert text-craie' : 'text-muet hover:bg-vert-pale hover:text-vert'}`}
     >
       {children}
     </button>
@@ -240,7 +240,7 @@ function MesDefis({ defis }: { defis: DefiListe[] }) {
 
   return (
     <>
-      <ListeAnimee className="divide-y-2 divide-trait border-2 border-encre bg-papier">
+      <ListeAnimee className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-papier">
         {defis.map((d, i) => (
           <ElementAnime key={d.id} index={i}>
             <div className="grid gap-3 px-4 py-4 sm:grid-cols-[1fr_auto] sm:items-center">
@@ -265,7 +265,7 @@ function MesDefis({ defis }: { defis: DefiListe[] }) {
                 <Link
                   to="/joueur/defis/$defiId"
                   params={{ defiId: d.id }}
-                  className="etiquette flex min-h-11 items-center gap-2 border-2 border-encre px-3 hover:bg-volt hover:text-nuit"
+                  className="etiquette flex min-h-11 items-center gap-2 rounded-[10px] border border-trait px-3.5 transition-colors hover:border-vert hover:text-vert"
                 >
                   Détail <FontAwesomeIcon icon={icone.suivant} />
                 </Link>
@@ -319,14 +319,14 @@ function InvitationMatch({ match, fermer }: { match: MatchEnrichi; fermer: () =>
           to="/joueur/matchs/$matchId"
           params={{ matchId: match.id }}
           onClick={fermer}
-          className="etiquette inline-flex min-h-11 items-center gap-2 border-2 border-encre bg-volt px-4 text-nuit transition-colors hover:bg-encre hover:text-craie"
+          className="etiquette inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-vert px-4 text-craie transition-colors hover:bg-vert-sombre"
         >
           Voir le match <FontAwesomeIcon icon={icone.suivant} />
         </Link>
         <button
           type="button"
           onClick={fermer}
-          className="etiquette inline-flex min-h-11 items-center border-2 border-trait px-4 text-muet transition-colors hover:border-encre hover:text-encre"
+          className="etiquette inline-flex min-h-11 items-center rounded-[10px] border border-trait px-4 text-muet transition-colors hover:border-encre hover:text-encre"
         >
           Plus tard
         </button>

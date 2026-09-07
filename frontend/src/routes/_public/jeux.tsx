@@ -1,9 +1,10 @@
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { optionsJeux, optionsPlateformes } from '@/lib/requetes'
-import { BandeAppel, Conteneur } from '@/components/public/sections'
+import { icone } from '@/lib/icones'
+import { BandeAppel, EnTetePublique } from '@/components/public/sections'
+import { LienBouton } from '@/components/partages/button/button'
 import { SectionJeux } from '@/components/public/section-jeux'
-import { Apparition } from '@/components/partages/animation/animation'
 
 const routeParent = getRouteApi('/_public')
 
@@ -29,17 +30,27 @@ function PageJeux() {
   const { data: plateformes } = useSuspenseQuery(optionsPlateformes())
   return (
     <>
-      <Apparition>
-        <section className="border-b-2 border-encre bg-nuit text-craie">
-          <Conteneur className="py-5 md:py-7">
-            <span className="etiquette text-craie">Catalogue</span>
-            <h1 className="mt-1 max-w-3xl text-h3 text-craie sm:text-h2">Jeux & plateformes.</h1>
-            <p className="mt-2 max-w-xl text-legende text-craie/80">
-              Vous jouez avec vos propres identifiants sur PC, console ou mobile ; QUI PERD ne fait que tenir le score et l’argent.
-            </p>
-          </Conteneur>
-        </section>
-      </Apparition>
+      <div>
+        <EnTetePublique
+          fond="noir"
+          surtitre="Catalogue"
+          titre="Jeux & plateformes."
+          intro="Vous jouez avec vos propres identifiants sur PC, console ou mobile ; QUI PERD ne fait que tenir le score et l’argent."
+        >
+          {connecte ? (
+            <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
+              Créer un défi
+            </LienBouton>
+          ) : (
+            <LienBouton to="/inscription" variante="volt" iconeFin={icone.suivant}>
+              Créer un compte
+            </LienBouton>
+          )}
+          <LienBouton to="/defis" variante="secondaire" iconeDebut={icone.ticket}>
+            Voir les défis
+          </LienBouton>
+        </EnTetePublique>
+      </div>
       <SectionJeux jeux={jeux} plateformes={plateformes} numero="01" complete />
       <BandeAppel connecte={connecte} />
     </>

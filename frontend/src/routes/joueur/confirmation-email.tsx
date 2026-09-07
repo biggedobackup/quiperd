@@ -18,7 +18,6 @@ import { useChrono } from '@/temps-reel/hooks'
 import { emailNonConfirme } from '@/components/joueur/email-non-verifie'
 import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button, LienBouton } from '@/components/partages/button/button'
-import { Apparition } from '@/components/partages/animation/animation'
 import { toastErreur, toastInfo, toastSucces } from '@/components/partages/toast/toast'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -144,9 +143,9 @@ function PageConfirmationEmail() {
     return (
       <>
         <EnTetePage surtitre="Sécurité" titre="Adresse confirmée" />
-        <Apparition>
-          <section className="ticket border-2 border-gain bg-papier p-6 text-center sm:p-8">
-            <span className="ticket-sm mx-auto flex size-14 items-center justify-center bg-gain-fond text-gain" aria-hidden="true">
+        <div>
+          <section className="rounded-2xl border border-gain bg-papier p-6 text-center sm:p-8">
+            <span className="mx-auto flex size-14 items-center justify-center rounded-xl bg-gain-fond text-gain" aria-hidden="true">
               <FontAwesomeIcon icon={icone.succes} className="text-h2" />
             </span>
             <h3 className="mt-4 text-h2">Bienvenue dans l’arène, {moi.nomUtilisateur}</h3>
@@ -160,7 +159,7 @@ function PageConfirmationEmail() {
               Continuer
             </Button>
           </section>
-        </Apparition>
+        </div>
       </>
     )
   }
@@ -174,7 +173,7 @@ function PageConfirmationEmail() {
       />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="ticket border-2 border-encre bg-papier p-4 sm:p-6">
+        <section className="rounded-2xl border border-trait bg-papier p-4 sm:p-6">
           <span className="etiquette text-muet">Code envoyé à</span>
           <p className="chiffres mt-1 break-all text-corps font-bold">{moi.email}</p>
           <p className="mt-2 flex items-start gap-2 text-legende text-muet">
@@ -207,7 +206,7 @@ function PageConfirmationEmail() {
 
             {erreur && (
               <div
-                className={`mt-4 border-2 px-3 py-2 text-legende ${epuise ? 'border-alerte bg-alerte-fond text-alerte' : 'border-perte bg-perte-fond text-perte'}`}
+                className={`mt-4 rounded-xl border px-3.5 py-2.5 text-legende ${epuise ? 'border-alerte bg-alerte-fond text-alerte' : 'border-perte bg-perte-fond text-perte'}`}
                 role="alert"
               >
                 <p className="font-semibold">{erreur.texte}</p>
@@ -225,7 +224,7 @@ function PageConfirmationEmail() {
             </Button>
           </form>
 
-          <div className="mt-5 flex flex-col gap-3 border-t-2 border-trait pt-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-5 flex flex-col gap-3 border-t border-trait pt-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-legende text-muet">Aucun message au bout de quelques minutes ?</p>
             <Button
               variante="secondaire"
@@ -240,7 +239,7 @@ function PageConfirmationEmail() {
           </div>
         </section>
 
-        <aside className="ticket-sm h-fit border-2 border-encre bg-nuit p-5 text-craie">
+        <aside className="h-fit rounded-2xl bg-encre p-5 text-craie">
           <span className="etiquette text-craie/60">En attendant</span>
           <ul className="mt-3 space-y-3 text-legende text-craie/80">
             <LigneAcces autorise>Déposer sur votre portefeuille</LigneAcces>
@@ -393,7 +392,7 @@ function SaisieCode({
               enterKeyHint="done"
               aria-label={`Chiffre ${index + 1}`}
               aria-invalid={invalide || undefined}
-              className={`chiffres h-14 w-full border-2 bg-papier text-center text-h2 font-bold text-encre transition-colors focus:border-encre focus:outline-none disabled:opacity-60 ${
+              className={`chiffres h-14 w-full rounded-[10px] border bg-papier text-center text-h2 font-bold text-encre transition-colors duration-150 focus:border-vert focus:outline-none disabled:opacity-60 ${
                 invalide ? 'border-perte' : chiffre ? 'border-encre' : 'border-trait'
               }`}
             />

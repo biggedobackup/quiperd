@@ -102,7 +102,7 @@ function PageInscription() {
       pied={
         <>
           Déjà inscrit ?{' '}
-          <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+          <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-vert">
             Se connecter
           </Link>
         </>
@@ -111,25 +111,26 @@ function PageInscription() {
       <form onSubmit={soumettre} className="space-y-4" noValidate>
         <Input label="Pseudo QUI PERD" autoComplete="username" iconeDebut={icone.profil} placeholder="kader225" {...register('nomUtilisateur')} erreur={errors.nomUtilisateur?.message} />
         <Input label="E-mail" type="email" autoComplete="email" iconeDebut={icone.courriel} placeholder="vous@exemple.com" {...register('email')} erreur={errors.email?.message} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <InputMotDePasse label="Mot de passe" autoComplete="new-password" {...register('motDePasse')} erreur={errors.motDePasse?.message} aide="6 caractères minimum" />
-          <InputMotDePasse label="Confirmation" autoComplete="new-password" {...register('confirmation')} erreur={errors.confirmation?.message} />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Select label="Pays" groupes={GROUPES_PAYS} placeholder="Choisissez votre pays" autoComplete="country-name" {...champPays} onChange={surChangementPays} erreur={errors.pays?.message} />
-          <Input
-            label="Téléphone"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            placeholder="+225 07 00 00 00 00"
-            {...register('telephone')}
-            erreur={errors.telephone?.message}
-            aide="Facultatif, format international. Sert uniquement à vous joindre."
-          />
-        </div>
-        <label className="flex cursor-pointer items-start gap-3 border-2 border-trait bg-gris p-3 text-legende has-checked:border-encre">
-          <input type="checkbox" className="mt-0.5 size-4 accent-encre" {...register('majeur')} />
+        {/* Un champ par ligne, à toutes les largeurs. Aucune paire côte à côte dans ce
+            formulaire : les deux mots de passe se ressemblent trop (même masque de points, même
+            bouton œil) et l'on se trompe de case ; le pays et le téléphone sont liés — choisir un
+            pays préremplit l'indicatif — et les voir l'un sous l'autre rend cet enchaînement
+            lisible. Tous héritent de l'espacement `space-y-4` du formulaire. */}
+        <InputMotDePasse label="Mot de passe" autoComplete="new-password" {...register('motDePasse')} erreur={errors.motDePasse?.message} aide="6 caractères minimum" />
+        <InputMotDePasse label="Confirmation" autoComplete="new-password" {...register('confirmation')} erreur={errors.confirmation?.message} />
+        <Select label="Pays" groupes={GROUPES_PAYS} placeholder="Choisissez votre pays" autoComplete="country-name" {...champPays} onChange={surChangementPays} erreur={errors.pays?.message} />
+        <Input
+          label="Téléphone"
+          type="tel"
+          autoComplete="tel"
+          inputMode="tel"
+          placeholder="+225 07 00 00 00 00"
+          {...register('telephone')}
+          erreur={errors.telephone?.message}
+          aide="Facultatif, format international. Sert uniquement à vous joindre."
+        />
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-trait bg-gris p-3 text-legende has-checked:border-vert">
+          <input type="checkbox" className="mt-0.5 size-4 accent-vert" {...register('majeur')} />
           <span>
             Je certifie être majeur et j’accepte les{' '}
             <Link to="/cgu" className="font-semibold underline decoration-2 underline-offset-2">
@@ -144,7 +145,7 @@ function PageInscription() {
           </p>
         )}
         {erreurGlobale && (
-          <p className="border-2 border-perte bg-perte-fond px-3 py-2 text-legende font-semibold text-perte" role="alert">
+          <p className="rounded-xl border border-perte bg-perte-fond px-3.5 py-2.5 text-legende font-semibold text-perte" role="alert">
             {erreurGlobale}
           </p>
         )}

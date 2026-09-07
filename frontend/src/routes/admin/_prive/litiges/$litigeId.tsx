@@ -116,9 +116,9 @@ function DetailLitige() {
           {litige.decision && <span className="etiquette text-muet">Décision : {litige.decision === 'gagnant' ? `règlement à ${match.gagnantId ? nomDe(match.gagnantId) : '—'}` : 'remboursement des deux joueurs'}</span>}
           {litige.dateResolution && <span className="chiffres text-legende text-muet">résolu le {formatDateHeure(litige.dateResolution)}</span>}
         </div>
-        <blockquote className="border-l-4 border-perte bg-papier px-4 py-3 text-corps">« {litige.motif} »</blockquote>
+        <blockquote className="rounded-xl border-l-4 border-perte bg-papier px-4 py-3 text-corps shadow-carte">« {litige.motif} »</blockquote>
         <TableauScore joueur1={match.joueur1Nom} joueur2={match.joueur2Nom} score1={match.scoreJoueur1 ?? null} score2={match.scoreJoueur2 ?? null} gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null} etiquette="Scores enregistrés" sousTitre="Chaque joueur a déclaré de son point de vue" />
-        <section className="ticket-sm border-2 border-encre bg-papier p-5">
+        <section className="rounded-2xl border border-trait bg-papier p-5 shadow-carte">
           <h3 className="text-h3">Déclarations</h3>
           {data.declarations.length === 0 ? (
             <p className="mt-3 text-legende text-muet">Aucune déclaration : litige ouvert avant la fin du match.</p>

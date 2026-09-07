@@ -100,6 +100,10 @@ func Retirer(userID uuid.UUID, montant decimal.Decimal, prestataire, numero stri
 	if errors.Is(err, portefeuilles.ErrSoldeInsuffisant) {
 		return nil, portefeuilles.ErrSoldeInsuffisant
 	}
+	// Remontée telle quelle : le contrôleur en fait un message distinct du solde insuffisant.
+	if errors.Is(err, portefeuilles.ErrDepotNonJoue) {
+		return nil, portefeuilles.ErrDepotNonJoue
+	}
 	if err != nil {
 		return nil, err
 	}

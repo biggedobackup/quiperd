@@ -47,6 +47,63 @@ function TableauDeBord() {
   const heure = new Date().getHours()
   const salut = heure < 18 ? 'Bonjour' : 'Bonsoir'
 
+  // Pendant le chargement on ne SAIT pas encore s'il y a des matchs : on garde l'ordre habituel
+  // plutôt que d'intervertir les deux blocs sous les yeux du joueur dès que la réponse arrive.
+  const aucunMatch = !attenteMatchs && matchs.data !== undefined && matchs.data.length === 0
+
+  const sectionMatchs = (
+    <section className="mt-10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <h3 className="text-h3">Matchs en cours</h3>
+        <Link to="/joueur/matchs" className="etiquette flex min-h-11 shrink-0 items-center gap-1 text-vert hover:underline">
+          Tous mes matchs <FontAwesomeIcon icon={icone.suivant} />
+        </Link>
+      </div>
+      {attenteMatchs ? (
+        <SkeletonCarte nombre={2} />
+      ) : matchs.data && matchs.data.length > 0 ? (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {matchs.data.slice(0, 4).map((m) => (
+            <CarteMatch key={m.id} match={m} moiId={moi.id} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState icone={icone.match} titre="Aucun match en cours" description="Rejoignez un défi ouvert ou créez le vôtre : le match démarre dès qu’un adversaire accepte." />
+      )}
+    </section>
+  )
+
+  const sectionDefis = (
+    <section className="mt-10">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        <h3 className="text-h3">Défis ouverts</h3>
+        <Link to="/joueur/defis" className="etiquette flex min-h-11 shrink-0 items-center gap-1 text-vert hover:underline">
+          Tous les défis <FontAwesomeIcon icon={icone.suivant} />
+        </Link>
+      </div>
+      {attenteDefis ? (
+        <SkeletonCarte nombre={3} />
+      ) : defis.data && defis.data.length > 0 ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {defis.data.slice(0, 3).map((d) => (
+            <CarteDefi key={d.id} defi={d} mien={d.createurId === moi.id} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          icone={icone.defi}
+          titre="Aucun défi disponible"
+          description="Créez le premier : votre mise est bloquée en séquestre jusqu’à ce qu’un adversaire rejoigne."
+          action={
+            <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
+              Créer un défi
+            </LienBouton>
+          }
+        />
+      )}
+    </section>
+  )
+
   return (
     <>
       <EnTetePage
@@ -74,10 +131,12 @@ function TableauDeBord() {
       */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
-          <div className="ticket flex h-full flex-col justify-between border-2 border-encre bg-nuit p-6 text-craie">
+          <div className="flex h-full flex-col justify-between rounded-2xl bg-encre p-6 text-craie">
             <div className="flex items-start justify-between">
               <span className="etiquette text-craie/60">Solde disponible</span>
-              <FontAwesomeIcon icon={icone.portefeuille} className="text-volt" />
+              <span className="flex size-10 items-center justify-center rounded-xl bg-vert text-craie">
+                <FontAwesomeIcon icon={icone.portefeuille} />
+              </span>
             </div>
             <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} className="mt-4 text-display-sm font-bold text-volt md:text-display-md" />
             <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-craie/15 pt-4 text-legende text-craie/70">
@@ -92,7 +151,7 @@ function TableauDeBord() {
           </div>
         </div>
         <div>
-          <div className="ticket-sm flex h-full flex-col border-2 border-encre bg-papier p-5">
+          <div className="flex h-full flex-col rounded-2xl border border-trait bg-papier p-5">
             <div className="flex items-center justify-between">
               <span className="etiquette text-muet">Notifications</span>
               <Link to="/joueur/notifications" className="etiquette inline-flex min-h-11 items-center text-encre hover:underline">
@@ -105,7 +164,7 @@ function TableauDeBord() {
               <ul className="mt-3 divide-y divide-trait">
                 {notifications.data.slice(0, 4).map((n) => (
                   <li key={n.id} className="flex items-start gap-2 py-2 text-legende">
-                    <span className={`mt-1.5 size-2 shrink-0 ${n.lu ? 'bg-trait' : 'bg-volt'}`} aria-hidden="true" />
+                    <span className={`mt-1.5 size-2 shrink-0 rounded-full ${n.lu ? 'bg-trait' : 'bg-vert'}`} aria-hidden="true" />
                     <div className="min-w-0">
                       <p className={`truncate ${n.lu ? '' : 'font-bold'}`}>{n.titre}</p>
                       <p className="text-[11px] text-muet">{formatDateRelative(n.dateCreation)}</p>
@@ -120,54 +179,23 @@ function TableauDeBord() {
         </div>
       </div>
 
-      <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-h3">Matchs en cours</h3>
-          <Link to="/joueur/matchs" className="etiquette flex min-h-11 items-center gap-1 hover:underline">
-            Tous mes matchs <FontAwesomeIcon icon={icone.suivant} />
-          </Link>
-        </div>
-        {attenteMatchs ? (
-          <SkeletonCarte nombre={2} />
-        ) : matchs.data && matchs.data.length > 0 ? (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {matchs.data.slice(0, 4).map((m) => (
-              <CarteMatch key={m.id} match={m} moiId={moi.id} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState icone={icone.match} titre="Aucun match en cours" description="Rejoignez un défi ouvert ou créez le vôtre : le match démarre dès qu’un adversaire accepte." />
-        )}
-      </section>
-
-      <section className="mt-10">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-h3">Défis ouverts</h3>
-          <Link to="/joueur/defis" className="etiquette flex min-h-11 items-center gap-1 hover:underline">
-            Tous les défis <FontAwesomeIcon icon={icone.suivant} />
-          </Link>
-        </div>
-        {attenteDefis ? (
-          <SkeletonCarte nombre={3} />
-        ) : defis.data && defis.data.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {defis.data.slice(0, 3).map((d) => (
-              <CarteDefi key={d.id} defi={d} mien={d.createurId === moi.id} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            icone={icone.defi}
-            titre="Aucun défi disponible"
-            description="Créez le premier : votre mise est bloquée en séquestre jusqu’à ce qu’un adversaire rejoigne."
-            action={
-              <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
-                Créer un défi
-              </LienBouton>
-            }
-          />
-        )}
-      </section>
+      {/*
+        L'ordre des deux sections dépend de ce que le joueur a en cours. Avec un match ouvert,
+        c'est lui qui compte : il passe devant. Sans aucun match, mettre un grand cadre
+        « Aucun match en cours » avant les défis à relever, c'est ouvrir le tableau de bord sur
+        du vide — les défis ouverts passent alors en premier et l'état vide descend en bas.
+      */}
+      {aucunMatch ? (
+        <>
+          {sectionDefis}
+          {sectionMatchs}
+        </>
+      ) : (
+        <>
+          {sectionMatchs}
+          {sectionDefis}
+        </>
+      )}
     </>
   )
 }

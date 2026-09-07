@@ -9,6 +9,7 @@ import '../../composants/communs/en_tete_page.dart';
 import '../../composants/communs/indicateur_direct.dart';
 import '../../composants/communs/message.dart';
 import '../../composants/communs/squelette.dart';
+import '../../composants/joueur/avatar_joueur.dart';
 import '../../composants/joueur/chronologie_match.dart';
 import '../../composants/joueur/confirmation_score.dart';
 import '../../composants/joueur/envoi_preuve.dart';
@@ -544,15 +545,31 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Flexible(
-                child: Text.rich(
-                  TextSpan(
-                    text: 'Face à ',
-                    style: Typo.legende.copyWith(color: Couleurs.muet),
-                    children: [
-                      TextSpan(text: nomAdversaire, style: Typo.legendeForte),
-                    ],
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // La photo de l'adversaire, s'il en a une : on joue de l'argent contre
+                    // quelqu'un, autant voir son visage et pas seulement son pseudo.
+                    AvatarJoueur(
+                      utilisateurId: match.adversaireDe(moi.id),
+                      pseudo: nomAdversaire,
+                      photo: match.photoAdversaireDe(moi.id),
+                      taille: 34,
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text.rich(
+                        TextSpan(
+                          text: 'Face à ',
+                          style: Typo.legende.copyWith(color: Couleurs.muet),
+                          children: [
+                            TextSpan(text: nomAdversaire, style: Typo.legendeForte),
+                          ],
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               PresenceAdversaire(enLigne: _presenceAdverse, direct: direct.enDirect),

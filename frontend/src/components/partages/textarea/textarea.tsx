@@ -22,7 +22,7 @@ export function Textarea({ label, aide, erreur, className = '', id, ref, rows = 
         ref={ref}
         rows={rows}
         aria-invalid={erreur ? true : undefined}
-        className="w-full resize-y border-2 border-trait bg-papier px-3 py-2 text-corps text-encre placeholder:text-muet transition-colors duration-150 focus:border-encre focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-perte"
+        className="w-full resize-y rounded-[10px] border border-trait bg-papier px-3.5 py-2.5 text-corps text-encre placeholder:text-muet transition-colors duration-150 focus:border-vert focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-perte"
         {...reste}
       />
       {erreur ? (

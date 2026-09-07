@@ -22,13 +22,13 @@ export function Ticker({ jeux, plateformes, regles }: { jeux: Jeu[]; plateformes
   ]
   const boucle = [...elements, ...elements]
   return (
-    <div className="overflow-hidden border-b-2 border-encre bg-encre text-craie" aria-hidden="true">
+    <div className="overflow-hidden border-b border-trait bg-encre text-craie" aria-hidden="true">
       <div className="flex w-max animate-ticker gap-0 hover:[animation-play-state:paused]">
         {boucle.map((e, i) => (
-          <span key={i} className="etiquette flex items-center gap-3 whitespace-nowrap px-6 py-3">
-            <FontAwesomeIcon icon={e.icone} className="text-volt" />
+          <span key={i} className="etiquette flex items-center gap-3 whitespace-nowrap px-6 py-3.5">
+            <FontAwesomeIcon icon={e.icone} className="text-vert" />
             {e.texte}
-            <span className="ml-3 size-1.5 bg-volt" />
+            <span className="ml-3 size-1.5 rounded-full bg-vert" />
           </span>
         ))}
       </div>

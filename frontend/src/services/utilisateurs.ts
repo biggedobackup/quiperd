@@ -64,7 +64,6 @@ export interface ModificationProfil {
   id: string
   nomUtilisateur?: string
   telephone?: string
-  photoProfil?: string
   pays?: string
 }
 

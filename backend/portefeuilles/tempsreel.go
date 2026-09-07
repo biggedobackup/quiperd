@@ -12,7 +12,12 @@ import (
 type ChargeMaj struct {
 	SoldeDisponible decimal.Decimal `json:"soldeDisponible"`
 	SoldeBloque     decimal.Decimal `json:"soldeBloque"`
-	Devise          string          `json:"devise"`
+	// Poussés avec les deux autres : un dépôt confirmé, une mise bloquée ou un défi annulé
+	// changent la part non jouée, donc le plafond de retrait. Sans eux, l'écran du joueur
+	// afficherait un solde à jour et un plafond périmé — le pire des deux mondes.
+	SoldeNonJoue   decimal.Decimal `json:"soldeNonJoue"`
+	SoldeRetirable decimal.Decimal `json:"soldeRetirable"`
+	Devise         string          `json:"devise"`
 }
 
 // transactionAvecProprietaire est une ligne de grand livre jointe à son propriétaire,
@@ -39,7 +44,8 @@ func AjouterEtat(tx *gorm.DB, tampon *tempsreel.Tampon, utilisateurs ...uuid.UUI
 			continue
 		}
 		tampon.Ajouter(tempsreel.EvtPortefeuilleMaj, ChargeMaj{
-			SoldeDisponible: p.SoldeDisponible, SoldeBloque: p.SoldeBloque, Devise: p.Devise,
+			SoldeDisponible: p.SoldeDisponible, SoldeBloque: p.SoldeBloque,
+			SoldeNonJoue: p.SoldeNonJoue, SoldeRetirable: p.SoldeRetirable(), Devise: p.Devise,
 		}, tempsreel.SalonUtilisateur(u))
 	}
 }

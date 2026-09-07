@@ -48,7 +48,7 @@ const BIFURCATIONS: Record<string, Bifurcation> = {
 }
 
 const TONS = {
-  attente: { fond: 'bg-volt-fond', texte: 'text-encre', pastille: 'border-encre bg-volt text-nuit' },
+  attente: { fond: 'bg-vert-pale', texte: 'text-encre', pastille: 'border-vert bg-vert text-craie' },
   alerte: { fond: 'bg-alerte-fond', texte: 'text-alerte', pastille: 'border-alerte bg-alerte text-papier' },
   perte: { fond: 'bg-perte-fond', texte: 'text-perte', pastille: 'border-perte bg-perte text-papier' },
 }
@@ -86,7 +86,7 @@ export function ChronologieMatch({ statut }: { statut: StatutMatch }) {
   ]
 
   return (
-    <ol className="grid gap-px border-2 border-encre bg-encre sm:grid-cols-3">
+    <ol className="grid gap-px overflow-hidden rounded-2xl border border-trait bg-trait sm:grid-cols-3">
       {etapes.map((e, i) => {
         const fait = i < index || termine
         const courant = i === index && !termine
@@ -98,7 +98,7 @@ export function ChronologieMatch({ statut }: { statut: StatutMatch }) {
             aria-current={courant ? 'step' : undefined}
           >
             <span
-              className={`chiffres flex size-7 shrink-0 items-center justify-center border-2 text-[11px] font-bold ${
+              className={`chiffres flex size-7 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold ${
                 courant ? tons.pastille : fait ? 'border-encre bg-encre text-craie' : 'border-trait text-muet'
               }`}
             >

@@ -241,6 +241,9 @@ function appliquerDansListe(
 export interface SoldePartiel {
   soldeDisponible: string
   soldeBloque: string
+  /** Part venue d'un dépôt jamais misé, et solde réellement retirable : poussés avec le reste. */
+  soldeNonJoue: string
+  soldeRetirable: string
   devise: string
 }
 

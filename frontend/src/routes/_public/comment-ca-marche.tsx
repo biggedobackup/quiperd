@@ -4,9 +4,9 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { optionsRegles } from '@/lib/requetes'
 import { icone } from '@/lib/icones'
 import { formatMontant, formatPourcentage } from '@/lib/format'
-import { BandeAppel, Conteneur, SectionCommentCaMarche, SectionSecurite } from '@/components/public/sections'
+import { BandeAppel, Conteneur, EnTetePublique, SectionCommentCaMarche, SectionSecurite } from '@/components/public/sections'
+import { LienBouton } from '@/components/partages/button/button'
 import { TableauScore } from '@/components/partages/tableau-score/tableau-score'
-import { Apparition } from '@/components/partages/animation/animation'
 
 const routeParent = getRouteApi('/_public')
 
@@ -30,22 +30,30 @@ function CommentCaMarche() {
 
   return (
     <>
-      <Apparition>
-        <section className="border-b-2 border-encre bg-nuit text-craie">
-          <Conteneur className="py-5 md:py-7">
-            <span className="etiquette text-craie">Le parcours d’un défi</span>
-            <h1 className="mt-1 max-w-3xl text-h3 text-craie sm:text-h2">Un match, deux mises, un gagnant.</h1>
-          </Conteneur>
-        </section>
-      </Apparition>
+      <div>
+        <EnTetePublique fond="noir" surtitre="Le parcours d’un défi" titre="Un match, deux mises, un gagnant.">
+          {connecte ? (
+            <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
+              Créer un défi
+            </LienBouton>
+          ) : (
+            <LienBouton to="/inscription" variante="volt" iconeFin={icone.suivant}>
+              Créer un compte
+            </LienBouton>
+          )}
+          <LienBouton to="/defis" variante="secondaire" iconeDebut={icone.ticket}>
+            Voir les défis
+          </LienBouton>
+        </EnTetePublique>
+      </div>
       <SectionCommentCaMarche regles={regles} complete />
-      <section className="border-b-2 border-encre bg-papier py-16 md:py-24">
+      <section className="border-b border-trait bg-craie py-16 md:py-20">
         <Conteneur className="grid gap-10 lg:grid-cols-2 lg:items-center">
           <div>
-            <span className="chiffres etiquette inline-block border-2 border-encre bg-volt px-2 py-1 text-nuit">02</span>
+            <span className="chiffres etiquette inline-block rounded-full bg-vert-pale px-3 py-1.5 text-vert">02</span>
             <h2 className="mt-4 text-h1 md:text-display-sm">Le règlement, chiffré</h2>
             <p className="mt-4 text-corps text-muet">Exemple avec deux mises de {formatMontant(mise)}. La commission est celle appliquée aujourd’hui par la plateforme.</p>
-            <dl className="mt-8 divide-y-2 divide-trait border-2 border-encre">
+            <dl className="mt-8 overflow-hidden rounded-2xl border border-trait divide-y divide-trait">
               <Ligne libelle="Mise de Kader225 (bloquée)" valeur={formatMontant(mise)} />
               <Ligne libelle="Mise de Moussa10 (bloquée)" valeur={formatMontant(mise)} />
               <Ligne libelle="Total en séquestre" valeur={formatMontant(total)} fort />
@@ -68,7 +76,7 @@ function CommentCaMarche() {
 
 function Ligne({ libelle, valeur, fort = false, volt = false }: { libelle: string; valeur: string; fort?: boolean; volt?: boolean }) {
   return (
-    <div className={`flex items-center justify-between gap-4 px-4 py-3 ${volt ? 'bg-volt text-nuit' : ''}`}>
+    <div className={`flex items-center justify-between gap-4 px-4 py-3.5 ${volt ? 'bg-vert text-craie' : ''}`}>
       <dt className={`text-legende ${fort ? 'font-bold' : ''}`}>{libelle}</dt>
       <dd className={`chiffres ${fort ? 'text-h3 font-bold' : 'text-corps'}`}>{valeur}</dd>
     </div>

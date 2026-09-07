@@ -47,13 +47,13 @@ function PageMotDePasseOublie() {
       sousTitre="Indiquez l’e-mail de votre compte : nous vous envoyons un lien de réinitialisation."
       accroche="On ne perd pas un match pour un mot de passe."
       pied={
-        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-vert">
           Retour à la connexion
         </Link>
       }
     >
       {message ? (
-        <div className="flex items-start gap-3 border-2 border-gain bg-gain-fond p-4 text-legende text-gain">
+        <div className="flex items-start gap-3 rounded-xl border border-gain bg-gain-fond p-4 text-legende text-gain">
           <FontAwesomeIcon icon={icone.succes} className="mt-0.5" />
           <p>{message}</p>
         </div>

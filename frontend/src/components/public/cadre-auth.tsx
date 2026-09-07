@@ -2,7 +2,6 @@ import type { ReactNode } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { Logo } from '@/components/partages/logo/logo'
 import { Badge } from '@/components/partages/badge/badge'
-import { Apparition } from '@/components/partages/animation/animation'
 import { icone } from '@/lib/icones'
 
 /** Les trois garanties mises en avant à côté des formulaires d'authentification. */
@@ -44,22 +43,22 @@ export function CadreAuth({
 }) {
   return (
     <div className="grid min-h-[calc(100dvh-4rem)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <aside className="hidden border-r-2 border-encre bg-craie px-10 py-10 lg:flex xl:px-14" aria-label="Pourquoi QUI PERD">
-        <Apparition className="mx-auto flex w-full min-w-0 max-w-lg flex-col justify-between gap-10">
+      <aside className="hidden border-r border-trait bg-craie px-10 py-10 lg:flex xl:px-14" aria-label="Pourquoi QUI PERD">
+        <div className="mx-auto flex w-full min-w-0 max-w-lg flex-col justify-between gap-10">
           <Logo taille="lg" />
 
           <div className="min-w-0">
             <p className="etiquette flex items-center gap-2 text-encre">
-              <span className="size-2 shrink-0 bg-volt" aria-hidden="true" />
+              <span className="size-2 shrink-0 rounded-full bg-vert" aria-hidden="true" />
               Défis 1 contre 1 entre gamers
             </p>
             <h2 className="mt-4 text-display-sm text-balance text-encre">{accroche}</h2>
 
-            <ul className="mt-8 divide-y divide-trait border-y-2 border-encre">
+            <ul className="mt-8 divide-y divide-trait border-y border-trait">
               {ARGUMENTS.map((argument, index) => (
                 <li key={argument.titre} className="flex items-start gap-4 py-4">
                   <span
-                    className="ticket-sm flex size-11 shrink-0 items-center justify-center bg-encre text-craie"
+                    className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-vert text-craie"
                     aria-hidden="true"
                   >
                     <FontAwesomeIcon icon={argument.icone} className="text-base" />
@@ -75,27 +74,27 @@ export function CadreAuth({
               ))}
             </ul>
 
-            <Apparition delai={0.12} className="mt-8">
+            <div className="mt-8">
               <TicketIllustratif />
-            </Apparition>
+            </div>
           </div>
 
           <p className="flex items-center gap-3 text-legende text-muet">
-            <span className="etiquette shrink-0 border-2 border-encre px-1.5 py-1 text-encre">18+</span>
+            <span className="etiquette shrink-0 rounded-full border border-trait px-2 py-1 text-encre">18+</span>
             Jeu réservé aux adultes
           </p>
-        </Apparition>
+        </div>
       </aside>
 
-      <main className="motif-grille flex items-center justify-center px-4 py-10 sm:px-6">
-        <Apparition className="w-full max-w-md">
-          <div className="ticket border-2 border-encre bg-papier p-6 shadow-tampon sm:p-8">
+      <main className="flex items-center justify-center px-4 py-10 sm:px-6">
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border border-trait bg-papier p-6 shadow-carte-forte sm:p-8">
             <h1 className="text-h2">{titre}</h1>
             {sousTitre && <p className="mt-2 text-legende text-muet">{sousTitre}</p>}
             <div className="mt-6">{children}</div>
           </div>
           {pied && <div className="mt-5 text-center text-legende text-muet">{pied}</div>}
-        </Apparition>
+        </div>
       </main>
     </div>
   )
@@ -103,13 +102,13 @@ export function CadreAuth({
 
 /**
  * Ticket illustratif d'un défi terminé : score réel sur bandeau noir (gagnant en volt),
- * « tampon » vert décalé derrière le ticket (même coins coupés, aucune ombre floue).
+ * « tampon » vert décalé derrière la carte (mêmes coins arrondis, aucun dégradé).
  */
 function TicketIllustratif() {
   return (
     <div className="relative">
-      <div className="ticket absolute inset-0 translate-x-1 translate-y-1 bg-volt" aria-hidden="true" />
-      <div className="ticket relative border-2 border-encre bg-papier">
+      <div className="absolute inset-0 translate-x-1 translate-y-1 rounded-2xl bg-vert" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-2xl border border-trait bg-papier">
         <div className="flex items-center justify-between gap-3 px-4 py-2.5">
           <span className="etiquette text-encre">Défi terminé</span>
           <Badge variante="volt" sansPoint>
@@ -117,11 +116,11 @@ function TicketIllustratif() {
           </Badge>
         </div>
 
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 bg-nuit px-5 py-4 text-craie">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 bg-encre px-5 py-4 text-craie">
           <div className="min-w-0">
             <p className="chiffres text-display-sm font-bold leading-none text-volt">3</p>
             <p className="mt-2 truncate font-titre text-[11px] font-bold uppercase text-volt">
-              <span className="border-b-2 border-volt pb-0.5">Vous</span>
+              <span className="border-b border-volt pb-0.5">Vous</span>
             </p>
           </div>
           <span className="chiffres text-h2 text-craie" aria-hidden="true">
@@ -133,7 +132,7 @@ function TicketIllustratif() {
           </div>
         </div>
 
-        <p className="flex items-center gap-2 border-t-2 border-encre bg-gris px-4 py-3 text-legende font-medium text-encre">
+        <p className="flex items-center gap-2 border-t border-trait bg-gris px-4 py-3 text-legende font-medium text-encre">
           <FontAwesomeIcon icon={icone.pieces} className="shrink-0 text-gain" />
           Le gagnant remporte les deux mises, moins la commission.
         </p>

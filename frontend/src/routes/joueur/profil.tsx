@@ -122,22 +122,23 @@ function FormulaireProfil() {
     await router.invalidate()
   })
   return (
-    <form onSubmit={soumettre} className="ticket-sm space-y-4 border-2 border-encre bg-papier p-5" noValidate>
+    <form onSubmit={soumettre} className="space-y-4 rounded-2xl border border-trait bg-papier p-5" noValidate>
       <h3 className="text-h3">Profil</h3>
       <Input label="Pseudo" {...register('nomUtilisateur')} erreur={errors.nomUtilisateur?.message} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Select label="Pays" groupes={GROUPES_PAYS} placeholder="Choisissez votre pays" autoComplete="country-name" {...champPays} onChange={surChangementPays} erreur={errors.pays?.message} />
-        <Input
-          label="Téléphone"
-          type="tel"
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="+225 07 00 00 00 00"
-          {...register('telephone')}
-          erreur={errors.telephone?.message}
-          aide="Format international. Sert uniquement à vous joindre."
-        />
-      </div>
+      {/* Un champ par ligne, à toutes les largeurs — le pays et le téléphone compris : ils sont
+          liés (choisir un pays préremplit l'indicatif) et l'enchaînement se lit mieux à la
+          verticale. Ils héritent de l'espacement `space-y-4` du formulaire. */}
+      <Select label="Pays" groupes={GROUPES_PAYS} placeholder="Choisissez votre pays" autoComplete="country-name" {...champPays} onChange={surChangementPays} erreur={errors.pays?.message} />
+      <Input
+        label="Téléphone"
+        type="tel"
+        autoComplete="tel"
+        inputMode="tel"
+        placeholder="+225 07 00 00 00 00"
+        {...register('telephone')}
+        erreur={errors.telephone?.message}
+        aide="Format international. Sert uniquement à vous joindre."
+      />
       <ChampPhotoProfil utilisateurId={moi.id} photoActuelle={moi.photoProfil} />
       <div className="flex justify-end">
         <Button type="submit" chargement={isSubmitting} disabled={!isDirty} iconeDebut={icone.valider}>
@@ -178,13 +179,13 @@ function FormulaireMotDePasse() {
     reset()
   })
   return (
-    <form onSubmit={soumettre} className="ticket-sm space-y-4 border-2 border-encre bg-papier p-5" noValidate>
+    <form onSubmit={soumettre} className="space-y-4 rounded-2xl border border-trait bg-papier p-5" noValidate>
       <h3 className="text-h3">Mot de passe</h3>
       <InputMotDePasse label="Mot de passe actuel" {...register('motDePasseActuel')} erreur={errors.motDePasseActuel?.message} />
-      <div className="grid gap-4 sm:grid-cols-2">
-        <InputMotDePasse label="Nouveau" autoComplete="new-password" {...register('nouveauMotDePasse')} erreur={errors.nouveauMotDePasse?.message} />
-        <InputMotDePasse label="Confirmation" autoComplete="new-password" {...register('confirmation')} erreur={errors.confirmation?.message} />
-      </div>
+      {/* Un mot de passe par ligne, à toutes les largeurs : côte à côte, les deux champs se
+          ressemblent trop (même masque de points, même bouton œil) et l'on se trompe de case. */}
+      <InputMotDePasse label="Nouveau" autoComplete="new-password" {...register('nouveauMotDePasse')} erreur={errors.nouveauMotDePasse?.message} />
+      <InputMotDePasse label="Confirmation" autoComplete="new-password" {...register('confirmation')} erreur={errors.confirmation?.message} />
       <div className="flex justify-end">
         <Button type="submit" variante="secondaire" chargement={isSubmitting} iconeDebut={icone.cle}>
           Changer
@@ -258,10 +259,10 @@ function ComptesGamers() {
           {attenteComptes ? (
             <SkeletonLignes lignes={2} colonnes={3} />
           ) : comptes.data && comptes.data.length > 0 ? (
-            <ul className="divide-y-2 divide-trait border-2 border-encre bg-papier">
+            <ul className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-papier">
               {comptes.data.map((c) => (
                 <li key={c.id} className="flex items-center gap-4 px-4 py-3">
-                  <span className="flex size-9 shrink-0 items-center justify-center border-2 border-encre bg-gris">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gris">
                     <FontAwesomeIcon icon={iconePlateforme(nomPlateforme(c.plateformeId))} />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -271,7 +272,7 @@ function ComptesGamers() {
                       {c.nomAffichage && ` · ${c.nomAffichage}`}
                     </p>
                   </div>
-                  <button type="button" onClick={() => setASupprimer(c)} className="flex size-9 items-center justify-center border-2 border-transparent text-perte hover:border-perte" aria-label="Supprimer">
+                  <button type="button" onClick={() => setASupprimer(c)} className="flex size-9 items-center justify-center rounded-full border border-transparent text-perte transition-colors hover:border-perte hover:bg-perte-fond" aria-label="Supprimer">
                     <FontAwesomeIcon icon={icone.fermer} />
                   </button>
                 </li>
@@ -281,7 +282,7 @@ function ComptesGamers() {
             <EmptyState icone={icone.jeu} titre="Aucun identifiant" description="Ajoutez votre pseudo en jeu pour chaque jeu et plateforme sur lesquels vous jouez." />
           )}
         </div>
-        <form onSubmit={ajouter} className="ticket-sm h-fit space-y-4 border-2 border-encre bg-papier p-5" noValidate>
+        <form onSubmit={ajouter} className="h-fit space-y-4 rounded-2xl border border-trait bg-papier p-5" noValidate>
           <h4 className="etiquette text-muet">Ajouter</h4>
           <Select label="Jeu" options={jeux.map((j) => ({ valeur: j.id, libelle: j.nom }))} {...register('jeuId')} erreur={errors.jeuId?.message} />
           <Select label="Plateforme" options={plateformes.map((p) => ({ valeur: p.id, libelle: p.nom }))} {...register('plateformeId')} erreur={errors.plateformeId?.message} />

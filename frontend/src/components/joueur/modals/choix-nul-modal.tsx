@@ -63,14 +63,14 @@ export function ChoixNulModal({
     >
       <div className="space-y-4">
         {echeance && (
-          <div className="flex flex-wrap items-center justify-between gap-2 border-2 border-alerte bg-alerte-fond px-3 py-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-alerte bg-alerte-fond px-3 py-2">
             <span className="etiquette text-alerte">Sans choix de votre part</span>
             <CompteARebours echeance={echeance} libelle="Partage dans" ton="alerte" />
           </div>
         )}
 
         {choixAdverse && (
-          <p className="flex items-start gap-2 border-2 border-trait bg-gris px-3 py-2 text-legende">
+          <p className="flex items-start gap-2 rounded-xl border border-trait bg-gris px-3 py-2 text-legende">
             <FontAwesomeIcon icon={icone.info} className="mt-0.5 shrink-0 text-muet" aria-hidden="true" />
             <span>
               Votre adversaire a choisi <strong>{choixAdverse === 'rejouer' ? 'de rejouer' : 'de partager'}</strong>.
@@ -153,13 +153,13 @@ function Option({
       role="radio"
       aria-checked={actif}
       onClick={() => onChoisir(valeur)}
-      className={`flex min-h-11 w-full items-start gap-3 border-2 px-4 py-3 text-left transition-colors ${
-        actif ? 'border-encre bg-volt-fond' : 'border-trait bg-papier hover:border-encre'
+      className={`flex min-h-11 w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition-colors duration-150 ${
+        actif ? 'border-vert bg-vert-pale' : 'border-trait bg-papier hover:border-vert'
       }`}
     >
       <span
-        className={`mt-0.5 flex size-6 shrink-0 items-center justify-center border-2 ${
-          actif ? 'border-encre bg-volt text-nuit' : 'border-trait text-muet'
+        className={`mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-sm border ${
+          actif ? 'border-vert bg-vert text-craie' : 'border-trait text-muet'
         }`}
         aria-hidden="true"
       >

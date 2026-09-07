@@ -82,11 +82,11 @@ export function DetailUtilisateurModal({ utilisateur, onFermer }: { utilisateur:
           <SkeletonTexte lignes={2} />
         ) : portefeuille ? (
           <div className="grid grid-cols-2 gap-3">
-            <div className="border-2 border-encre bg-nuit p-3 text-craie">
+            <div className="rounded-xl bg-encre p-3 text-craie">
               <span className="etiquette text-craie/60">Disponible</span>
               <span className="chiffres mt-1 block text-h3 font-bold text-volt">{formatMontant(portefeuille.soldeDisponible, portefeuille.devise)}</span>
             </div>
-            <div className="border-2 border-encre bg-papier p-3">
+            <div className="rounded-xl border border-trait bg-papier p-3">
               <span className="etiquette text-muet">Bloqué</span>
               <span className="chiffres mt-1 block text-h3 font-bold">{formatMontant(portefeuille.soldeBloque, portefeuille.devise)}</span>
             </div>
@@ -96,7 +96,7 @@ export function DetailUtilisateurModal({ utilisateur, onFermer }: { utilisateur:
         )}
       </div>
       {u && u.statut !== 'supprime' && (
-        <div className="mt-5 flex justify-end border-t-2 border-trait pt-4">
+        <div className="mt-5 flex justify-end border-t border-trait pt-4">
           <Button taille="sm" variante={suspendu ? 'secondaire' : 'danger'} iconeDebut={suspendu ? icone.reactiver : icone.suspendre} onClick={() => setConfirmerStatut(true)}>
             {suspendu ? 'Réactiver' : 'Suspendre'}
           </Button>

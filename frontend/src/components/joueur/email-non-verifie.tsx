@@ -51,7 +51,7 @@ export function toastRefusEmail(echec: EchecResultat): void {
  */
 export function BandeauEmailNonConfirme({ email }: { email: string }) {
   return (
-    <div role="status" className="border-b-2 border-alerte bg-alerte-fond px-4 py-2.5 sm:px-6 lg:px-8">
+    <div role="status" className="border-b border-alerte bg-alerte-fond px-4 py-2.5 sm:px-6 lg:px-8">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 text-legende text-alerte">
         <FontAwesomeIcon icon={icone.courriel} className="shrink-0" aria-hidden="true" />
         {/* L'adresse n'apparaît qu'à partir de `sm` : sur un téléphone elle ferait passer le
@@ -95,9 +95,9 @@ export function BlocEmailNonConfirme({
 }) {
   const { session } = routeJoueur.useRouteContext()
   return (
-    <section className={`ticket border-2 border-alerte bg-papier p-4 sm:p-6 ${className}`} aria-labelledby="titre-email-non-confirme">
+    <section className={`rounded-2xl border border-alerte bg-papier p-4 sm:p-6 ${className}`} aria-labelledby="titre-email-non-confirme">
       <div className="flex items-start gap-3">
-        <span className="ticket-sm flex size-11 shrink-0 items-center justify-center bg-alerte-fond text-alerte" aria-hidden="true">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-alerte-fond text-alerte" aria-hidden="true">
           <FontAwesomeIcon icon={icone.courriel} />
         </span>
         <div className="min-w-0">
@@ -111,7 +111,7 @@ export function BlocEmailNonConfirme({
           {note && <p className="mt-2 text-legende text-muet">{note}</p>}
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap gap-2 border-t-2 border-trait pt-4">
+      <div className="mt-4 flex flex-wrap gap-2 border-t border-trait pt-4">
         <LienBouton
           to="/joueur/confirmation-email"
           search={{ vers }}

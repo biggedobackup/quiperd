@@ -34,6 +34,8 @@ class MatchDefi {
     required this.dateDebut,
     required this.dateFin,
     required this.joueur1Nom,
+    required this.joueur1Photo,
+    required this.joueur2Photo,
     required this.joueur2Nom,
     required this.jeuNom,
     required this.plateformeNom,
@@ -68,6 +70,10 @@ class MatchDefi {
   final String? dateFin;
 
   final String joueur1Nom;
+
+  /// Chemins des photos de profil ; chaîne vide si le joueur n'en a pas.
+  final String joueur1Photo;
+  final String joueur2Photo;
   final String joueur2Nom;
   final String jeuNom;
   final String plateformeNom;
@@ -86,6 +92,11 @@ class MatchDefi {
 
   String nomAdversaireDe(String utilisateurId) =>
       utilisateurId == joueur1Id ? joueur2Nom : joueur1Nom;
+
+  /// Photo de l'adversaire — chaîne vide s'il n'en a pas, l'appelant retombe alors sur le
+  /// monogramme. Le pendant de [nomAdversaireDe] : les deux se lisent toujours ensemble.
+  String photoAdversaireDe(String utilisateurId) =>
+      utilisateurId == joueur1Id ? joueur2Photo : joueur1Photo;
 
   factory MatchDefi.depuisJson(Map<String, dynamic> json) => MatchDefi(
         id: texte(json, 'id'),
@@ -106,6 +117,8 @@ class MatchDefi {
         dateDebut: texteOuNull(json, 'dateDebut'),
         dateFin: texteOuNull(json, 'dateFin'),
         joueur1Nom: texte(json, 'joueur1Nom'),
+        joueur1Photo: texte(json, 'joueur1Photo'),
+        joueur2Photo: texte(json, 'joueur2Photo'),
         joueur2Nom: texte(json, 'joueur2Nom'),
         jeuNom: texte(json, 'jeuNom'),
         plateformeNom: texte(json, 'plateformeNom'),
@@ -140,6 +153,8 @@ class MatchDefi {
         dateDebut: dateDebut,
         dateFin: dateFin,
         joueur1Nom: joueur1Nom,
+        joueur1Photo: joueur1Photo,
+        joueur2Photo: joueur2Photo,
         joueur2Nom: joueur2Nom,
         jeuNom: jeuNom,
         plateformeNom: plateformeNom,

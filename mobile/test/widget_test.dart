@@ -5,6 +5,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:quiperd/composants/communs/badge_statut.dart';
 import 'package:quiperd/composants/communs/squelette.dart';
 import 'package:quiperd/composants/communs/liste_deroulante.dart';
+import 'package:quiperd/composants/communs/pile_paresseuse.dart';
 import 'package:quiperd/composants/joueur/compte_a_rebours.dart';
 import 'package:quiperd/composants/joueur/feuilles/depot.feuille.dart';
 import 'package:quiperd/composants/joueur/tableau_score.dart';
@@ -226,6 +227,40 @@ void main() {
       expect(find.text('PRESTATAIRE'), findsOneWidget);
       // Premier de la liste : LigdiCash, qui collecte le numéro sur sa propre page.
       expect(find.text('NUMÉRO MOBILE MONEY (OPTIONNEL)'), findsOneWidget);
+    });
+  });
+
+  group('Pile paresseuse', () {
+    /// Un onglet doit être construit dès qu'il est sélectionné — quel que soit le
+    /// chemin emprunté pour le sélectionner. Une première version tenait le registre
+    /// des onglets vus dans l'écran parent : la barre du bas changeait l'index sans
+    /// passer par lui, et l'onglet « Argent » s'ouvrait sur un écran vide.
+    Widget pile(int index) => MaterialApp(
+          home: PileParesseuse(
+            index: index,
+            enfants: const [Text('un'), Text('deux'), Text('trois')],
+          ),
+        );
+
+    testWidgets('un onglet jamais ouvert n’est pas construit',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(pile(0));
+      expect(find.text('un'), findsOneWidget);
+      expect(find.text('deux'), findsNothing);
+      expect(find.text('trois'), findsNothing);
+    });
+
+    testWidgets('l’onglet sélectionné est construit, les précédents restent vivants',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(pile(0));
+      await tester.pumpWidget(pile(2));
+      await tester.pump();
+
+      // `IndexedStack` garde ses enfants dans l'arbre : celui affiché est visible,
+      // le premier reste monté (son état est préservé) mais masqué.
+      expect(find.text('trois'), findsOneWidget);
+      expect(find.text('un', skipOffstage: false), findsOneWidget);
+      expect(find.text('deux', skipOffstage: false), findsNothing);
     });
   });
 

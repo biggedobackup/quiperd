@@ -92,6 +92,7 @@ Document de référence pour le développement de l'application mobile **QUI PER
 | **Média** | `image_picker` | Capture d'écran et vidéo de preuve (galerie **et** appareil photo) |
 | **Page de paiement** | `webview_flutter` | Page hébergée du prestataire, affichée DANS l'application (`ecrans/paiement_web.ecran.dart`) |
 | **Ouverture externe** | `url_launcher` | Échappatoire « ouvrir dans le navigateur » si la WebView échoue |
+| **Liens profonds** | `app_links` | Un lien de défi partagé ouvre l'application sur la fiche du défi (`https://<hôte>/defis/<id>` et `quiperd://defis/<id>`) |
 | **Icônes** | `cupertino_icons` + `Icons` Material | Aucune icône SVG copiée, aucun emoji dans l'interface |
 | **Lint** | `flutter_lints` | `flutter analyze` doit rester à zéro avertissement |
 
@@ -227,11 +228,39 @@ champ suivant), miroir de `/joueur/confirmation-email` :
 - écran de succès « Adresse confirmée » puis retour à l'endroit d'où l'on venait.
 
 **Ce que l'adresse non confirmée bloque réellement (403 côté backend) :** créer un défi,
-rejoindre un défi, demander un retrait. **Le dépôt reste ouvert** : faire entrer de l'argent ne
-présente pas le même risque. L'application affiche donc, comme le web, un **bandeau** persistant
-tant que l'adresse n'est pas confirmée, et **remplace le bouton** de l'action bloquée par un
-bouton « Confirmer pour … » qui mène à l'écran de code — plutôt que d'ouvrir une feuille dont
-l'envoi serait refusé.
+rejoindre un défi, demander un retrait. **Le dépôt reste ouvert** côté API : faire entrer de
+l'argent ne présente pas le même risque.
+
+**Mais l'application, elle, ferme tout.** Demande explicite de l'utilisateur : « sur l'app mobile
+quand on s'inscrit on doit être bloqué direct sur la confirmation du compte par e-mail avant
+d'aller sur le tableau ». C'est aussi ce que fait le web, où `routes/joueur.tsx` renvoie sur la
+saisie du code tant que `emailVerifie` est faux.
+
+L'implémentation tient en une ligne de l'aiguillage racine (`app.dart`) :
+
+```dart
+if (session.connecte && session.emailNonConfirme) {
+  return const ConfirmationEmailEcran(bloquant: true);
+}
+if (session.connecte) return CoquilleEcran(key: cleCoquille);
+```
+
+Trois points à ne pas perdre :
+
+- l'écran de code est la **racine**, pas un écran poussé : il n'y a rien derrière lui, le bouton
+  retour du téléphone sort de l'application au lieu de découvrir le tableau de bord ;
+- il porte donc un bouton **« Se déconnecter »**. Sans lui, un joueur qui ne reçoit pas son
+  courriel serait enfermé dans son compte, sans aucun moyen d'en sortir ;
+- `bloquant` est un **paramètre explicite**, jamais deviné. `Navigator.of(context).canPop()`
+  répond « oui » au premier rendu — l'écran d'inscription est encore empilé au-dessus, il ne sera
+  dépilé qu'à la fin de la frame — et l'écran s'affichait alors sans sortie et avec le mauvais
+  texte de bas de page. Erreur commise, vue à l'émulateur, corrigée par le paramètre.
+
+Conséquence : **aucun bandeau « adresse non confirmée » dans la coquille ni dans le tiroir**, ils
+ne pourraient plus jamais s'afficher. Le bandeau reste là où il garde un sens — création de défi
+et portefeuille — pour le cas où le serveur refuse en 403 une session locale qui se croyait à
+jour. Une fois le code accepté, `rafraichirUtilisateur()` met `emailVerifie` à vrai et
+l'aiguillage bascule seul sur la coquille : rien à dépiler.
 
 ---
 
@@ -258,31 +287,69 @@ L'entrée active est en **volt** avec un liseré de 3 px, les autres en craie à
 de compte (monogramme sur fond vert) ouvrant un menu : pseudo, e-mail, « Mon profil »,
 « Déconnexion ».
 
-**Tiroir latéral (écrans secondaires) :** Litiges · Notifications · **Classement** · Aide &
-contact · CGU · Confidentialité · Mentions légales · Déconnexion. Le solde disponible y est
-rappelé en haut, comme dans la barre latérale du web.
+**Tiroir latéral — il liste TOUT, y compris les cinq onglets de la barre basse.** Demande
+explicite de l'utilisateur : « dans le drawer menu je veux qu'il y ait tous les menus, accueil,
+défis, matchs, argent, profil etc. » Celui qui ouvre le menu cherche une destination, pas la
+moitié des destinations : devoir refermer le tiroir pour atteindre le portefeuille n'a pas de
+sens. Deux groupes séparés par un filet :
+
+1. les cinq onglets, **construits à partir de `CoquilleEcranState.onglets`** — la même liste que
+   la barre basse, donc impossible que les deux divergent — avec l'entrée en cours marquée en
+   vert (fond `vertPale`, libellé gras). L'index actif est **passé en paramètre** au tiroir :
+   un `const _Tiroir()` ne se reconstruirait pas au changement d'onglet et marquerait la
+   mauvaise entrée ;
+2. les écrans secondaires : Litiges · Notifications · **Classement** · Aide & contact ·
+   Déconnexion.
+
+Le solde disponible est rappelé en haut, comme dans la barre latérale du web.
 
 ### 3.2 Tableau de bord (`/joueur/tableau-de-bord`)
 
+**Ordre imposé par l'utilisateur** — l'argent, puis ce qui se joue, et les notifications en
+dernier : « sur l'accueil il faut mettre notification en dernier, tu réduis un peu le cadre où
+il y a le solde, et après cela un match en cours, et il y a défis ouverts. » Les notifications
+rendent compte de ce qui vient d'arriver ; placées avant les matchs, elles repoussaient
+l'essentiel sous la ligne de flottaison.
+
 - En-tête : « Bonjour » / « Bonsoir » selon l'heure + **pseudo**, sous-titre « Votre arène :
   solde, matchs en cours, défis à relever. », actions **Déposer** et **Créer un défi**.
-- **Carte de solde** (bloc noir) : « Solde disponible » en compteur animé volt, « Bloqué en
-  séquestre » en dessous, lien « Historique » vers le portefeuille.
-- **Carte Notifications** : les 4 dernières (pastille pleine si non lue, date relative) +
-  « Tout voir ».
+- **Carte de solde** (bloc noir), volontairement **resserrée** : rembourrage 16, montant en 28,
+  interlignes courts. Elle gagne une soixantaine de pixels, ce qui suffit à faire entrer
+  « Matchs en cours » dans le premier écran d'un téléphone courant. « Solde disponible » en
+  compteur animé volt, « Bloqué en séquestre » en dessous, lien « Historique ».
 - Section **« Matchs en cours »** (`GET /api/matchs?statut=en_cours`) + lien « Tous mes matchs » ;
   état vide : « Aucun match en cours ».
 - Section **« Défis ouverts »** (3 cartes) + lien « Tous les défis » ; état vide : « Aucun défi
   disponible » avec bouton « Créer un défi ».
+- **L'ordre de ces deux sections dépend de ce que le joueur a en cours** — même règle que sur le
+  web, demandée par l'utilisateur : avec un match ouvert, les matchs passent devant ; **sans
+  aucun match, les défis ouverts passent en premier** et l'état vide des matchs descend. Les
+  deux blocs sont donc construits par `_sectionMatchs()` / `_sectionDefis()`, qui rendent une
+  `List<Widget>` étalée dans l'ordre voulu. Pendant le chargement, ordre habituel : on ne sait
+  pas encore, et intervertir les blocs sous les yeux du joueur serait pire.
+- **Carte Notifications, en dernier** : les 4 dernières (pastille pleine si non lue, date
+  relative) + « Tout voir ».
 
 ### 3.3 Défis (`/joueur/defis`)
 
 - Deux **onglets** : « Défis ouverts » (l'arène) et « Mes défis ».
-- **Filtres** de l'arène (l'onglet « Mes défis » n'en a pas) : catégorie, jeu, plateforme,
-  « Mise max ». Les listes de jeux et de plateformes sont **groupées** — 7 catégories (`sport`,
-  `combat`, `course`, `tir`, `strategie`, `cartes`, `arcade`) et 3 familles (`pc`, `console`,
-  `mobile`) — et **jamais présélectionnées** : placeholder « Toutes les catégories » /
-  « Choisissez un jeu ».
+- **Filtres de l'arène : dans une feuille, jamais dépliés sur la page** (l'onglet « Mes défis »
+  n'en a pas). Demande explicite de l'utilisateur : « il ne faut pas afficher les filtres
+  directement comme ça, ça prend trop de place ; il faut les masquer, et si on clique sur un
+  bouton une modale peut s'afficher pour faire un filtre. » Les quatre champs dépliés
+  occupaient plus de la moitié de l'écran avant le premier défi.
+  - la page ne porte qu'une **barre compacte** : un bouton « Filtrer », qui devient
+    « Filtres · N » en vert dès qu'un critère est posé — sans ce compte, une liste filtrée
+    ressemble à une arène vide — et un bouton « Effacer » à côté ;
+  - `ouvrirFiltresDefis` (`composants/joueur/feuilles/filtres_defis.feuille.dart`) ouvre la
+    feuille. Elle travaille sur une **copie** : la liste derrière ne bouge pas et ne relance
+    aucune requête à chaque frappe. « Voir les défis » rend les filtres, « Tout effacer » rend
+    `FiltresDefis.aucun`, et refermer la feuille rend `null` — on garde alors ce qu'on avait.
+  - **Ne pas redéfinir `shape` ni ajouter une poignée** : le thème pose déjà `showDragHandle` et
+    le rayon de 28 pour toutes les feuilles. En ajouter une donnait deux poignées empilées.
+  - Les listes de jeux et de plateformes restent **groupées** — 7 catégories (`sport`, `combat`,
+    `course`, `tir`, `strategie`, `cartes`, `arcade`) et 3 familles (`pc`, `console`, `mobile`) —
+    et **jamais présélectionnées** : placeholder « Toutes les catégories » / « Choisissez un jeu ».
 - **Carte de défi** : catégorie, jeu, plateforme, mise en gros chiffres, créateur, compte à
   rebours d'expiration.
 - **Onglet « Mes défis »** : badge de statut, mise, « jeu · plateforme · créé il y a … », compte
@@ -312,8 +379,98 @@ Formulaire + **récapitulatif** :
 
 Surtitre « Défi · *jeu* », titre = **le montant de la mise**, « Proposé par *pseudo* » ou « Vous
 avez créé ce défi ». Fiche : statut, plateforme, date de création, expiration (compte à rebours),
-« Règles du match ». Bloc **enjeu** : mise par joueur, total en séquestre, commission. Action
-**Rejoindre** avec confirmation (« Bloquer *X* et jouer ») ou **Annuler** pour son propre défi.
+« Règles du match ». Bloc **enjeu** : mise par joueur, total en séquestre, commission.
+
+Action principale : **« Miser *X* et accepter »**, où *X* est la mise réelle du défi —
+« Miser 1 500 FCFA et accepter », « Miser 20 000 FCFA et accepter ». Demande explicite de
+l'utilisateur, qui lisait « Rejoindre ce défi » : « ça doit être dynamique, quand c'est 3 000 ça
+doit être écrit 3 000, si c'est 20 000 ça doit être écrit cette somme simplement. » Le montant
+est la somme qui quitte le solde à la seconde où l'on appuie ; la lire ailleurs sur l'écran ne
+remplace pas de la lire sur le bouton qu'on presse. Confirmation par-dessus (« Bloquer *X* et
+jouer »), ou **Annuler** pour son propre défi.
+
+Le libellé du bouton **diverge ici du web**, qui dit « Rejoindre pour *X* » : les deux portent le
+montant, seule la formulation change, à la demande de l'utilisateur pour le mobile.
+
+**« Copier le lien du défi »**, tant que le défi est ouvert. Le lien est
+`Environnement.lienDefi(id)` = `<SITE_BASE_URL>/defis/<id>`, la page **publique** du site : le
+destinataire voit le défi avant même d'avoir un compte. `SITE_BASE_URL` s'impose à la
+compilation (`--dart-define=SITE_BASE_URL=https://quiperd.com`) ; en développement on vise
+`http://10.0.2.2:3000`, l'alias de l'hôte vu depuis l'émulateur.
+
+Le bouton **copie**, il n'ouvre pas la feuille de partage du système : `share_plus` n'est pas
+dans le cache pub du poste et la connexion ne permet pas de le télécharger de façon fiable. Le
+libellé le dit — on ne promet pas un partage natif qu'on ne rend pas. Si le paquet est ajouté
+un jour, le libellé devient « Partager le défi » et `_partager` appelle `Share.share`.
+
+**Piège de développement :** `vite dev` se liait à `::1` seulement, donc `10.0.2.2:3000` était
+injoignable depuis l'émulateur et le lien copié ne s'ouvrait pas. Le script `dev` du frontend
+porte maintenant `--host` : sans lui, tout test de lien partagé depuis l'émulateur échoue sans
+que rien n'indique pourquoi.
+
+### Liens profonds — un lien partagé ouvre l'application, pas le navigateur
+
+Demande de l'utilisateur : « si je partage et qu'il clique dessus, si l'app est installée ça doit
+ouvrir l'app pour aller sur la section. » Paquet : **`app_links`** (résolu depuis le cache pub,
+aucun téléchargement).
+
+**Deux formes de lien, deux rôles :**
+
+| Forme | Vérification | Rôle |
+|---|---|---|
+| `https://<hôte>/defis/<id>` | App Link : exige `assetlinks.json` servi par le domaine | le lien qui circule vraiment (WhatsApp, SMS) |
+| `quiperd://defis/<id>` | aucune | développement et porte de secours |
+
+Les deux sont déclarés dans `AndroidManifest.xml`. L'hôte n'est **pas** écrit en dur : il vient
+d'un `manifestPlaceholders["deepLinkHost"]` alimenté par `-Pdeep-link-host=…`, par défaut
+`10.0.2.2` (l'hôte vu depuis l'émulateur). **`SITE_BASE_URL` et `deep-link-host` vont toujours
+ensemble** — le premier construit le lien, le second décide quel lien l'application intercepte ;
+les désaccorder produit des liens ignorés en silence.
+
+`frontend/public/.well-known/assetlinks.json` porte l'empreinte SHA-256 du certificat de
+signature (aujourd'hui la clé de debug, puisque `build.gradle.kts` signe la release avec elle —
+**à régénérer le jour où une vraie clé de release est créée**, sinon les liens cassent en
+production). Le site le sert déjà en `application/json`.
+
+Sans ce fichier publié en **https** sur le vrai domaine, Android 12+ laisse le lien au
+navigateur : ce n'est pas une panne, la page publique du site prend le relais. Pour tester sur
+l'émulateur, on force l'association :
+`adb shell pm set-app-links-user-selection --user 0 --package com.quiperd.app true <hôte>`.
+
+**Côté Dart** : `_RacineState` écoute `AppLinks().uriLinkStream` et lit `getInitialLink()`.
+`defiIdDepuis()` (`noyau/liens_profonds.dart`) extrait l'identifiant — et **n'accepte qu'un
+UUID**, pour que `/defis/nouveau` ou `/defis/ouverts` ne poussent pas un écran de détail vide.
+
+Trois règles qui ont chacune coûté un essai :
+
+1. **Un lien reçu trop tôt est mis en attente**, pas perdu : joueur pas connecté, ou adresse non
+   confirmée. Il est rejoué depuis `build`, à l'instant où la coquille s'ouvre. Sans cela,
+   cliquer sur un lien puis se connecter perdait le défi en route.
+2. **`_surLien` passe par `setState`.** Ce n'est pas cosmétique : c'est lui qui garantit qu'une
+   frame est planifiée. Sans elle, un lien qui arrive alors que l'écran est déjà stable ne
+   déclenche aucun rendu et le `addPostFrameCallback` attend indéfiniment — vécu :
+   l'application s'ouvrait bien, mais sur le tableau de bord au lieu du défi.
+3. **L'ouverture est programmée APRÈS le `popUntil`** qui dépile les écrans d'entrée, sinon la
+   fiche poussée est dépilée dans la même frame.
+
+Côté iOS, seul le schéma propre est déclaré (`CFBundleURLTypes`). Le lien https y demande un
+Universal Link : capacité Associated Domains dans Xcode **et** un fichier
+`apple-app-site-association` servi par le site.
+
+### La photo de l'adversaire, partout où on le nomme
+
+Demande de l'utilisateur : « quand quelqu'un accepte mon défi on doit voir aussi sa photo de
+profil s'il en a. » On joue de l'argent contre quelqu'un ; un pseudo seul ne dit pas à qui.
+
+`AvatarJoueur` (`composants/joueur/avatar_joueur.dart`, jumeau du `AvatarJoueur` du web) est
+posé sur la **carte de match** et sur l'**écran de match**, à côté de « Face à … ». Il affiche
+la photo si `joueur1Photo` / `joueur2Photo` n'est pas vide, le monogramme sinon — et retombe sur
+le monogramme si l'image ne charge pas (session expirée, fichier retiré) plutôt que d'afficher un
+carré cassé. La pastille garde la même taille dans les deux cas : la mise en page ne saute pas
+quand l'image arrive.
+
+L'image passe par `UtilisateursService.urlPhoto` **avec les en-têtes d'authentification** : la
+route est protégée, un `Image.network` nu renverrait 401.
 
 ### 3.6 Mes matchs (`/joueur/matchs`)
 
@@ -356,11 +513,20 @@ appel réseau). À l'expiration, on ne devine pas l'issue : on demande **une foi
 
 ### 3.8 Portefeuille (`/joueur/portefeuille`)
 
-- En-tête : « Le solde bloqué correspond à vos mises engagées ; seul le solde disponible peut
-  être misé ou retiré. » Actions **Retirer** et **Déposer**.
-- Deux cartes : **« Disponible »** (bloc noir, compteur animé volt, « Misable et retirable ») et
-  **« Bloqué en séquestre »** (« Vos mises engagées sur des défis ou matchs en cours »). Un solde
-  qui vient de bouger est signalé par une pastille « Mis à jour ».
+- En-tête : « Le solde bloqué correspond à vos mises engagées. Tout le disponible est misable ;
+  un dépôt doit avoir été joué avant de pouvoir être retiré. » Actions **Retirer** et
+  **Déposer**. (L'ancienne phrase, « seul le solde disponible peut être misé ou retiré », est
+  devenue fausse le jour où la règle du dépôt joué est entrée en vigueur.)
+- Deux cartes : **« Disponible »** (bloc noir, compteur animé volt) et **« Bloqué en séquestre »**
+  (« Vos mises engagées sur des défis ou matchs en cours »). Un solde qui vient de bouger est
+  signalé par une pastille « Mis à jour ».
+- **La légende du disponible a deux formes**, jamais la même : « Misable et retirable. » quand
+  `soldeNonJoue` vaut 0, sinon « Misable en entier. Retirable : *X* — le reste vient d'un dépôt
+  à jouer d'abord. » Annoncer « retirable » ce qui ne l'est pas se paie au retrait refusé.
+- **Feuille Retrait** : le plafond est `soldeRetirable` (jamais le disponible brut), et un encart
+  ambre nomme le montant non joué et la façon d'y remédier — miser. Le message d'erreur d'un 422
+  vient du serveur : il couvre aussi bien le solde insuffisant que le dépôt pas encore joué, on
+  ne le contredit pas par un titre « Solde insuffisant ».
 - **Paiements en cours** : une carte par dépôt/retrait suivi, avec une phrase qui dit quoi faire
   (« Validez la demande sur votre téléphone : le solde se met à jour ici tout seul. »).
 - **Historique** paginé (20 mouvements par page) : Mouvement (+ description), Date, Référence,
@@ -741,6 +907,15 @@ unique (miroir web : `frontend/src/temps-reel/evenements.ts`).
   mobile). Un salon interdit est **refusé explicitement**, jamais ignoré en silence.
 - **Ping / pong** toutes les 30 s ; à la coupure, reconnexion avec **backoff 1 s → 30 s**, puis
   **une seule** resynchronisation des écrans concernés.
+  La **première** connexion n'est pas une reconnexion : les écrans viennent de charger, il n'y a
+  rien à rattraper. Le compteur `ClientTempsReel.reconnexions` ne compte donc que les
+  **reprises** (`if (_dejaConnecte) _reconnexions++`). Le compter dès la première ouverture a
+  coûté cher : les écrans se construisent avant que le socket ne soit ouvert, ils partaient donc
+  de `reconnexions == 0`, voyaient le compteur passer à 1 une seconde plus tard et
+  redemandaient portefeuille, notifications, matchs et défis **au démarrage** — cinq requêtes
+  en double à chaque lancement, sur le réseau où elles coûtent le plus cher. Symptôme à
+  reconnaître dans le journal du backend : deux vagues identiques d'appels espacées d'une
+  seconde.
 - **Aucun polling, jamais** : ni `Timer.periodic` de rafraîchissement, ni rechargement
   automatique d'une liste, ni bandeau « actualisé toutes les N secondes ». Les seules minuteries
   autorisées sont **d'affichage** : comptes à rebours calculés depuis une échéance fournie par
@@ -830,6 +1005,15 @@ la recette de l'application ; ils sont vérifiés, pas théoriques.
   remboursement décidé par l'arbitre. Les deux ne se disent pas de la même façon.
 - **Libellés trop longs pour une demi-largeur** : « Photographier » déborde sur 375 px ;
   les boutons côte à côte tiennent en un mot (« Photo », « Galerie »).
+- **Onglets de la barre basse : un seul chemin pour changer d'onglet.** `IndexedStack` construit
+  *tous* ses enfants — les cinq écrans lançaient leurs appels au démarrage, 19 requêtes avant le
+  premier écran utile. La construction paresseuse passe par
+  `composants/communs/pile_paresseuse.dart` : c'est **elle** qui tient le registre des onglets
+  déjà vus, à partir de l'index qu'elle reçoit. Une première version confiait ce registre à la
+  coquille ; la barre du bas changeait `_index` directement, sans passer par `allerA`, et
+  l'onglet « Argent » s'ouvrait sur un écran **blanc**. Leçon générale : quand un état dérivé
+  doit suivre une valeur, le faire suivre par le composant qui reçoit la valeur, pas par
+  discipline aux points d'appel.
 - **Pilotage de la recette** : `adb shell input tap` travaille en pixels de l'appareil
   (1080 × 2400 sur l'émulateur de référence), pas dans le repère de la capture. Le clavier
   déplace la mise en page : on enchaîne les champs par l'action « suivant » du clavier

@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useRouterState, type LinkProps } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState, type LinkProps } from '@tanstack/react-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 import { icone } from '@/lib/icones'
+import { optionsJeux } from '@/lib/requetes'
 import { Logo } from '@/components/partages/logo/logo'
 import { LienBouton, classesBouton, type VarianteBouton } from '@/components/partages/button/button'
 
@@ -17,9 +19,9 @@ const LIENS = [
 ] as const
 
 /** Gabarit de la barre du haut, partagé par le header et le menu mobile : la barre semble ne jamais bouger. */
-const CLASSES_BARRE = 'mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6'
+const CLASSES_BARRE = 'mx-auto flex h-[72px] max-w-7xl items-center justify-between gap-4 px-4 sm:px-6'
 const CLASSES_BOUTON_MENU =
-  'flex size-11 items-center justify-center border-2 border-encre bg-papier text-encre transition-colors hover:bg-volt hover:text-nuit'
+  'flex size-11 items-center justify-center rounded-[10px] border border-trait bg-papier text-encre transition-colors hover:border-vert hover:text-vert'
 /** Point de rupture `lg` de Tailwind v4 : au-delà, le menu mobile n'existe plus. */
 const MEDIA_BUREAU = '(min-width: 64rem)'
 const FOCUSABLES = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
@@ -50,6 +52,50 @@ function LienMenu({
       {children}
       {iconeFin && <FontAwesomeIcon icon={iconeFin} />}
     </Link>
+  )
+}
+
+/**
+ * Recherche du header. Elle mène toujours à la liste des défis ouverts : si le texte saisi
+ * désigne un jeu du catalogue, le filtre `?jeu=` est appliqué, sinon la liste s'ouvre entière.
+ *
+ * Le catalogue n'est demandé qu'à la soumission (`ensureQueryData`) : tant que personne ne
+ * cherche, le header ne coûte aucun appel réseau — la navigation reste à un aller-retour.
+ */
+function RechercheJeux({ className = '', surValidation }: { className?: string; surValidation?: () => void }) {
+  const [terme, setTerme] = useState('')
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+
+  const soumettre = async (e: FormEvent) => {
+    e.preventDefault()
+    const t = terme.trim().toLowerCase()
+    surValidation?.()
+    if (!t) {
+      await navigate({ to: '/defis' })
+      return
+    }
+    const jeux = await queryClient.ensureQueryData(optionsJeux())
+    const trouve = jeux.find((j) => j.nom.toLowerCase().includes(t))
+    await navigate({ to: '/defis', search: trouve ? { jeu: trouve.id } : {} })
+  }
+
+  return (
+    <form role="search" onSubmit={soumettre} className={`relative ${className}`}>
+      <FontAwesomeIcon
+        icon={icone.rechercher}
+        aria-hidden="true"
+        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[13px] text-muet"
+      />
+      <input
+        type="search"
+        value={terme}
+        onChange={(e) => setTerme(e.target.value)}
+        placeholder="Rechercher un jeu, un joueur…"
+        aria-label="Rechercher un jeu"
+        className="h-11 w-full rounded-full border border-trait bg-gris pl-10 pr-4 text-[14px] text-encre placeholder:text-muet focus:border-vert focus:bg-papier focus:outline-none"
+      />
+    </form>
   )
 }
 
@@ -159,7 +205,7 @@ export function Header({ connecte }: { connecte: boolean }) {
           transition={{ duration: reduit ? 0 : 0.15 }}
         >
           {/* Barre du menu : même gabarit que celle du header, mais membre de l'overlay fixe. */}
-          <div className="shrink-0 border-b-2 border-encre bg-craie">
+          <div className="shrink-0 border-b border-trait bg-craie">
             <div className={CLASSES_BARRE}>
               <Link to="/" aria-label="QUI PERD — accueil" className="inline-flex" onClick={fermerParLien}>
                 <Logo lien={false} />
@@ -179,12 +225,15 @@ export function Header({ connecte }: { connecte: boolean }) {
           {/* Contenu : défile à l'intérieur si l'écran est bas ; `overscroll-contain` retient le défilement. */}
           <motion.div
             ref={zone}
-            className="motif-grille flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
+            className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain"
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: reduit ? 0 : 0.2, ease: 'easeOut' }}
           >
-            <nav className="flex flex-col divide-y-2 divide-encre border-b-2 border-encre" aria-label="Navigation mobile">
+            <div className="p-4">
+              <RechercheJeux surValidation={fermerParLien} />
+            </div>
+            <nav className="flex flex-col divide-y divide-trait border-y border-trait" aria-label="Navigation mobile">
               {LIENS.map((l, i) => (
                 <motion.div
                   key={l.to}
@@ -197,11 +246,11 @@ export function Header({ connecte }: { connecte: boolean }) {
                     activeOptions={{ exact: l.to === '/' }}
                     onClick={fermerParLien}
                     className="flex items-center justify-between px-6 py-5 font-titre text-h3 uppercase"
-                    activeProps={{ className: 'bg-volt text-nuit' }}
+                    activeProps={{ className: 'bg-vert-pale text-vert' }}
                     inactiveProps={{ className: 'text-encre' }}
                   >
                     <span>{l.libelle}</span>
-                    <span className="chiffres text-legende opacity-60">0{i + 1}</span>
+                    <FontAwesomeIcon icon={icone.suivant} className="text-[13px] opacity-40" />
                   </Link>
                 </motion.div>
               ))}
@@ -229,34 +278,37 @@ export function Header({ connecte }: { connecte: boolean }) {
   )
 
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-encre bg-craie">
+    <header className="sticky top-0 z-40 border-b border-trait bg-craie shadow-barre">
       <div className={CLASSES_BARRE}>
         <Logo />
-        <nav className="hidden items-center gap-1 lg:flex" aria-label="Navigation principale">
+        <nav className="hidden items-center gap-7 lg:flex" aria-label="Navigation principale">
           {LIENS.map((l) => (
             <Link
               key={l.to}
               to={l.to}
               activeOptions={{ exact: l.to === '/' }}
-              className="etiquette border-b-2 px-3 py-2 text-encre transition-colors"
-              activeProps={{ className: 'border-encre' }}
-              inactiveProps={{ className: 'border-transparent hover:border-volt' }}
+              className="etiquette relative py-6 transition-colors"
+              activeProps={{
+                className: 'text-vert after:absolute after:inset-x-0 after:bottom-4 after:h-0.5 after:bg-vert after:content-[""]',
+              }}
+              inactiveProps={{ className: 'text-muet hover:text-encre' }}
             >
               {l.libelle}
             </Link>
           ))}
         </nav>
-        <div className="hidden items-center gap-2 lg:flex">
+        <RechercheJeux className="hidden min-w-0 flex-1 max-w-[300px] xl:block" />
+        <div className="hidden items-center gap-2.5 lg:flex">
           {connecte ? (
-            <LienBouton to="/joueur/tableau-de-bord" variante="volt" taille="sm" iconeDebut={icone.defi}>
+            <LienBouton to="/joueur/tableau-de-bord" variante="volt" taille="md" iconeDebut={icone.defi}>
               Mon espace
             </LienBouton>
           ) : (
             <>
-              <LienBouton to="/connexion" variante="secondaire" taille="sm">
+              <LienBouton to="/connexion" variante="secondaire" taille="md">
                 Connexion
               </LienBouton>
-              <LienBouton to="/inscription" variante="volt" taille="sm" iconeFin={icone.suivant}>
+              <LienBouton to="/inscription" variante="volt" taille="md" iconeFin={icone.suivant}>
                 Créer un compte
               </LienBouton>
             </>

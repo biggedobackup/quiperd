@@ -24,10 +24,10 @@ export function Badge({ variante = 'neutre', actif = false, sansPoint = false, c
   const v = VARIANTES[variante]
   return (
     <span
-      className={`etiquette inline-flex h-6 items-center gap-1.5 border border-current/20 px-2 ${v.fond} ${v.texte} ${className}`}
+      className={`etiquette inline-flex h-6 items-center gap-1.5 rounded-full border border-current/20 px-2.5 ${v.fond} ${v.texte} ${className}`}
     >
       {!sansPoint && (
-        <span className={`inline-block size-2 ${v.point} ${actif ? 'animate-pulsation' : ''}`} aria-hidden="true" />
+        <span className={`inline-block size-2 rounded-full ${v.point} ${actif ? 'animate-pulsation' : ''}`} aria-hidden="true" />
       )}
       {children}
     </span>

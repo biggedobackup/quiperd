@@ -66,9 +66,9 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
           key={e.to}
           to={e.to}
           onClick={() => setMenu(false)}
-          className="flex h-11 items-center gap-3 border-l-[3px] px-5 text-legende transition-colors"
-          activeProps={{ className: 'border-volt bg-craie/5 font-semibold text-craie' }}
-          inactiveProps={{ className: 'border-transparent text-craie/70 hover:bg-craie/5 hover:text-craie' }}
+          className="mx-2 flex h-11 items-center gap-3 rounded-xl px-3 text-legende transition-colors"
+          activeProps={{ className: 'bg-vert font-semibold text-craie' }}
+          inactiveProps={{ className: 'text-craie/70 hover:bg-craie/8 hover:text-craie' }}
         >
           <FontAwesomeIcon icon={e.icone} fixedWidth className="text-sm" />
           <span>{e.libelle}</span>
@@ -82,10 +82,10 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
       {/* Un seul abonnement au salon `admin` pour tout l'espace : compteurs, files et toasts
           restent vivants quelle que soit la page ouverte. Aucun rendu. */}
       <AbonnementAdmin />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col border-r-2 border-encre bg-nuit text-craie lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-[232px] flex-col bg-encre text-craie lg:flex">
         <div className="flex h-14 items-center gap-2 border-b border-craie/15 px-5">
           <Logo ton="clair" taille="sm" lien={false} />
-          <span className="etiquette ml-auto bg-volt px-1.5 py-0.5 text-nuit">Admin</span>
+          <span className="etiquette ml-auto rounded-full bg-volt px-2 py-0.5 text-nuit">Admin</span>
         </div>
         {navigation}
         <div className="border-t border-craie/15 px-5 py-4 text-legende">
@@ -98,30 +98,32 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col lg:pl-[232px]">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b-2 border-encre bg-craie px-4 sm:px-6">
-          {/* `min-w-0` + `truncate` : si la place manque (téléphone), seul le titre cède —
-              l'indicateur de direct et le lien vers le site public restent entiers. */}
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-3 border-b border-trait bg-craie px-4 shadow-barre sm:px-6">
+          {/* Sur téléphone le titre est MASQUÉ, pas rogné : « JEUX & PLATEFORMES » en Unbounded
+              demande 221 px quand il n'en reste que 176, et un « JEUX & PLATEF… » permanent
+              n'apprend rien. Le nom de l'écran est de toute façon repris juste en dessous par
+              `EnTetePage` ; la marque prend sa place pour que la barre garde une identité. */}
           <div className="flex min-w-0 items-center gap-3">
-            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-11 shrink-0 items-center justify-center border-2 border-encre bg-papier lg:hidden">
+            <button type="button" onClick={() => setMenu((m) => !m)} aria-label="Menu" aria-expanded={menu} className="flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-trait bg-papier transition-colors hover:bg-gris lg:hidden">
               <FontAwesomeIcon icon={menu ? icone.fermer : icone.menu} />
             </button>
-            <h1 className="min-w-0 truncate text-h3">{titre}</h1>
+            <Logo variante="marque" taille="sm" className="sm:hidden" />
+            <h1 className="hidden min-w-0 truncate text-h3 sm:block">{titre}</h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {/* Remplace tout texte du type « actualisé toutes les 60 s » : plus rien n'est
                 interrogé en boucle, le serveur pousse. Cliquable pour forcer une reconnexion. */}
             <IndicateurDirect variante="etiquette" avecCompteur cliquable />
-            <Link to="/" className="etiquette hidden items-center gap-1 border-2 border-transparent px-2 py-1 hover:border-encre sm:flex">
+            <Link to="/" className="etiquette hidden items-center gap-1 rounded-full border border-transparent px-3 py-1.5 transition-colors hover:border-trait hover:bg-gris sm:flex">
               Site public <FontAwesomeIcon icon={icone.suivant} />
             </Link>
           </div>
         </header>
+        {/* Aucune transition entre deux écrans d'administration : le contenu est remplacé
+            sèchement. Les seules animations qui restent dans cette coquille sont celles du
+            tiroir de menu ci-dessous, déclenchées par un geste et non par une navigation. */}
         <main className="flex-1 px-4 py-6 sm:px-6">
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={chemin} initial={reduit ? false : { opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={reduit ? undefined : { opacity: 0 }} transition={{ duration: 0.18, ease: 'easeOut' }} className="mx-auto w-full max-w-7xl">
-              {children}
-            </motion.div>
-          </AnimatePresence>
+          <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>
 
@@ -129,7 +131,7 @@ export function LayoutAdmin({ administrateur, children }: { administrateur: Admi
         {menu && (
           <motion.div className="fixed inset-0 z-40 flex lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: reduit ? 0 : 0.15 }}>
             <button type="button" aria-label="Fermer le menu" className="flex-1 bg-voile" onClick={() => setMenu(false)} />
-            <motion.aside className="flex w-[260px] flex-col border-l-2 border-encre bg-nuit text-craie" initial={{ x: 40 }} animate={{ x: 0 }} exit={{ x: 40 }} transition={{ duration: reduit ? 0 : 0.18 }}>
+            <motion.aside className="flex w-[260px] flex-col rounded-l-2xl bg-encre text-craie" initial={{ x: 40 }} animate={{ x: 0 }} exit={{ x: 40 }} transition={{ duration: reduit ? 0 : 0.18 }}>
               <div className="flex h-14 items-center border-b border-craie/15 px-5">
                 <Logo ton="clair" taille="sm" lien={false} />
               </div>

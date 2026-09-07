@@ -14,7 +14,8 @@ export function RetraitModal({
   onFermer,
   onRetirer,
   chargement = false,
-  disponible,
+  retirable,
+  nonJoue,
   fraisRetrait,
   telephone,
   prestataires,
@@ -23,7 +24,10 @@ export function RetraitModal({
   onFermer: () => void
   onRetirer: (d: DemandeRetrait) => Promise<void>
   chargement?: boolean
-  disponible: number
+  /** Plafond RÉEL du retrait : `soldeRetirable` du backend, jamais le solde disponible brut. */
+  retirable: number
+  /** Part du solde venue d'un dépôt jamais misé — sert à expliquer pourquoi le plafond est plus bas. */
+  nonJoue: number
   fraisRetrait: number
   telephone?: string
   /** Moyens de paiement annoncés par le backend — jamais une liste codée en dur ici. */
@@ -39,13 +43,16 @@ export function RetraitModal({
           .number({ error: 'Montant invalide' })
           .int('Montant en francs entiers')
           .min(500, 'Minimum 500 FCFA')
-          .refine((m) => m + m * fraisRetrait <= disponible, 'Montant + frais supérieurs à votre solde disponible'),
+          // Le plafond est le solde RETIRABLE, pas le solde disponible : un dépôt jamais misé
+          // en est exclu. Le backend refuse de toute façon (422), mais l'annoncer ici évite
+          // au joueur de remplir un formulaire pour rien.
+          .refine((m) => m + m * fraisRetrait <= retirable, 'Montant + frais supérieurs à votre solde retirable'),
         // Le retrait exige toujours un numéro, quel que soit le prestataire : c'est la
         // destination du transfert, pas un moyen d'authentifier un paiement.
         prestataire: z.string().refine((c) => prestataires.some((p) => p.code === c), 'Prestataire indisponible'),
         numero: z.string().min(8, 'Numéro Mobile Money requis'),
       }),
-    [disponible, fraisRetrait, prestataires],
+    [retirable, fraisRetrait, prestataires],
   )
   type Valeurs = z.infer<typeof schema>
   const {
@@ -62,7 +69,7 @@ export function RetraitModal({
     <Modal ouvert={ouvert} onFermer={onFermer} titre="Retirer des fonds" description="Le montant et les frais sont débités immédiatement du solde disponible. En cas d’échec du retrait, tout est recrédité." verrouille={chargement}>
       {prestataires.length === 0 ? (
         <div className="space-y-5">
-          <p className="border-2 border-alerte bg-alerte-fond p-3 text-legende">
+          <p className="rounded-xl border border-alerte bg-alerte-fond p-3 text-legende">
             Aucun moyen de paiement n’est disponible pour le moment. Votre solde reste intact : le retrait rouvrira dès qu’une passerelle Mobile Money sera de nouveau active.
           </p>
           <div className="flex justify-end">
@@ -73,7 +80,17 @@ export function RetraitModal({
         </div>
       ) : (
         <form id="form-retrait" onSubmit={handleSubmit((v) => onRetirer({ montant: v.montant, prestataire: v.prestataire as Prestataire, numero: v.numero.trim() }))} className="space-y-5" noValidate>
-          <Input label="Montant à recevoir" type="number" inputMode="numeric" min={500} step={100} suffixe="FCFA" className="chiffres" {...register('montant', { valueAsNumber: true })} erreur={errors.montant?.message} aide={`Disponible : ${formatMontant(disponible)}`} />
+          {/*
+            Sans cette phrase, un joueur qui voit « 5 000 FCFA » sur son portefeuille et ne peut
+            rien retirer croit à une panne. On dit le montant concerné et la façon d'y remédier :
+            miser, ce qui est exactement l'objet de la plateforme.
+          */}
+          {nonJoue > 0 && (
+            <p className="rounded-xl border border-alerte bg-alerte-fond p-3 text-legende">
+              <strong className="text-encre">{formatMontant(nonJoue)}</strong> de votre solde vient d’un dépôt qui n’a pas encore été misé. Un dépôt se joue avant de pouvoir être retiré : lancez ou rejoignez un défi et ce montant redeviendra retirable.
+            </p>
+          )}
+          <Input label="Montant à recevoir" type="number" inputMode="numeric" min={500} step={100} suffixe="FCFA" className="chiffres" {...register('montant', { valueAsNumber: true })} erreur={errors.montant?.message} aide={`Retirable : ${formatMontant(retirable)}`} />
           {unique ? (
             <>
               <input type="hidden" {...register('prestataire')} />
@@ -85,7 +102,7 @@ export function RetraitModal({
             <Select label="Prestataire" options={prestataires.map((p) => ({ valeur: p.code, libelle: p.libelle }))} {...register('prestataire')} erreur={errors.prestataire?.message} />
           )}
           <Input label="Numéro Mobile Money" type="tel" placeholder="+225 07 00 00 00 00" {...register('numero')} erreur={errors.numero?.message} />
-          <dl className="space-y-1.5 border-2 border-trait bg-gris p-3 text-legende">
+          <dl className="space-y-1.5 rounded-xl border border-trait bg-gris p-3 text-legende">
             <div className="flex justify-between">
               <dt className="text-muet">Vous recevez</dt>
               <dd className="chiffres">{formatMontant(Number.isFinite(montant) ? montant : 0)}</dd>

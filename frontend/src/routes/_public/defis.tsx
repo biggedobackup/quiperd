@@ -5,7 +5,7 @@ import { CATEGORIES_JEU, estCategorie, estFamille, optionsFamilles, optionsJeuxG
 import { optionsDefisOuverts, optionsJeux, optionsPlateformes } from '@/lib/requetes'
 import type { FiltresDefisPublics } from '@/models/defi'
 import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
-import { Conteneur } from '@/components/public/sections'
+import { Conteneur, EnTetePublique } from '@/components/public/sections'
 import { CarteDefiPublique } from '@/components/public/carte-defi-publique'
 import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
 import { ElementAnime, ListeAnimee } from '@/components/partages/defis-en-direct/animation-defis'
@@ -14,7 +14,6 @@ import { Select } from '@/components/partages/select/select'
 import { Input } from '@/components/partages/input/input'
 import { Button, LienBouton } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
-import { Apparition } from '@/components/partages/animation/animation'
 
 const routeParent = getRouteApi('/_public')
 
@@ -66,37 +65,35 @@ function PageDefisPublics() {
 
   return (
     <>
-      <Apparition>
-        <section className="border-b-2 border-encre bg-nuit text-craie">
-          <Conteneur className="py-5 md:py-7">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="etiquette text-craie">Arène publique</span>
+      <div>
+        <EnTetePublique
+          fond="noir"
+          surtitre={
+            <>
+              Arène publique
               {/* État réel du fil, pas une étiquette décorative : il annonce aussi le nombre de joueurs connectés. */}
               <IndicateurDirect variante="etiquette" avecCompteur cliquable />
-            </div>
-            <h1 className="mt-1 max-w-3xl text-h3 text-craie sm:text-h2">Défis en attente d’adversaire.</h1>
-            <p className="mt-2 max-w-xl text-legende text-craie/80">
-              Chaque ticket est un défi dont la mise est déjà bloquée. Rejoignez-le : votre mise est bloquée à son tour et le match commence.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {connecte ? (
-                <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
-                  Créer un défi
-                </LienBouton>
-              ) : (
-                <LienBouton to="/inscription" variante="volt" iconeFin={icone.suivant}>
-                  Créer un compte pour jouer
-                </LienBouton>
-              )}
-              <LienBouton to="/comment-ca-marche" variante="secondaire">
-                Comment ça marche
-              </LienBouton>
-            </div>
-          </Conteneur>
-        </section>
-      </Apparition>
+            </>
+          }
+          titre="Défis en attente d’adversaire."
+          intro="Chaque ticket est un défi dont la mise est déjà bloquée. Rejoignez-le : votre mise est bloquée à son tour et le match commence."
+        >
+          {connecte ? (
+            <LienBouton to="/joueur/defis/nouveau" variante="volt" iconeDebut={icone.ajouter}>
+              Créer un défi
+            </LienBouton>
+          ) : (
+            <LienBouton to="/inscription" variante="volt" iconeFin={icone.suivant}>
+              Créer un compte pour jouer
+            </LienBouton>
+          )}
+          <LienBouton to="/comment-ca-marche" variante="secondaire">
+            Comment ça marche
+          </LienBouton>
+        </EnTetePublique>
+      </div>
 
-      <section className="border-b-2 border-encre bg-craie">
+      <section className="border-b border-trait bg-ardoise">
         <Conteneur className="py-6">
           <div role="tablist" aria-label="Catégorie de jeu" className="flex flex-wrap gap-2">
             <Puce actif={!filtres.categorie} onClick={() => changer({ categorie: undefined, jeu: undefined })}>
@@ -144,7 +141,7 @@ function PageDefisPublics() {
         </Conteneur>
       </section>
 
-      <section className="bg-papier py-12 md:py-16">
+      <section className="bg-craie py-12 md:py-16">
         <Conteneur>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="chiffres text-legende text-muet">

@@ -25,7 +25,8 @@ class DemandeRetrait {
 /// celui que le backend calcule et renvoie.
 Future<DemandeRetrait?> ouvrirRetrait(
   BuildContext context, {
-  required double disponible,
+  required double retirable,
+  required double nonJoue,
   required double tauxFrais,
   required List<PrestatairePublic> prestataires,
   String? telephone,
@@ -35,7 +36,8 @@ Future<DemandeRetrait?> ouvrirRetrait(
     isScrollControlled: true,
     backgroundColor: Couleurs.papier,
     builder: (context) => _FeuilleRetrait(
-      disponible: disponible,
+      retirable: retirable,
+      nonJoue: nonJoue,
       tauxFrais: tauxFrais,
       prestataires: prestataires,
       telephone: telephone,
@@ -45,13 +47,18 @@ Future<DemandeRetrait?> ouvrirRetrait(
 
 class _FeuilleRetrait extends StatefulWidget {
   const _FeuilleRetrait({
-    required this.disponible,
+    required this.retirable,
+    required this.nonJoue,
     required this.tauxFrais,
     required this.prestataires,
     this.telephone,
   });
 
-  final double disponible;
+  /// Plafond RÉEL du retrait : `soldeRetirable` du serveur, jamais le disponible brut.
+  final double retirable;
+
+  /// Part venue d'un dépôt jamais misé — sert à expliquer pourquoi le plafond est plus bas.
+  final double nonJoue;
   final double tauxFrais;
 
   /// Moyens de paiement annoncés par le backend — jamais une liste en dur ici.
@@ -88,7 +95,7 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
   Widget build(BuildContext context) {
     if (widget.prestataires.isEmpty) return const AucunPrestataire(pour: 'retrait');
 
-    final insuffisant = _total > widget.disponible;
+    final insuffisant = _total > widget.retirable;
 
     return SafeArea(
       child: Padding(
@@ -107,6 +114,18 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
                   'disponible. En cas d’échec du retrait, tout est recrédité.',
                   style: Typo.petit,
                 ),
+                // Sans cette phrase, un joueur qui voit « 5 000 FCFA » et ne peut rien retirer
+                // croit à une panne. On nomme le montant concerné et la façon d'y remédier :
+                // miser, ce qui est précisément l'objet de la plateforme.
+                if (widget.nonJoue > 0) ...[
+                  const SizedBox(height: 16),
+                  Encart(
+                    ton: TonMessage.attention,
+                    texte: '${formatMontant(widget.nonJoue)} de votre solde vient d’un dépôt qui '
+                        'n’a pas encore été misé. Un dépôt se joue avant de pouvoir être retiré : '
+                        'lancez ou rejoignez un défi et ce montant redeviendra retirable.',
+                  ),
+                ],
                 const SizedBox(height: 20),
                 ChampTexte(
                   controleur: _montant,
@@ -115,14 +134,14 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
                   chiffres: true,
                   clavier: const TextInputType.numberWithOptions(decimal: false),
                   formateurs: [FilteringTextInputFormatter.digitsOnly],
-                  aide: 'Disponible : ${formatMontant(widget.disponible)}',
+                  aide: 'Retirable : ${formatMontant(widget.retirable)}',
                   onChanged: (_) => setState(() {}),
                   validateur: (valeur) {
                     final n = double.tryParse((valeur ?? '').trim());
                     if (n == null || n <= 0) return 'Entrez un montant valide';
                     if (n < 500) return 'Minimum : ${formatMontant(500)}';
-                    if (n + n * widget.tauxFrais > widget.disponible) {
-                      return 'Solde insuffisant, frais compris';
+                    if (n + n * widget.tauxFrais > widget.retirable) {
+                      return 'Au-delà du solde retirable, frais compris';
                     }
                     return null;
                   },
@@ -176,7 +195,7 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
                   const SizedBox(height: 16),
                   Encart(
                     ton: TonMessage.erreur,
-                    texte: 'Solde disponible insuffisant : il faut '
+                    texte: 'Au-delà de votre solde retirable : il faut '
                         '${formatMontant(_total)} frais compris.',
                   ),
                 ],

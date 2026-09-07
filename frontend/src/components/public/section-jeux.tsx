@@ -7,7 +7,6 @@ import type { Plateforme } from '@/models/plateforme'
 import { Conteneur, EnTeteSection } from './sections'
 import { Puce } from '@/components/partages/puce/puce'
 import { LienBouton } from '@/components/partages/button/button'
-import { ApparitionAuDefilement } from '@/components/partages/animation/animation'
 
 /**
  * Catalogue par catégorie. `complete` (page Jeux) : puces de filtre + liste numérotée de chaque
@@ -20,7 +19,7 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
   const familles = grouperPlateformes(plateformes)
 
   return (
-    <section id="jeux" className="border-b-2 border-encre bg-papier py-16 md:py-24">
+    <section id="jeux" className="border-b border-trait bg-craie py-16 md:py-20">
       <Conteneur>
         <EnTeteSection
           numero={numero}
@@ -31,9 +30,9 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
         {familles.length > 0 && (
           <div className="mb-8 grid gap-3 md:grid-cols-3">
             {familles.map((g) => (
-              <div key={g.famille.valeur} className="border-2 border-encre bg-craie p-4">
+              <div key={g.famille.valeur} className="rounded-2xl border border-trait bg-craie p-4">
                 <div className="flex items-center gap-2">
-                  <span className="flex size-8 items-center justify-center bg-nuit text-volt">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-vert text-craie">
                     <FontAwesomeIcon icon={g.famille.icone} />
                   </span>
                   <span className="etiquette">{g.famille.libelle}</span>
@@ -41,7 +40,7 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
                 </div>
                 <ul className="mt-3 flex flex-wrap gap-2">
                   {g.plateformes.map((p) => (
-                    <li key={p.id} className="etiquette flex items-center gap-1.5 border border-encre px-2 py-1">
+                    <li key={p.id} className="etiquette flex items-center gap-1.5 rounded-full border border-trait px-2.5 py-1.5">
                       <FontAwesomeIcon icon={iconePlateforme(p.nom, p.famille)} className="text-muet" /> {p.nom}
                     </li>
                   ))}
@@ -65,14 +64,14 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
         )}
 
         {jeux.length === 0 ? (
-          <p className="border-2 border-dashed border-trait px-6 py-10 text-muet">Aucun jeu actif pour le moment.</p>
+          <p className="rounded-2xl border border-dashed border-trait px-6 py-10 text-muet">Aucun jeu actif pour le moment.</p>
         ) : complete ? (
           <div className="space-y-10">
             {visibles.map((g) => (
-              <ApparitionAuDefilement key={g.categorie.valeur}>
+              <div key={g.categorie.valeur}>
                 <div>
-                  <header className="mb-4 flex flex-wrap items-center gap-3 border-b-2 border-encre pb-3">
-                    <span className="flex size-10 items-center justify-center border-2 border-encre bg-volt text-nuit">
+                  <header className="mb-4 flex flex-wrap items-center gap-3 border-b border-trait pb-3">
+                    <span className="flex size-10 items-center justify-center rounded-xl bg-vert text-craie">
                       <FontAwesomeIcon icon={g.categorie.icone} />
                     </span>
                     <div>
@@ -83,22 +82,22 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
                   </header>
                   <ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {g.jeux.map((j, i) => (
-                      <li key={j.id} className="ticket-sm flex items-center gap-3 border-2 border-encre bg-craie px-4 py-3 transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-tampon">
+                      <li key={j.id} className="flex items-center gap-3 rounded-xl border border-trait bg-craie px-4 py-3 transition-shadow duration-150 hover:shadow-carte">
                         <span className="chiffres text-legende text-muet">{String(i + 1).padStart(2, '0')}</span>
                         <span className="font-semibold">{j.nom}</span>
-                        <FontAwesomeIcon icon={icone.jeu} className="ml-auto text-volt" />
+                        <FontAwesomeIcon icon={icone.jeu} className="ml-auto text-vert" />
                       </li>
                     ))}
                   </ol>
                 </div>
-              </ApparitionAuDefilement>
+              </div>
             ))}
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {groupes.map((g, i) => (
-              <ApparitionAuDefilement key={g.categorie.valeur}>
-                <article className="ticket flex h-full flex-col border-2 border-encre bg-nuit p-6 text-craie">
+              <div key={g.categorie.valeur}>
+                <article className="flex h-full flex-col rounded-2xl bg-encre p-6 text-craie">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <span className="etiquette text-volt">Catégorie {String(i + 1).padStart(2, '0')}</span>
@@ -110,7 +109,7 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
                   <ul className="mt-6 space-y-1.5 text-legende">
                     {g.jeux.slice(0, 4).map((j) => (
                       <li key={j.id} className="flex items-center gap-2">
-                        <span className="size-1.5 bg-volt" aria-hidden="true" /> {j.nom}
+                        <span className="size-1.5 rounded-full bg-volt" aria-hidden="true" /> {j.nom}
                       </li>
                     ))}
                   </ul>
@@ -119,7 +118,7 @@ export function SectionJeux({ jeux, plateformes, numero = '02', complete = false
                     {g.jeux.length > 4 && ` · +${g.jeux.length - 4} autres`}
                   </p>
                 </article>
-              </ApparitionAuDefilement>
+              </div>
             ))}
           </div>
         )}

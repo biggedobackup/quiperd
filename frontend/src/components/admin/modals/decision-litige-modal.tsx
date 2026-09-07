@@ -35,15 +35,15 @@ export function DecisionLitigeModal({ ouvert, onFermer, onDecider, match, commis
     <Modal ouvert={ouvert} onFermer={onFermer} titre="Décision arbitrale" description="Elle déclenche immédiatement le règlement ou le remboursement de l'escrow. Aucun retour en arrière." verrouille={chargement}>
       <div className="space-y-3">
         {options.map((o) => (
-          <label key={o.valeur} className={`flex cursor-pointer items-start gap-3 border-2 p-3 transition-colors ${choix === o.valeur ? 'border-encre bg-volt-fond' : 'border-trait hover:border-encre'}`}>
-            <input type="radio" name="decision" value={o.valeur} checked={choix === o.valeur} onChange={() => setChoix(o.valeur)} className="mt-1 accent-encre" />
+          <label key={o.valeur} className={`flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors ${choix === o.valeur ? 'border-vert bg-vert-pale' : 'border-trait hover:border-vert'}`}>
+            <input type="radio" name="decision" value={o.valeur} checked={choix === o.valeur} onChange={() => setChoix(o.valeur)} className="mt-1 accent-vert" />
             <span>
               <span className="block font-bold">{o.titre}</span>
               <span className="block text-legende text-muet">{o.texte}</span>
             </span>
           </label>
         ))}
-        <label className="flex cursor-pointer items-start gap-3 border-2 border-perte bg-perte-fond p-3 text-legende text-perte">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-perte bg-perte-fond p-3 text-legende text-perte">
           <input type="checkbox" checked={confirme} onChange={(e) => setConfirme(e.target.checked)} className="mt-0.5 accent-perte" />
           <span>J’ai examiné les déclarations et les preuves ; je confirme cette décision définitive.</span>
         </label>

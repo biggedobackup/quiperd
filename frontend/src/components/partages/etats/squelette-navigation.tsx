@@ -13,7 +13,7 @@ import { Skeleton, SkeletonCarte } from '@/components/partages/skeleton/skeleton
  */
 export function SqueletteNavigation() {
   return (
-    <div className="animate-apparition" role="status" aria-busy="true" aria-live="polite">
+    <div role="status" aria-busy="true" aria-live="polite">
       <span className="sr-only">Chargement de la page…</span>
       <Skeleton className="h-3 w-24" />
       <Skeleton className="mt-3 h-9 w-64" />

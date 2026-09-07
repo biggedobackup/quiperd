@@ -236,6 +236,28 @@ func Detail(c fiber.Ctx) error {
 	return utils.OK(c, reponse)
 }
 
+// DetailPublic godoc
+// @Summary Fiche publique d'un défi (lien partagé, aucune authentification)
+// @Description Sert les liens de partage : le destinataire voit le défi avant même d'avoir un
+// @Description compte. Mêmes colonnes que `/defis/ouverts` — rien de plus que ce que la liste
+// @Description publique montre déjà. Le match éventuel n'est PAS joint : il regarde deux joueurs
+// @Description identifiés, pas un visiteur.
+// @Tags defis
+// @Success 200 {object} DefiListe
+// @Router /defis/{id}/public [get]
+func DetailPublic(c fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return utils.Erreur(c, fiber.StatusBadRequest, "identifiant invalide")
+	}
+	var defi DefiListe
+	res := requeteDefis(config.DB).Where("d.id = ?", id).Limit(1).Scan(&defi)
+	if res.Error != nil || res.RowsAffected == 0 {
+		return utils.Erreur(c, fiber.StatusNotFound, "défi introuvable")
+	}
+	return utils.OK(c, defi)
+}
+
 // Rejoindre godoc
 // @Summary Rejoindre un défi (bloque la mise, crée le match)
 // @Tags defis
@@ -382,6 +404,10 @@ var (
 // protégé : sinon `/defis/ouverts` serait capturé par `/defis/:id` et exigerait un jeton.
 func Enregistrer(api fiber.Router) {
 	api.Get("/defis/ouverts", ListerOuverts)
+	// Route PUBLIQUE, déclarée hors du groupe protégé : c'est elle que sert un lien de
+	// partage ouvert par quelqu'un qui n'a pas (encore) de compte. Elle ne renvoie que ce
+	// que la liste publique montre déjà.
+	api.Get("/defis/:id/public", DetailPublic)
 	grp := api.Group("/defis", auth.Connecte())
 	grp.Get("/", Lister)
 	// Engager de l'argent exige une adresse confirmée (403 sinon) ; consulter, annuler

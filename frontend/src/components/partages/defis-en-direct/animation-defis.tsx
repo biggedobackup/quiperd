@@ -86,11 +86,16 @@ const MAX_CASCADE = 11
  * disparaître d'un coup. `AnimatePresence` est TOUJOURS monté et ses enfants sont toujours des
  * composants `motion` — un enfant non animé ne signalerait jamais la fin de sa sortie et
  * resterait accroché au DOM. `prefers-reduced-motion` est honoré par des durées nulles.
+ *
+ * `initial={false}` est la pièce maîtresse : la liste DÉJÀ là au montage s'affiche d'un bloc,
+ * sans fondu ni cascade. Sans lui, chaque arrivée sur la page rejouait l'entrée de toutes les
+ * cartes — une animation d'arrivée, alors que le mouvement ne doit signaler qu'une chose : un
+ * défi que le serveur vient de pousser, ou un défi qui vient de quitter l'arène.
  */
 export function ListeAnimee({ className = '', children }: { className?: string; children: ReactNode }) {
   return (
     <div className={className}>
-      <AnimatePresence>{children}</AnimatePresence>
+      <AnimatePresence initial={false}>{children}</AnimatePresence>
     </div>
   )
 }

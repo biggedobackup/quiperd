@@ -125,7 +125,7 @@ function NouveauDefi() {
     <>
       <EnTetePage surtitre="Arène" titre="Nouveau défi" description="Votre mise est bloquée dès la création ; si personne ne rejoint, elle vous est rendue moins la commission de la plateforme." />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-        <form onSubmit={soumettre} className="ticket space-y-5 border-2 border-encre bg-papier p-6" noValidate>
+        <form onSubmit={soumettre} className="space-y-5 rounded-2xl border border-trait bg-papier p-6" noValidate>
           <div className="grid gap-5 sm:grid-cols-2">
             <Select
               label="Jeu"
@@ -167,11 +167,11 @@ function NouveauDefi() {
           <Select label="Durée d’ouverture" options={DUREES} {...register('dureeHeures')} aide="Sans adversaire à l’échéance, le défi expire et la mise est rendue, moins la commission." />
           <Textarea label="Règles du match (optionnel)" placeholder="Ex. 2 × 6 min, pas d’équipes légendes, connexion stable exigée." {...register('regles')} erreur={errors.regles?.message} />
           {erreurGlobale && (
-            <p className="border-2 border-perte bg-perte-fond px-3 py-2 text-legende font-semibold text-perte" role="alert">
+            <p className="rounded-xl border border-perte bg-perte-fond px-3.5 py-2.5 text-legende font-semibold text-perte" role="alert">
               {erreurGlobale}
             </p>
           )}
-          <div className="flex flex-wrap justify-end gap-3 border-t-2 border-trait pt-5">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-trait pt-5">
             <LienBouton to="/joueur/defis" variante="fantome">
               Annuler
             </LienBouton>
@@ -182,7 +182,7 @@ function NouveauDefi() {
         </form>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <div className="ticket-sm border-2 border-encre bg-nuit p-5 text-craie">
+          <div className="rounded-2xl bg-encre p-5 text-craie">
             <span className="etiquette text-craie/60">Récapitulatif</span>
             <dl className="mt-3 space-y-2 text-legende">
               <Ligne libelle="Votre mise (bloquée)" valeur={formatMontant(mise)} />
@@ -196,7 +196,7 @@ function NouveauDefi() {
               <p className="mt-1 text-[11px] text-craie/50">Estimation avec le taux actuel ; le montant réel est calculé par la plateforme au règlement.</p>
             </div>
           </div>
-          <div className={`flex items-start gap-3 border-2 p-4 text-legende ${soldeInsuffisant ? 'border-perte bg-perte-fond text-perte' : 'border-trait bg-papier text-muet'}`}>
+          <div className={`flex items-start gap-3 rounded-xl border p-4 text-legende ${soldeInsuffisant ? 'border-perte bg-perte-fond text-perte' : 'border-trait bg-papier text-muet'}`}>
             <FontAwesomeIcon icon={soldeInsuffisant ? icone.attention : icone.info} className="mt-0.5" />
             {soldeInsuffisant ? (
               <p>
@@ -219,7 +219,7 @@ function MiseRapide({ montant }: { montant: number }) {
   return (
     <button
       type="button"
-      className="chiffres h-11 border-2 border-trait bg-gris px-3 text-legende font-bold transition-colors hover:border-encre hover:bg-volt hover:text-nuit"
+      className="chiffres h-11 rounded-[10px] border border-trait bg-gris px-3 text-legende font-bold transition-colors hover:border-vert hover:bg-vert hover:text-craie"
       onClick={(e) => {
         const form = e.currentTarget.closest('form')
         const champ = form?.querySelector<HTMLInputElement>('input[name="montantMise"]')

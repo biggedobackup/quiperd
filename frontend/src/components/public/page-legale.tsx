@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react'
 import { Conteneur } from './sections'
-import { Apparition } from '@/components/partages/animation/animation'
 
 export interface SectionLegale {
   titre: string
@@ -10,15 +9,15 @@ export interface SectionLegale {
 /** Gabarit des pages légales : sommaire numéroté à gauche, sections à droite. */
 export function PageLegale({ titre, miseAJour, sections }: { titre: string; miseAJour: string; sections: SectionLegale[] }) {
   return (
-    <Apparition>
+    <div>
       <Conteneur className="py-14 md:py-20">
-        <div className="max-w-3xl border-b-2 border-encre pb-8">
+        <div className="max-w-3xl border-b border-trait pb-8">
           <span className="etiquette text-muet">Document légal · mis à jour le {miseAJour}</span>
-          <h1 className="mt-3 text-h1 md:text-display-sm">{titre}</h1>
+          <h1 className="mt-3 hyphens-auto break-words text-h2 sm:text-h1 md:text-display-sm">{titre}</h1>
         </div>
         <div className="mt-10 grid gap-10 lg:grid-cols-[260px_1fr]">
           <nav className="lg:sticky lg:top-24 lg:self-start" aria-label="Sommaire">
-            <ol className="space-y-2 border-l-2 border-encre pl-4">
+            <ol className="space-y-2 border-l border-trait pl-4">
               {sections.map((s, i) => (
                 <li key={s.titre}>
                   <a href={`#section-${i + 1}`} className="inline-flex min-h-11 items-center text-legende text-muet transition-colors hover:text-encre">
@@ -42,6 +41,6 @@ export function PageLegale({ titre, miseAJour, sections }: { titre: string; mise
           </div>
         </div>
       </Conteneur>
-    </Apparition>
+    </div>
   )
 }

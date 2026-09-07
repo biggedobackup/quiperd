@@ -45,5 +45,35 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Pendant iOS de `lib/noyau/reseau.dart` et du `network_security_config` Android :
+	     l'API interne répond en HTTP en clair ou en HTTPS avec un certificat auto-signé,
+	     que l'App Transport Security refuse par défaut. Une version destinée à l'App Store
+	     doit retirer ce bloc et compiler avec `--dart-define=RESEAU_PERMISSIF=false`. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<!-- iOS 14+ demande l'accord du joueur avant de joindre une machine du réseau local. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>QUI PERD se connecte au serveur de la plateforme sur votre réseau local.</string>
+	<!-- Lien profond par schéma propre : quiperd://defis/<id> ouvre la fiche du défi.
+	     Le lien https, lui, demande un « Universal Link » : capacité Associated Domains dans
+	     Xcode (applinks:quiperd.com) ET un fichier apple-app-site-association servi par le
+	     site. Tant que ces deux-là ne sont pas en place, un lien https reste au navigateur —
+	     la page publique du site fait alors le travail. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.quiperd.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>quiperd</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

@@ -19,12 +19,12 @@ export function PresenceAdversaire({ enLigne, direct, className = '' }: Propriet
   const present = enLigne === true
   return (
     <span
-      className={`etiquette inline-flex h-6 items-center gap-1.5 border border-current/20 px-2 ${
-        present ? 'bg-volt-fond text-gain' : 'bg-gris text-muet'
+      className={`etiquette inline-flex h-6 items-center gap-1.5 rounded-full border border-current/20 px-2.5 ${
+        present ? 'bg-vert-pale text-gain' : 'bg-gris text-muet'
       } ${className}`}
     >
       <span
-        className={`inline-block size-2 shrink-0 ${present ? 'animate-pulsation bg-gain' : 'bg-muet'}`}
+        className={`inline-block size-2 shrink-0 rounded-full ${present ? 'animate-pulsation bg-gain' : 'bg-muet'}`}
         aria-hidden="true"
       />
       {present ? 'En ligne' : 'Hors ligne'}

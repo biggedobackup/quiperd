@@ -18,7 +18,6 @@ import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
 import { useAttenteDouce } from '@/components/partages/skeleton/attente'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastAttention, toastInfo, toastSucces } from '@/components/partages/toast/toast'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -143,18 +142,18 @@ function PageLitiges() {
       {attenteLitiges ? (
         <SkeletonLignes lignes={3} colonnes={3} />
       ) : litiges.data && litiges.data.length > 0 ? (
-        <Cascade className="space-y-3">
+        <div className="space-y-3">
           {litiges.data.map((l) => {
             const m = matchDe(l.matchId)
             const lignes = mouvements[l.matchId] ?? []
             return (
-              <ElementCascade key={l.id}>
-                <article className={`ticket-sm grid gap-4 border-2 bg-papier p-5 md:grid-cols-[1fr_auto] ${recents.includes(l.id) ? 'animate-apparition border-volt' : 'border-encre'}`}>
+              <div key={l.id}>
+                <article className={`grid gap-4 rounded-2xl border bg-papier p-5 md:grid-cols-[1fr_auto] ${recents.includes(l.id) ? 'animate-apparition border-vert' : 'border-trait'}`}>
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <BadgeStatut famille="litige" valeur={l.statut} />
                       {l.decision && <span className="etiquette text-muet">Décision : {l.decision === 'gagnant' ? 'règlement au gagnant' : 'remboursement des deux joueurs'}</span>}
-                      {recents.includes(l.id) && <span className="etiquette bg-volt px-1.5 text-nuit">En direct</span>}
+                      {recents.includes(l.id) && <span className="etiquette rounded-full bg-vert px-2 py-0.5 text-craie">En direct</span>}
                     </div>
                     <h3 className="mt-2 text-h3">{m ? `${m.joueur1Nom} vs ${m.joueur2Nom}` : `Match ${formatIdentifiant(l.matchId)}`}</h3>
                     <p className="mt-1 text-legende text-muet">
@@ -162,9 +161,9 @@ function PageLitiges() {
                       ouvert le {formatDateHeure(l.dateCreation)}
                       {l.dateResolution && ` · résolu le ${formatDateHeure(l.dateResolution)}`}
                     </p>
-                    <p className="mt-3 border-l-2 border-trait pl-3 text-legende">« {l.motif} »</p>
+                    <p className="mt-3 border-l border-trait pl-3 text-legende">« {l.motif} »</p>
                     {lignes.length > 0 && (
-                      <ul className="mt-3 space-y-1 border-l-2 border-volt pl-3">
+                      <ul className="mt-3 space-y-1 border-l border-vert pl-3">
                         {lignes.map((t) => {
                           const sens = typesTransaction[t.type]?.sens ?? 'neutre'
                           return (
@@ -180,14 +179,14 @@ function PageLitiges() {
                       </ul>
                     )}
                   </div>
-                  <Link to="/joueur/matchs/$matchId" params={{ matchId: l.matchId }} className="etiquette flex h-11 items-center gap-2 self-start border-2 border-encre px-3 hover:bg-volt hover:text-nuit">
+                  <Link to="/joueur/matchs/$matchId" params={{ matchId: l.matchId }} className="etiquette flex h-11 items-center gap-2 self-start rounded-[10px] border border-trait px-3.5 transition-colors hover:border-vert hover:text-vert">
                     Voir le match <FontAwesomeIcon icon={icone.suivant} />
                   </Link>
                 </article>
-              </ElementCascade>
+              </div>
             )
           })}
-        </Cascade>
+        </div>
       ) : (
         <EmptyState icone={icone.litige} titre="Aucun litige" description="Tant mieux : vos matchs se règlent sans arbitre." />
       )}

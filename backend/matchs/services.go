@@ -188,8 +188,18 @@ func ChargerVerrouille(tx *gorm.DB, id uuid.UUID) (*MatchDefi, error) {
 // noms des joueurs, jeu et plateforme du défi. Lecture seule — jamais utilisé pour écrire.
 type MatchEnrichi struct {
 	MatchDefi
-	Joueur1Nom    string `gorm:"column:joueur_1_nom" json:"joueur1Nom"`
-	Joueur2Nom    string `gorm:"column:joueur_2_nom" json:"joueur2Nom"`
+	Joueur1Nom string `gorm:"column:joueur_1_nom" json:"joueur1Nom"`
+	Joueur2Nom string `gorm:"column:joueur_2_nom" json:"joueur2Nom"`
+
+	// Photos de profil des deux joueurs. On expose le **chemin stocké**, pas une URL : le
+	// fichier est servi par une route protégée (`GET /utilisateurs/{id}/photo`) que les
+	// clients construisent eux-mêmes à partir de l'identifiant du joueur. Ce champ ne sert
+	// donc qu'à deux choses — savoir s'il Y A une photo (chaîne vide = aucune, on retombe
+	// sur le monogramme) et servir de version pour le cache du navigateur, comme le fait
+	// déjà la barre du joueur pour sa propre photo.
+	Joueur1Photo string `gorm:"column:joueur_1_photo" json:"joueur1Photo"`
+	Joueur2Photo string `gorm:"column:joueur_2_photo" json:"joueur2Photo"`
+
 	JeuNom        string `gorm:"column:jeu_nom" json:"jeuNom"`
 	PlateformeNom string `gorm:"column:plateforme_nom" json:"plateformeNom"`
 }
@@ -197,6 +207,7 @@ type MatchEnrichi struct {
 func requeteEnrichie(db *gorm.DB) *gorm.DB {
 	return db.Table("matchs m").
 		Select(`m.*, u1.nom_utilisateur AS joueur_1_nom, u2.nom_utilisateur AS joueur_2_nom,
+			u1.photo_profil AS joueur_1_photo, u2.photo_profil AS joueur_2_photo,
 			j.nom AS jeu_nom, p.nom AS plateforme_nom`).
 		Joins("LEFT JOIN utilisateurs u1 ON u1.id = m.joueur_1_id").
 		Joins("LEFT JOIN utilisateurs u2 ON u2.id = m.joueur_2_id").

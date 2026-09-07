@@ -49,15 +49,17 @@ export function questionsFrequentes(regles: ReglesFinancieres): QuestionReponse[
 /** Accordéon natif <details>/<summary> : accessible et sans JavaScript. */
 export function FaqAccordion({ questions }: { questions: QuestionReponse[] }) {
   return (
-    <div className="divide-y-2 divide-encre border-2 border-encre bg-papier">
+    <div className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-craie">
       {questions.map((q, i) => (
         <details key={q.question} className="group">
-          <summary className="flex cursor-pointer items-center gap-4 px-5 py-4 transition-colors hover:bg-volt-fond">
-            <span className="chiffres etiquette shrink-0 text-muet">{String(i + 1).padStart(2, '0')}</span>
+          <summary className="flex cursor-pointer items-center gap-4 px-5 py-5 transition-colors hover:bg-vert-pale">
+            <span className="chiffres etiquette shrink-0 text-vert">{String(i + 1).padStart(2, '0')}</span>
             <span className="flex-1 font-semibold">{q.question}</span>
-            <FontAwesomeIcon icon={icone.chevronBas} className="shrink-0 transition-transform duration-200 group-open:rotate-180" />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-gris text-[12px] transition-[transform,background-color,color] duration-200 group-open:rotate-180 group-open:bg-vert group-open:text-craie">
+              <FontAwesomeIcon icon={icone.chevronBas} />
+            </span>
           </summary>
-          <p className="border-t border-trait px-5 py-4 pl-14 text-corps text-muet">{q.reponse}</p>
+          <p className="px-5 pb-5 pl-14 text-corps text-muet">{q.reponse}</p>
         </details>
       ))}
     </div>

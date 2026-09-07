@@ -97,7 +97,7 @@ export function DeclarationScoreModal({
           <span className="chiffres pb-3 text-h2 text-muet">—</span>
           <Input label={adversaire} type="number" inputMode="numeric" min={0} max={99} className="chiffres" {...register('scoreContre', { valueAsNumber: true })} erreur={errors.scoreContre?.message} />
         </div>
-        <p className={`border-2 px-3 py-2 text-legende font-semibold ${pour === contre ? 'border-alerte bg-alerte-fond text-alerte' : 'border-trait bg-gris text-encre'}`}>{issue}</p>
+        <p className={`rounded-xl border px-3 py-2 text-legende font-semibold ${pour === contre ? 'border-alerte bg-alerte-fond text-alerte' : 'border-trait bg-gris text-encre'}`}>{issue}</p>
         <Textarea label="Commentaire (optionnel)" placeholder="Ex. adversaire déconnecté à la 80e minute." rows={3} {...register('commentaire')} erreur={errors.commentaire?.message} />
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button variante="fantome" bloc className="sm:w-auto" onClick={onFermer} disabled={chargement}>

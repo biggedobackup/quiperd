@@ -5,9 +5,9 @@ import { useChrono } from '@/temps-reel/hooks'
 export type TonChrono = 'volt' | 'alerte' | 'perte' | 'neutre'
 
 const TONS: Record<TonChrono, string> = {
-  volt: 'border-encre bg-volt text-nuit',
-  alerte: 'border-alerte bg-alerte-fond text-alerte',
-  perte: 'border-perte bg-perte-fond text-perte',
+  volt: 'border-current/20 bg-volt text-nuit',
+  alerte: 'border-current/20 bg-alerte-fond text-alerte',
+  perte: 'border-current/20 bg-perte-fond text-perte',
   neutre: 'border-trait bg-gris text-encre',
 }
 
@@ -50,7 +50,7 @@ export function CompteARebours({
     <span
       role="timer"
       aria-live="off"
-      className={`etiquette inline-flex h-8 shrink-0 items-center gap-2 border-2 px-2.5 ${apparence} ${className}`}
+      className={`etiquette inline-flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 ${apparence} ${className}`}
     >
       <FontAwesomeIcon
         icon={chrono.termine ? icone.horloge : icone.sablier}

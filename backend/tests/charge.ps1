@@ -45,6 +45,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# psql écrit en UTF-8 ; PowerShell, lui, décode la sortie d'un programme externe avec la page
+# de codes de la console. Sur un terminal en cp1252, « délai » revenait en « dÃ©lai » et une
+# vérification portant sur un mot accentué échouait alors que la base était juste. Fixer les
+# deux bouts rend la recette indépendante du terminal qui la lance.
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$OutputEncoding = [Text.Encoding]::UTF8
+$env:PGCLIENTENCODING = 'UTF8'
 $Racine = Split-Path $PSScriptRoot -Parent          # …/backend
 $Tmp = Join-Path $PSScriptRoot 'tmp'
 New-Item -ItemType Directory -Force $Tmp | Out-Null

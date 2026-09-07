@@ -19,7 +19,7 @@ export interface ProprietesModal {
 const TAILLES = { sm: 'max-w-md', md: 'max-w-lg', lg: 'max-w-3xl' }
 
 /**
- * Fenêtre modale « ticket » : fond voilé, panneau à coins coupés, fermeture par Échap,
+ * Fenêtre modale : fond voilé, panneau arrondi posé en ombre douce, fermeture par Échap,
  * clic sur le fond et bouton ; focus déplacé dans le panneau puis restitué.
  */
 export function Modal({ ouvert, onFermer, titre, description, children, pied, taille = 'md', verrouille = false }: ProprietesModal) {
@@ -95,13 +95,13 @@ export function Modal({ ouvert, onFermer, titre, description, children, pied, ta
             aria-modal="true"
             aria-labelledby={idTitre}
             tabIndex={-1}
-            className={`ticket w-full ${TAILLES[taille]} max-h-[92dvh] overflow-y-auto border-2 border-encre bg-papier text-encre shadow-tampon outline-none`}
+            className={`w-full ${TAILLES[taille]} max-h-[92dvh] overflow-y-auto rounded-t-2xl border border-trait bg-papier text-encre shadow-carte-forte outline-none sm:rounded-2xl`}
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ duration: reduit ? 0 : 0.2, ease: 'easeOut' }}
           >
-            <header className="flex items-start justify-between gap-4 border-b-2 border-encre px-5 py-4">
+            <header className="flex items-start justify-between gap-4 border-b border-trait px-5 py-4">
               <div>
                 <h2 id={idTitre} className="text-h3">
                   {titre}
@@ -114,13 +114,13 @@ export function Modal({ ouvert, onFermer, titre, description, children, pied, ta
                 onClick={onFermer}
                 disabled={verrouille}
                 aria-label="Fermer"
-                className="flex size-9 shrink-0 items-center justify-center border-2 border-transparent text-encre transition-colors hover:border-encre hover:bg-volt hover:text-nuit disabled:opacity-40"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-transparent text-encre transition-colors hover:border-vert hover:bg-vert hover:text-craie disabled:opacity-40"
               >
                 <FontAwesomeIcon icon={icone.fermer} />
               </button>
             </header>
             <div className="px-5 py-5">{children}</div>
-            {pied && <footer className="flex flex-wrap justify-end gap-3 border-t-2 border-trait px-5 py-4">{pied}</footer>}
+            {pied && <footer className="flex flex-wrap justify-end gap-3 border-t border-trait px-5 py-4">{pied}</footer>}
           </motion.div>
         </motion.div>
       )}

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.quiperd.app",
+      "sha256_cert_fingerprints": [
+        "00:75:47:B4:42:45:C9:31:12:95:29:73:E8:15:37:B8:FD:29:05:70:1F:E3:6F:C0:32:40:D2:ED:DB:E8:09:F4"
+      ]
+    }
+  }
+]

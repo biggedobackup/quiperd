@@ -19,7 +19,6 @@ import { Button } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonLignes } from '@/components/partages/skeleton/skeleton'
 import { useAttenteDouce } from '@/components/partages/skeleton/attente'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastErreur } from '@/components/partages/toast/toast'
 
 const routeJoueur = getRouteApi('/joueur')
@@ -103,13 +102,13 @@ function PageNotifications() {
       {attente ? (
         <SkeletonLignes lignes={5} colonnes={2} />
       ) : data && data.length > 0 ? (
-        <Cascade className="divide-y-2 divide-trait border-2 border-encre bg-papier">
+        <div className="divide-y divide-trait overflow-hidden rounded-2xl border border-trait bg-papier">
           {data.map((n) => (
-            <ElementCascade key={n.id}>
+            <div key={n.id}>
               <Ligne notification={n} nouvelle={recentes.includes(n.id)} onLire={() => mutation.mutate(n.id)} />
-            </ElementCascade>
+            </div>
           ))}
-        </Cascade>
+        </div>
       ) : (
         <EmptyState icone={icone.notification} titre="Aucune notification" description="Défi rejoint, match réglé, litige, dépôt confirmé : tout arrive ici." />
       )}
@@ -119,21 +118,21 @@ function PageNotifications() {
 
 function Ligne({ notification: n, nouvelle, onLire }: { notification: Notification; nouvelle: boolean; onLire: () => void }) {
   return (
-    <div className={`flex items-start gap-4 px-4 py-4 ${nouvelle ? 'animate-apparition' : ''} ${n.lu ? '' : 'bg-volt-fond'}`}>
-      <span className={`flex size-9 shrink-0 items-center justify-center border-2 ${n.lu ? 'border-trait text-muet' : 'border-encre bg-volt text-nuit'}`}>
+    <div className={`flex items-start gap-4 px-4 py-4 ${nouvelle ? 'animate-apparition' : ''} ${n.lu ? '' : 'bg-vert-pale'}`}>
+      <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl border ${n.lu ? 'border-trait text-muet' : 'border-transparent bg-vert text-craie'}`}>
         <FontAwesomeIcon icon={ICONES[n.type] ?? icone.notification} />
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <p className={`text-corps ${n.lu ? '' : 'font-bold'}`}>{n.titre}</p>
           <span className="etiquette text-muet">{typesNotification[n.type] ?? n.type}</span>
-          {nouvelle && <span className="etiquette bg-volt px-1.5 text-nuit">À l’instant</span>}
+          {nouvelle && <span className="etiquette rounded-full bg-vert px-2 py-0.5 text-craie">À l’instant</span>}
         </div>
         <p className="mt-0.5 text-legende text-muet">{n.message}</p>
         <p className="chiffres mt-1 text-[11px] text-muet">{formatDateRelative(n.dateCreation)}</p>
       </div>
       {!n.lu && (
-        <button type="button" onClick={onLire} className="etiquette flex min-h-11 shrink-0 items-center border-2 border-transparent px-2 text-encre hover:border-encre" aria-label="Marquer comme lue">
+        <button type="button" onClick={onLire} className="etiquette flex min-h-11 shrink-0 items-center rounded-full border border-transparent px-3 text-encre transition-colors hover:border-vert hover:text-vert" aria-label="Marquer comme lue">
           Lu
         </button>
       )}

@@ -80,7 +80,7 @@ TanStack Router 1.170, TanStack Query 5.102, React 19.2, Vite 7, Tailwind CSS 4.
 | Données              | TanStack Query + `@tanstack/react-router-ssr-query`      | cache des listes, invalidation après chaque mutation, hydratation SSR |
 | Style                | **Tailwind CSS v4** (`@tailwindcss/vite`)                | tokens déclarés une seule fois dans `src/styles/app.css` via `@theme` — **il n'existe plus de `tailwind.config.ts`** en v4 |
 | Icônes               | **Font Awesome** (`@fortawesome/fontawesome-svg-core`, `@fortawesome/react-fontawesome`, `free-solid-svg-icons`, `free-regular-svg-icons`, `free-brands-svg-icons`) | icônes importées **une à une** et nommées par usage dans `src/lib/icones.ts` (jamais `library.add(fas)` : + 1 Mo de bundle) ; `config.autoAddCss = false` et le CSS de `fontawesome-svg-core` importé une fois dans `__root.tsx` (sinon flash d'icônes géantes au SSR) |
-| Animation            | **`motion`** (`motion/react`)                            | transitions de page, listes en cascade, compteurs animés, micro-interactions — presets centralisés dans `components/partages/animation/`, `prefers-reduced-motion` respecté |
+| Animation            | **`motion`** (`motion/react`)                            | **aucune animation d'arrivée sur une page** (ni fondu de transition, ni cascade de liste) : uniquement des animations d'interaction (modale, tiroir de menu) et des mises en évidence poussées par le socket ; `prefers-reduced-motion` respecté |
 | Polices              | `@fontsource-variable/unbounded` (titres), `@fontsource-variable/manrope` (texte), `@fontsource-variable/jetbrains-mono` (montants, scores, références) | auto-hébergées : compatibles avec la CSP `font-src 'self'` de la compétence sécurité, aucun appel à Google Fonts |
 | Formulaires          | React Hook Form + Zod (`@hookform/resolvers`)            | création de défi, dépôt/retrait, déclaration de score, formulaires admin |
 | Graphiques           | Recharts                                                 | répartitions du tableau de bord admin (le backend n'expose pas encore de séries temporelles : aucune courbe inventée) |
@@ -172,7 +172,7 @@ frontend/
     │   └── app.css              # @import "tailwindcss"; @theme { tokens } ; polices ; keyframes ; thème sombre (variables)
     ├── routes/
     │   ├── __root.tsx           # <html> shell, HeadContent/Scripts, providers (Query, toasts), meta par défaut
-    │   ├── _public.tsx          # layout site vitrine : header + footer + transition de page
+    │   ├── _public.tsx          # layout site vitrine : header + footer (aucune transition de page)
     │   ├── _public/
     │   │   ├── index.tsx        # accueil : hero, défis ouverts en direct, comment ça marche, catalogue par catégorie
     │   │   ├── defis.tsx        # page « Défis » : GET /api/defis/ouverts (public), filtres catégorie/famille/jeu/plateforme/mise, mise à jour EN DIRECT par le socket (aucun polling)
@@ -254,8 +254,7 @@ frontend/
         │   ├── toast/           # <Toaster/> sonner + helpers succes()/erreur()
         │   ├── loader/ · skeleton/ · empty-state/ · pagination/
         │   ├── data-table/ · stat-card/ · compteur-anime/ · barre-progression-upload/
-        │   ├── lecteur-preuve/  # <video>/<img> via la route proxy
-        │   └── animation/       # presets motion : apparition, cascade, transition de page
+        │   └── lecteur-preuve/  # <video>/<img> via la route proxy
         ├── public/              # header, footer, hero, section-*, faq-accordion, ticker-defis
         ├── joueur/              # sidebar, navbar, carte-defi, carte-match, tableau-score, modals/
         └── admin/               # sidebar, navbar, graphique-repartition, modals/
@@ -333,7 +332,49 @@ par les pages dédiées d'authentification et légales :
    lus et traités dans l'admin (`/admin/messages` : liste paginée, statuts nouveau/lu/traité,
    note interne, suppression). Jamais un formulaire sans route backend derrière (« widget
    décoratif sans effet », compétence d'audit).
+1 bis. **Télécharger l'application** (`section-application.tsx`, numérotée **02**, placée juste
+   après « Défis en attente d'adversaire ») — **deux téléphones dessinés en CSS**, un par
+   magasin, avec le bouton de téléchargement à l'intérieur de l'écran. Forme demandée par
+   l'utilisateur : « en forme de téléphone, et tu mets un bouton télécharger l'app dedans ».
+   Pas d'image : cadre `border-[10px] border-encre rounded-[38px]`, ratio `aspect-[9/17]`,
+   haut-parleur et barre d'accueil — net à tous les grossissements, zéro octet de plus, et la
+   hauteur suit le contenu au lieu d'être figée. Les deux téléphones sont dans une **rangée
+   centrée** (`flex flex-wrap justify-center`), pas dans une grille à deux colonnes : la grille
+   donnait à chacun la moitié du conteneur et les séparait de plus de 350 px sur un écran large. Le site sert aussi
+   `/.well-known/assetlinks.json`, qui autorise l'application Android à ouvrir les liens
+   `/defis/<id>` (voir `demarrage-mobile.md`). Position
+   demandée par l'utilisateur : « sur le site web cette section doit être en haut, ça doit être
+   après Défis en attente d'adversaire. » Le visiteur vient de voir ce qui se joue en ce moment,
+   c'est là que l'emporter dans sa poche a le plus de sens. Les sections suivantes ont donc été
+   **décalées d'un rang** (Comment ça marche 03, Jeux 04, Sécurité 05, FAQ 06) : une section 06
+   coincée entre 01 et 02 se lirait comme un bogue, pas comme un choix. Les adresses ne sont
+   **jamais écrites en dur** : elles viennent de `APP_ANDROID_URL` et `APP_IOS_URL`, lues côté
+   serveur par `obtenirLiensApplication` (`server/application-fns.ts`) et attendues dans le
+   `loader` de l'accueil. Une adresse absente ou vide n'affiche **pas** un bouton mort : la
+   pastille passe en « Bientôt sur … », grise et inerte. Sur une plateforme où l'on dépose de
+   l'argent, un lien de magasin qui ne mène nulle part coûte plus cher en confiance qu'une
+   absence assumée. Les liens actifs ouvrent un nouvel onglet avec `rel="noopener noreferrer"`.
+   La section est en **06** et non en 05 : les cinq premiers numéros sont ceux du site en ligne
+   et renuméroter les sections existantes changerait des repères connus des joueurs.
 7. **Footer** — liens légaux (CGU, confidentialité, mentions légales), copyright.
+
+**Page publique d'un défi — `/defis/$defiId`** (`routes/_public/defis_.$defiId.tsx`) : la page
+servie par un **lien de partage**. Elle montre le jeu, la plateforme, la mise, le créateur et le
+compte à rebours à quelqu'un qui n'a pas encore de compte, avec « Se connecter pour rejoindre »
+(`?vers=/joueur/defis/<id>`) ou « Voir et rejoindre » s'il est déjà connecté. Elle appelle
+`GET /api/defis/{id}/public` et renseigne Open Graph : un lien collé dans une conversation doit
+s'afficher avec le jeu et la mise.
+
+**Le nom du fichier compte : `defis_.$defiId.tsx`, avec le tiret bas.** Nommé `defis.$defiId.tsx`,
+TanStack en fait un ENFANT de `/defis` — qui n'a pas d'`<Outlet />` : le `head()` s'appliquait
+(le titre changeait) mais le corps affiché restait la liste des défis. Le tiret bas dénoue la
+hiérarchie. Symptôme à reconnaître : bon titre, bon Open Graph, mauvais contenu.
+
+**Bouton « Partager le défi »** (`components/joueur/bouton-partage-defi.tsx`) sur la fiche
+joueur, tant que le défi est ouvert : `navigator.share` s'il existe (feuille de partage du
+système sur téléphone), sinon copie dans le presse-papiers avec un message qui le dit. Le lien
+est construit sur `window.location.origin`, jamais sur une variable d'environnement : il doit
+pointer vers l'hôte par lequel le joueur est réellement passé.
 
 ### 3.2 Accès joueur web (miroir du mobile)
 
@@ -341,6 +382,12 @@ par les pages dédiées d'authentification et légales :
    toast de confirmation ou d'erreur explicite (identifiants invalides, compte suspendu…).
 2. **Tableau de bord** — solde, mes matchs en cours (`GET /api/matchs?statut=en_cours`), défis
    ouverts, notifications récentes ; squelette de chargement le temps du premier chargement.
+   **L'ordre des deux sections dépend de ce que le joueur a en cours** (demande de
+   l'utilisateur, valable sur le web comme sur le mobile) : avec un match ouvert, « Matchs en
+   cours » passe devant ; **sans aucun match, « Défis ouverts » passe en premier** et l'état
+   vide des matchs descend en bas — ouvrir le tableau de bord sur un grand cadre « Aucun match
+   en cours » n'apprend rien. Pendant le chargement on ne sait pas encore : on garde l'ordre
+   habituel plutôt que d'intervertir les blocs sous les yeux du joueur.
 3. **Défis** — liste (`GET /api/defis`, filtres catégorie/jeu/plateforme/mise, sélecteurs
    groupés par catégorie et par famille), état vide explicite
    (« Aucun défi disponible, créez le premier ! ») ; onglet « mes défis » (`GET /api/defis?mes=1`)
@@ -647,9 +694,8 @@ plats (grille pointillée, hachures) en fond de section.
 
 ### Mouvement (motion)
 
-- Entrée de page : `opacity 0 → 1` + `translateY(12px → 0)` en 240 ms `easeOut`
-  (preset `apparition`), listes en cascade avec 40 ms de décalage par élément (`cascade`, plafond
-  12 éléments).
+- Entrée de page : **rien**. Voir « Aucune animation à l'arrivée sur une page » plus bas — le
+  contenu de la nouvelle page remplace celui de l'ancienne sans fondu ni décalage.
 - Modales : fond `opacity` 160 ms, panneau `scale(0.96 → 1)` 200 ms ; fermeture par `Échap`,
   clic sur le fond et bouton — focus piégé et restitué.
 - Survol des cartes : `translateY(-2px)` 120 ms ; jamais d'animation sur `width`/`height`/
@@ -771,6 +817,13 @@ plats (grille pointillée, hachures) en fond de section.
   le pays vient de `@/lib/pays` (`Select groupes={optionsPaysGroupees()}`, valeur = nom
   français) ; le téléphone du compte n'est jamais qualifié de « mobile money » hors des modales
   de paiement.
+- **Un champ mot de passe par ligne, à toutes les largeurs.** Demande explicite de
+  l'utilisateur pour l'inscription et le profil : « je veux que les champs mot de passe soient
+  un sur une ligne et non les deux sur la même ligne. » Ces champs se ressemblent trop pour être
+  mis côte à côte — même masque de points, même bouton œil — et l'on saisit la confirmation dans
+  la case du mot de passe. Ne pas les remettre dans une grille `sm:grid-cols-2` ; ils sont des
+  enfants directs du formulaire et héritent de son `space-y-4`. La règle vaut aussi pour
+  l'écran de réinitialisation, qui les empilait déjà.
 
 ---
 
@@ -855,6 +908,51 @@ Ce qui reste animé, parce que le mouvement y dit quelque chose : la cascade a �
 du tableau de bord (blocs qui se remettent en place à chaque passage), mais **le compteur
 du solde garde son animation** — l'utilisateur l'a demandé explicitement — comme les
 entrées qui arrivent en direct (« Nouveau », « Mis à jour »).
+
+### Aucune animation à l'arrivée sur une page
+
+Demande explicite de l'utilisateur, après qu'il a décrit lui-même le symptôme (« lorsqu'on
+clique sur une section, une impression qu'il y a une animation en fade out ou bien en fade
+in ») : « sur le site web il faut retirer ça. » La règle vaut pour le site public, l'espace
+joueur et l'administration.
+
+Le coupable principal était un `AnimatePresence mode="wait"` posé autour du contenu de page
+dans `LayoutJoueur` et `LayoutAdmin`. `mode="wait"` **sérialise** la sortie et l'entrée : la
+page qui part doit avoir fini de s'effacer avant que la nouvelle commence à apparaître. Deux
+fondus de 0,2 s bout à bout, auxquels s'ajoutaient le squelette de navigation en fondu, la
+cascade interne de la page et, sur le site public, la révélation au défilement — jusqu'à
+0,75 s de mouvement avant un écran stable.
+
+Ce qui a été supprimé, et ne doit pas revenir :
+
+- l'`AnimatePresence` de transition de page des deux gabarits — le contenu est désormais dans
+  un simple `<div>` ;
+- tout le module `components/partages/animation/` (`Apparition`, `ApparitionAuDefilement`,
+  `Cascade`, `ElementCascade`), remplacé par des `<div>` ordinaires dans la vingtaine de
+  fichiers qui l'utilisaient. Le rendu est exactement celui que ces composants produisaient
+  déjà sous `prefers-reduced-motion`, donc aucune mise en page n'a bougé ;
+- la classe `animate-apparition` **partout où elle était inconditionnelle** : squelette de
+  navigation, cartes de paiement suivi du portefeuille, entrées du journal direct admin.
+
+Ce qui reste, et pourquoi :
+
+- `animate-apparition` **conditionné à une nouveauté temps réel** (`recents`, `nouvelle`,
+  `eclairDisponible`…). Ces états naissent d'un `useState([])` qui se vide à chaque navigation :
+  ils ne s'allument donc jamais à l'arrivée sur la page, seulement quand le socket pousse
+  quelque chose. C'est le cœur du produit — les deux adversaires doivent voir la même chose au
+  même instant ;
+- `ListeAnimee` / `ElementAnime` des listes de défis vivantes, mais **`AnimatePresence` y porte
+  maintenant `initial={false}`**. C'est la pièce à ne pas perdre : sans elle, la liste déjà
+  présente rejouait son entrée en cascade à chaque arrivée sur l'accueil, `/defis` ou
+  `/joueur/defis`. Avec elle, seuls un défi qui arrive et un défi qui sort bougent ;
+- les animations d'**interaction**, déclenchées par un geste : modales, tiroir du menu mobile,
+  bouton « retour en haut ». Elles ne se produisent jamais du seul fait de changer de page.
+
+Vérification qui ne ment pas : `curl` sur une route et compter les `opacity:0` dans le HTML
+rendu par le serveur. Il doit y en avoir **zéro** — plus rien ne démarre invisible. Et pendant
+une navigation client, un `MutationObserver` sur le premier enfant du `<main>` ne doit voir
+apparaître **aucun style inline** : `motion` en écrit toujours un, son absence prouve qu'il
+n'y a plus de composant animé à cet endroit.
 
 ### Photo de profil : un fichier, jamais une adresse
 

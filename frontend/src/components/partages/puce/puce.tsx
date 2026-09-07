@@ -11,7 +11,7 @@ export interface ProprietesPuce {
   children: ReactNode
 }
 
-/** Puce de filtre (onglet carré) : noire quand active, verte au survol — jamais de pilule. */
+/** Puce de filtre : verte pleine quand active, contour gris sinon. */
 export function Puce({ actif, onClick, icone: ic, compte, children }: ProprietesPuce) {
   return (
     <button
@@ -19,13 +19,13 @@ export function Puce({ actif, onClick, icone: ic, compte, children }: Proprietes
       role="tab"
       aria-selected={actif}
       onClick={onClick}
-      className={`etiquette inline-flex h-11 items-center gap-2 border-2 border-encre px-3 transition-colors ${
-        actif ? 'bg-encre text-craie' : 'bg-papier text-encre hover:bg-volt hover:text-nuit'
+      className={`etiquette inline-flex h-11 items-center gap-2 rounded-full border px-4 transition-colors ${
+        actif ? 'border-transparent bg-vert text-craie' : 'border-trait bg-papier text-encre hover:border-vert hover:text-vert'
       }`}
     >
-      {ic && <FontAwesomeIcon icon={ic} className={actif ? 'text-volt' : 'text-muet'} />}
+      {ic && <FontAwesomeIcon icon={ic} className={actif ? 'text-craie' : 'text-muet'} />}
       {children}
-      {compte !== undefined && <span className={`chiffres ${actif ? 'text-volt' : 'text-muet'}`}>{compte}</span>}
+      {compte !== undefined && <span className={`chiffres ${actif ? 'text-craie/80' : 'text-muet'}`}>{compte}</span>}
     </button>
   )
 }

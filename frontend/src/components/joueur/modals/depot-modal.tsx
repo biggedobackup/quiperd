@@ -79,7 +79,7 @@ export function DepotModal({
     <Modal ouvert={ouvert} onFermer={onFermer} titre="Déposer des fonds" description="Paiement Mobile Money sur la page sécurisée du prestataire ; votre solde est crédité dès confirmation." verrouille={chargement}>
       {aucun ? (
         <div className="space-y-5">
-          <p className="border-2 border-alerte bg-alerte-fond p-3 text-legende">
+          <p className="rounded-xl border border-alerte bg-alerte-fond p-3 text-legende">
             Aucun moyen de paiement n’est disponible pour le moment. Le dépôt rouvrira dès qu’une passerelle Mobile Money sera de nouveau active.
           </p>
           <div className="flex justify-end">

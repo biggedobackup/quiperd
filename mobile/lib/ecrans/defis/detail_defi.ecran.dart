@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../composants/communs/badge_statut.dart';
@@ -9,6 +10,7 @@ import '../../composants/communs/message.dart';
 import '../../composants/communs/squelette.dart';
 import '../../composants/joueur/compte_a_rebours.dart';
 import '../../composants/joueur/panneaux_match.dart';
+import '../../config/environnement.dart';
 import '../../etats/catalogue.etat.dart';
 import '../../etats/portefeuille.etat.dart';
 import '../../etats/session.etat.dart';
@@ -56,6 +58,20 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
         _erreur = r.message;
       }
     });
+  }
+
+  /// Copie le lien public du défi dans le presse-papiers.
+  ///
+  /// Volontairement une copie, et non la feuille de partage du système : celle-ci demande le
+  /// paquet `share_plus`, absent du cache pub de ce poste, et la connexion ne permet pas de
+  /// le télécharger de façon fiable. Le libellé du bouton dit donc « Copier le lien » — on ne
+  /// promet pas un partage natif qu'on ne rend pas. Coller dans WhatsApp fait le même travail.
+  Future<void> _partager(String defiId) async {
+    final lien = Environnement.lienDefi(defiId);
+    await Clipboard.setData(ClipboardData(text: lien));
+    if (!mounted) return;
+    Message.succes(context, 'Lien copié',
+        'Collez-le dans une conversation : la personne verra le défi et pourra le rejoindre.');
   }
 
   Future<void> _rejoindre() async {
@@ -287,8 +303,12 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
                 onPressed: _annuler,
               )
             else
+              // Le montant est DANS le libellé, jamais écrit en dur : c'est la somme qui va
+              // quitter le solde à la seconde où l'on appuie, et la lire ailleurs sur l'écran
+              // ne remplace pas de la lire sur le bouton qu'on presse. 1 500 FCFA, 20 000 FCFA :
+              // le bouton dit toujours la mise réelle du défi.
               Bouton(
-                libelle: 'Rejoindre ce défi',
+                libelle: 'Miser ${formatMontant(mise, defi.devise)} et accepter',
                 bloc: true,
                 taille: TailleBouton.lg,
                 variante: VarianteBouton.volt,
@@ -301,6 +321,19 @@ class _DetailDefiEcranState extends State<DetailDefiEcran> {
               texte: 'Ce défi n’est plus ouvert : '
                   '${decrireStatut(FamilleStatut.defi, defi.statut).libelle.toLowerCase()}.',
             ),
+          // Partage possible tant que le défi cherche un adversaire, pour son créateur comme
+          // pour n'importe qui : envoyer le lien à un ami est la façon la plus directe de lui
+          // trouver preneur. Une fois rejoint ou expiré, le lien n'a plus d'objet.
+          if (defi.ouvert && detail.match == null) ...[
+            const SizedBox(height: 10),
+            Bouton(
+              libelle: 'Copier le lien du défi',
+              bloc: true,
+              variante: VarianteBouton.secondaire,
+              icone: Icons.link,
+              onPressed: () => _partager(defi.id),
+            ),
+          ],
         ],
       ),
     );

@@ -252,7 +252,7 @@ function PagePortefeuille() {
         <div>
           <p className="flex flex-wrap items-center gap-2 font-semibold">
             {typesTransaction[t.type]?.libelle ?? t.type}
-            {recents.includes(t.id) && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Nouveau</span>}
+            {recents.includes(t.id) && <span className="etiquette animate-apparition rounded-full bg-vert px-2 py-0.5 text-craie">Nouveau</span>}
           </p>
           <p className="max-w-xs truncate text-[12px] text-muet">{t.description}</p>
         </div>
@@ -279,7 +279,9 @@ function PagePortefeuille() {
       <EnTetePage
         surtitre="Argent"
         titre="Portefeuille"
-        description="Le solde bloqué correspond à vos mises engagées ; seul le solde disponible peut être misé ou retiré."
+        // Ancienne phrase : « seul le solde disponible peut être misé ou retiré ». Devenue
+        // fausse le jour où un dépôt a dû être joué avant d'être retirable.
+        description="Le solde bloqué correspond à vos mises engagées. Tout le disponible est misable ; un dépôt doit avoir été joué avant de pouvoir être retiré."
         actions={
           // L'indicateur passe en dernier : sur un écran étroit, les deux boutons d'action
           // restent sur la même ligne et c'est lui qui va à la ligne.
@@ -313,7 +315,7 @@ function PagePortefeuille() {
       )}
 
       {paiement && (
-        <p className="mb-6 flex items-start gap-2 border-2 border-info bg-info-fond p-3 text-legende text-info">
+        <p className="mb-6 flex items-start gap-2 rounded-xl border border-info bg-info-fond p-3 text-legende text-info">
           <FontAwesomeIcon icon={icone.info} className="mt-0.5" />
           {paiement === 'annule' ? 'Paiement annulé : aucun montant n’a été crédité.' : 'Retour du prestataire : votre solde se mettra à jour ici même, sans recharger la page.'}
           <button type="button" className="ml-auto underline" onClick={() => navigate({ search: { page, paiement: undefined } })}>
@@ -325,8 +327,8 @@ function PagePortefeuille() {
       {suivis.length > 0 && (
         <section aria-label="Paiements en cours" className="mb-6 space-y-3">
           {suivis.map((p) => (
-            <article key={p.id} className="animate-apparition flex flex-wrap items-center gap-x-3 gap-y-2 border-2 border-encre bg-papier px-4 py-3">
-              <span className="flex size-9 shrink-0 items-center justify-center border-2 border-encre bg-volt-fond">
+            <article key={p.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-trait bg-papier px-4 py-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-vert-pale text-vert">
                 <FontAwesomeIcon icon={p.type === 'depot' ? icone.depot : icone.retrait} />
               </span>
               <span className="min-w-0">
@@ -347,7 +349,7 @@ function PagePortefeuille() {
                 type="button"
                 onClick={() => setSuivis((liste) => liste.filter((s) => s.id !== p.id))}
                 aria-label="Masquer ce suivi de paiement"
-                className="etiquette flex min-h-11 items-center border-2 border-transparent px-2 text-muet hover:border-encre hover:text-encre sm:min-h-9"
+                className="etiquette flex min-h-11 items-center rounded-full border border-transparent px-3 text-muet transition-colors hover:border-trait hover:text-encre sm:min-h-9"
               >
                 Masquer
               </button>
@@ -357,18 +359,29 @@ function PagePortefeuille() {
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className={`ticket border-2 bg-nuit p-6 text-craie transition-colors ${eclairDisponible ? 'border-volt' : 'border-encre'}`}>
+        <div className={`rounded-2xl border bg-encre p-6 text-craie transition-colors ${eclairDisponible ? 'border-volt' : 'border-encre'}`}>
           <span className="flex flex-wrap items-center gap-2">
             <span className="etiquette text-craie/60">Disponible</span>
-            {eclairDisponible && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Mis à jour</span>}
+            {eclairDisponible && <span className="etiquette animate-apparition rounded-full bg-volt px-2 py-0.5 text-nuit">Mis à jour</span>}
           </span>
           <CompteurAnime valeur={portefeuille.soldeDisponible} devise={portefeuille.devise} className="mt-2 block text-display-sm font-bold text-volt" />
-          <p className="mt-2 text-legende text-craie/60">Misable et retirable.</p>
+          {/*
+            Deux phrases possibles, et jamais la même : dire « misable et retirable » alors
+            qu'une part du solde ne l'est pas serait faux, et c'est sur le retrait refusé que
+            le joueur s'en apercevrait.
+          */}
+          {versNombre(portefeuille.soldeNonJoue) > 0 ? (
+            <p className="mt-2 text-legende text-craie/60">
+              Misable en entier. Retirable : <span className="chiffres font-bold text-craie">{formatMontant(portefeuille.soldeRetirable, portefeuille.devise)}</span> — le reste vient d’un dépôt à jouer d’abord.
+            </p>
+          ) : (
+            <p className="mt-2 text-legende text-craie/60">Misable et retirable.</p>
+          )}
         </div>
-        <div className={`ticket border-2 bg-papier p-6 transition-colors ${eclairBloque ? 'border-volt' : 'border-encre'}`}>
+        <div className={`rounded-2xl border bg-papier p-6 transition-colors ${eclairBloque ? 'border-vert' : 'border-trait'}`}>
           <span className="flex flex-wrap items-center gap-2">
             <span className="etiquette text-muet">Bloqué en séquestre</span>
-            {eclairBloque && <span className="etiquette animate-apparition bg-volt px-1.5 text-nuit">Mis à jour</span>}
+            {eclairBloque && <span className="etiquette animate-apparition rounded-full bg-vert px-2 py-0.5 text-craie">Mis à jour</span>}
           </span>
           <CompteurAnime valeur={portefeuille.soldeBloque} devise={portefeuille.devise} className="mt-2 block text-display-sm font-bold" />
           <p className="mt-2 text-legende text-muet">Vos mises engagées sur des défis ou matchs en cours.</p>
@@ -381,8 +394,8 @@ function PagePortefeuille() {
           <span className="text-legende text-muet">{TAILLE_PAGE} mouvements par page</span>
         </div>
         {horsPage > 0 && (
-          <p role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 border-2 border-encre bg-volt-fond px-4 py-3 text-legende">
-            <span className="inline-block size-2 shrink-0 animate-pulsation bg-volt" aria-hidden="true" />
+          <p role="status" aria-live="polite" className="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-vert bg-vert-pale px-4 py-3 text-legende">
+            <span className="inline-block size-2 shrink-0 animate-pulsation rounded-full bg-vert" aria-hidden="true" />
             <span className="font-semibold">
               <span className="chiffres">{horsPage}</span> {horsPage > 1 ? 'nouveaux mouvements' : 'nouveau mouvement'} sur votre compte
             </span>
@@ -411,7 +424,8 @@ function PagePortefeuille() {
         onFermer={() => setModalRetrait(false)}
         onRetirer={async (d) => mutRetrait.mutateAsync(d).then(() => undefined)}
         chargement={mutRetrait.isPending}
-        disponible={versNombre(portefeuille.soldeDisponible)}
+        retirable={versNombre(portefeuille.soldeRetirable)}
+        nonJoue={versNombre(portefeuille.soldeNonJoue)}
         fraisRetrait={regles.fraisRetrait}
         telephone={session.utilisateur.telephone}
         prestataires={prestataires}

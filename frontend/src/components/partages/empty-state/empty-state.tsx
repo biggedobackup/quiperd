@@ -13,8 +13,8 @@ export interface ProprietesEmptyState {
 /** État vide explicite : jamais une zone blanche sans explication. */
 export function EmptyState({ icone: ic, titre, description, action, className = '' }: ProprietesEmptyState) {
   return (
-    <div className={`motif-grille flex flex-col items-start gap-4 border-2 border-dashed border-trait px-6 py-10 ${className}`}>
-      <span className="flex size-12 items-center justify-center border-2 border-encre bg-volt text-nuit">
+    <div className={`flex flex-col items-start gap-4 rounded-2xl border border-dashed border-trait bg-ardoise px-6 py-10 ${className}`}>
+      <span className="flex size-12 items-center justify-center rounded-xl bg-vert text-craie">
         <FontAwesomeIcon icon={ic} className="text-lg" />
       </span>
       <div>

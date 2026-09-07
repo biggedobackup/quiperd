@@ -1,4 +1,6 @@
-/* QUI PERD — système de design « Arène » : fond blanc, vert et noir. Une seule source de vérité pour les tokens. */
+/* QUI PERD — système de design : fond blanc, vert et noir. Une seule source de vérité pour les tokens.
+   Refonte v2 : angles arrondis, ombres douces, vert d'action lisible sur blanc. La TYPOGRAPHIE
+   ne change pas (Unbounded + Manrope + JetBrains Mono), seules les formes ont été reprises. */
 @import "tailwindcss";
 @import "@fontsource-variable/unbounded";
 @import "@fontsource-variable/manrope";
@@ -13,7 +15,17 @@
   --color-craie: #ffffff; /* fond des pages : blanc */
   --color-papier: #ffffff; /* cartes, champs, tableaux : blanc */
   --color-gris: #f4f4f5; /* surface discrète (en-têtes de tableau, pieds de carte, survol) */
-  --color-volt: #22c55e; /* vert : accent, surlignages, boutons — toujours avec du texte noir */
+
+  /* --- Vert de la refonte ---
+     `vert` porte les actions et les pastilles d'icône, TOUJOURS avec du texte blanc :
+     #15803d donne 5,0:1 sur blanc, donc lisible au sens AA même en petit corps. Le vert vif
+     historique reste disponible pour les surlignages qui portent du texte noir. */
+  --color-vert: #15803d;
+  --color-vert-sombre: #14532d; /* panneau d'appel, survol d'un bouton vert */
+  --color-vert-pale: #eaf7ef; /* fond de badge, pastille discrète */
+  --color-ardoise: #f6f8f7; /* surface de section, très légèrement froide — jamais une couleur */
+
+  --color-volt: #22c55e; /* vert vif : surlignages et accents portant du texte noir */
   --color-volt-fond: #e9f9ef; /* vert très clair : fonds de badge, survol léger */
   --color-gain: #15803d; /* vert foncé lisible sur blanc : montants crédités, succès */
   --color-gain-fond: #e9f9ef;
@@ -27,7 +39,9 @@
   --color-trait: #e4e4e7; /* séparateurs fins, bordures de tableau */
   --color-voile: rgb(14 15 18 / 0.55);
 
-  /* Typographie */
+  /* Typographie : INCHANGÉE par la refonte. Unbounded pour les titres, Manrope pour le texte,
+     JetBrains Mono pour les chiffres — l'identité typographique du site ne bouge pas, seules
+     les formes (angles, ombres, couleurs) ont été reprises. */
   --font-titre: "Unbounded Variable", "Arial Black", sans-serif;
   --font-texte: "Manrope Variable", "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono Variable", "Consolas", monospace;
@@ -57,16 +71,23 @@
   --text-etiquette--line-height: 1;
   --text-etiquette--letter-spacing: 0.12em;
 
-  /* Rayons courts : l'univers ticket / tableau d'affichage n'est pas arrondi. */
+  /* Rayons de la refonte : cartes franchement arrondies, boutons et badges en gélule. */
   --radius-*: initial;
   --radius-none: 0;
-  --radius-xs: 2px;
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-3xl: 36px;
   --radius-full: 9999px;
 
-  /* Ombre pleine décalée (tampon) — jamais floue. */
+  /* Ombres douces (refonte) + ombres pleines décalées (écrans pas encore repris). */
   --shadow-*: initial;
+  --shadow-carte: 0 1px 2px rgb(14 15 18 / 0.04), 0 10px 28px rgb(14 15 18 / 0.06);
+  --shadow-carte-forte: 0 2px 6px rgb(14 15 18 / 0.06), 0 20px 44px rgb(14 15 18 / 0.10);
+  --shadow-barre: 0 1px 0 0 rgb(14 15 18 / 0.06);
   --shadow-tampon: 4px 4px 0 0 var(--color-encre);
   --shadow-tampon-sm: 2px 2px 0 0 var(--color-encre);
   --shadow-tampon-volt: 4px 4px 0 0 var(--color-volt);

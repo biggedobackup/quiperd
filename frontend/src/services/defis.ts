@@ -14,6 +14,17 @@ export const listerDefisOuverts = createServerFn({ method: 'GET' })
     ),
   )
 
+/**
+ * Public : fiche d'un défi précis, servie par les **liens de partage**.
+ *
+ * C'est la seule route de détail qui ne demande pas de jeton : quelqu'un qui reçoit un lien
+ * doit pouvoir regarder le défi avant de décider s'il crée un compte. Elle ne renvoie que ce
+ * que la liste publique montre déjà — ni match, ni preuve, ni identité au-delà du pseudo.
+ */
+export const detailDefiPublic = createServerFn({ method: 'GET' })
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data }) => appelBackend<DefiListe>(`/defis/${data.id}/public`))
+
 export const listerDefis = createServerFn({ method: 'GET' })
   .inputValidator((d: FiltresDefis = {}) => d)
   .handler(async ({ data }) =>

@@ -20,7 +20,6 @@ import { LienBouton } from '@/components/partages/button/button'
 import { EmptyState } from '@/components/partages/empty-state/empty-state'
 import { SkeletonCarte } from '@/components/partages/skeleton/skeleton'
 import { useAttenteDouce } from '@/components/partages/skeleton/attente'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 
 const routeJoueur = getRouteApi('/joueur')
 
@@ -129,7 +128,7 @@ function MesMatchs() {
         description="Tous vos matchs, du premier coup d’envoi au règlement."
         actions={<IndicateurDirect variante="etiquette" cliquable className="self-center" />}
       />
-      <div role="tablist" className="mb-6 inline-flex max-w-full overflow-x-auto border-2 border-encre bg-papier">
+      <div role="tablist" className="mb-6 flex max-w-full flex-wrap gap-1 rounded-2xl border border-trait bg-papier p-1 sm:inline-flex sm:flex-nowrap sm:rounded-full">
         {STATUTS.map((s) => (
           <button
             key={s || 'tous'}
@@ -137,7 +136,7 @@ function MesMatchs() {
             role="tab"
             aria-selected={statut === s}
             onClick={() => navigate({ search: { statut: s } })}
-            className={`etiquette h-11 shrink-0 px-4 transition-colors ${statut === s ? 'bg-encre text-craie' : 'text-muet hover:bg-volt-fond hover:text-encre'}`}
+            className={`etiquette h-11 shrink-0 rounded-full px-4 transition-colors sm:h-9 ${statut === s ? 'bg-vert text-craie' : 'text-muet hover:bg-vert-pale hover:text-vert'}`}
           >
             {s ? statuts.match[s]?.libelle : 'Tous'}
           </button>
@@ -146,13 +145,13 @@ function MesMatchs() {
       {attente ? (
         <SkeletonCarte nombre={4} />
       ) : data && data.length > 0 ? (
-        <Cascade className="grid gap-3 lg:grid-cols-2">
+        <div className="grid gap-3 lg:grid-cols-2">
           {data.map((m) => (
-            <ElementCascade key={m.id} className="h-full">
+            <div key={m.id} className="h-full">
               <CarteMatch match={m} moiId={moi.id} />
-            </ElementCascade>
+            </div>
           ))}
-        </Cascade>
+        </div>
       ) : (
         <EmptyState
           icone={icone.match}

@@ -163,7 +163,8 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
 
     final demande = await ouvrirRetrait(
       context,
-      disponible: versNombre(etat.portefeuille.soldeDisponible),
+      retirable: versNombre(etat.portefeuille.soldeRetirable),
+      nonJoue: versNombre(etat.portefeuille.soldeNonJoue),
       tauxFrais: regles.fraisRetrait,
       prestataires: context.read<CatalogueEtat>().prestataires,
       telephone: session.utilisateur?.telephone,
@@ -186,11 +187,9 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
         Message.attention(context, 'Adresse à confirmer', echec.message);
         return;
       }
-      Message.erreur(
-        context,
-        echec.statut == 422 ? 'Solde insuffisant' : 'Retrait impossible',
-        echec.message,
-      );
+      // Un 422 ne veut plus dire « solde insuffisant » : il couvre aussi le dépôt pas encore
+      // joué. Le serveur renvoie déjà la phrase exacte — on ne la contredit pas par un titre.
+      Message.erreur(context, 'Retrait impossible', echec.message);
       return;
     }
 
@@ -228,8 +227,11 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
           const EnTetePage(
             surtitre: 'Argent',
             titre: 'Portefeuille',
-            description: 'Le solde bloqué correspond à vos mises engagées ; seul le solde '
-                'disponible peut être misé ou retiré.',
+            // Ancienne phrase : « seul le solde disponible peut être misé ou retiré ». Elle est
+            // devenue fausse le jour où un dépôt a dû être joué avant d'être retirable — et
+            // c'est au retrait refusé que le joueur l'aurait découvert.
+            description: 'Le solde bloqué correspond à vos mises engagées. Tout le disponible '
+                'est misable ; un dépôt doit avoir été joué avant de pouvoir être retiré.',
             action: IndicateurDirect(compact: true),
           ),
           const SizedBox(height: 20),
@@ -249,7 +251,12 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
             titre: 'Disponible',
             montant: portefeuille.soldeDisponible,
             devise: portefeuille.devise,
-            legende: 'Misable et retirable.',
+            // Deux légendes possibles, et jamais la même : annoncer « misable et retirable »
+            // quand une part du solde ne l'est pas serait faux, et c'est sur le retrait refusé
+            // que le joueur s'en apercevrait.
+            legende: versNombre(portefeuille.soldeNonJoue) > 0
+                ? 'Misable en entier. Retirable : ${formatMontant(portefeuille.soldeRetirable, portefeuille.devise)} — le reste vient d’un dépôt à jouer d’abord.'
+                : 'Misable et retirable.',
             sombre: true,
           ),
           const SizedBox(height: 12),

@@ -56,6 +56,9 @@ export interface MatchDefi {
 export interface MatchEnrichi extends MatchDefi {
   joueur1Nom: string
   joueur2Nom: string
+  /** Chemin de la photo de profil ; chaîne vide si le joueur n'en a pas. */
+  joueur1Photo: string
+  joueur2Photo: string
   jeuNom: string
   plateformeNom: string
 }

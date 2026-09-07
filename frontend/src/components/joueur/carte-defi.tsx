@@ -20,15 +20,15 @@ export function CarteDefi({ defi, mien = false }: ProprietesCarteDefi) {
     <Link
       to="/joueur/defis/$defiId"
       params={{ defiId: defi.id }}
-      className="ticket group flex h-full flex-col border-2 border-encre bg-papier transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-tampon focus-visible:shadow-tampon"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl border border-trait bg-papier transition-shadow duration-150 hover:shadow-carte-forte focus-visible:shadow-carte-forte"
     >
       <div className="flex items-center justify-between gap-3 px-4 py-3">
         <span className="etiquette flex items-center gap-2 text-muet">
-          <FontAwesomeIcon icon={categorie.icone} className="text-encre" /> {categorie.libelle}
+          <FontAwesomeIcon icon={categorie.icone} className="text-vert" /> {categorie.libelle}
         </span>
         <BadgeStatut famille="defi" valeur={defi.statut} />
       </div>
-      <div className="perforation mx-4 h-0.5" />
+      <div className="mx-4 border-t border-trait" />
       <div className="flex-1 px-4 py-4">
         <h3 className="text-h3">{defi.jeuNom}</h3>
         <span className="etiquette mt-3 block text-muet">Mise par joueur</span>
@@ -43,7 +43,7 @@ export function CarteDefi({ defi, mien = false }: ProprietesCarteDefi) {
         </div>
         {defi.regles && <p className="mt-3 line-clamp-2 text-legende text-encre/80">{defi.regles}</p>}
       </div>
-      <div className="flex items-center justify-between gap-3 border-t-2 border-trait bg-gris px-4 py-2.5 text-legende transition-colors group-hover:bg-volt group-hover:text-nuit">
+      <div className="flex items-center justify-between gap-3 border-t border-trait bg-gris px-4 py-3 text-legende transition-colors group-hover:bg-vert group-hover:text-craie">
         {/* Défi ouvert : le décompte s'égrène et retire la carte à zéro (le serveur confirme ensuite). */}
         {defi.statut === 'ouvert' && defi.dateExpiration ? (
           <CompteAReboursDefi defiId={defi.id} echeance={defi.dateExpiration} ton="herite" />

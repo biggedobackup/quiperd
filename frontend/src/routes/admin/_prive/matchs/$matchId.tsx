@@ -96,7 +96,7 @@ function DetailMatchAdmin() {
       />
       <div className="space-y-6">
         <TableauScore joueur1={match.joueur1Nom} joueur2={match.joueur2Nom} score1={match.scoreJoueur1 ?? null} score2={match.scoreJoueur2 ?? null} gagnant={match.gagnantId ? (match.gagnantId === match.joueur1Id ? 1 : 2) : null} etiquette="Score déclaré" enDirect={match.statut === 'en_cours'} sousTitre={match.statut === 'termine' ? `Réglé le ${formatDateHeure(match.dateFin)}` : undefined} />
-        <section className="ticket-sm border-2 border-encre bg-papier p-5">
+        <section className="rounded-2xl border border-trait bg-papier p-5 shadow-carte">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-h3">Déclarations</h3>
             <BadgeStatut famille="match" valeur={match.statut} />

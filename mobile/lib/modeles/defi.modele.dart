@@ -95,6 +95,11 @@ class FiltresDefis {
   bool get actifs =>
       categorie != null || jeu != null || plateforme != null || miseMax != null;
 
+  /// Nombre de critères posés. Sur mobile, les filtres vivent dans une feuille : le bouton
+  /// qui l'ouvre porte ce compte, sinon rien ne dit qu'une liste est filtrée.
+  int get nombreActifs =>
+      [categorie, jeu, plateforme, miseMax].where((v) => v != null).length;
+
   Map<String, dynamic> get parametres => {
         if (categorie != null) 'categorie': categorie,
         if (jeu != null) 'jeu': jeu,

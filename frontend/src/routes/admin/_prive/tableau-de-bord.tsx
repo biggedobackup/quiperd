@@ -9,7 +9,6 @@ import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { StatCard } from '@/components/partages/stat-card/stat-card'
 import { GraphiqueRepartition } from '@/components/admin/graphique-repartition'
 import { useJournalAdmin, type EvenementAdmin, type GenreEvenementAdmin } from '@/components/admin/temps-reel-admin'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 
 export const Route = createFileRoute('/admin/_prive/tableau-de-bord')({
   head: () => ({ meta: [{ title: 'Administration — Tableau de bord' }] }),
@@ -38,16 +37,16 @@ function TableauDeBordAdmin() {
   return (
     <>
       <EnTetePage surtitre="Vue d’ensemble" titre="Tableau de bord" description="Compteurs agrégés par le backend et poussés en direct : rien n’est réinterrogé en boucle. Les montants sont en FCFA." />
-      <Cascade className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <ElementCascade className="h-full"><StatCard libelle="Défis ouverts" valeur={s.defisOuverts} icone={icone.defi} accent /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Matchs en cours" valeur={s.matchsEnCours} icone={icone.match} /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Litiges ouverts" valeur={s.litigesOuverts} icone={icone.litige} pied={s.litigesOuverts > 0 ? <Link to="/admin/litiges" className="underline">À arbitrer</Link> : 'Aucun en attente'} /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Matchs terminés" valeur={s.matchsTermines} icone={icone.trophee} /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Volume misé" valeur={s.volumeMise} format="montant" icone={icone.pieces} /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Commission cumulée" valeur={s.commissionCumulee} format="montant" icone={icone.couronne} accent /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Dépôts réussis" valeur={s.depotsReussis} format="montant" icone={icone.depot} /></ElementCascade>
-        <ElementCascade className="h-full"><StatCard libelle="Retraits réussis" valeur={s.retraitsReussis} format="montant" icone={icone.retrait} /></ElementCascade>
-        <ElementCascade className="h-full">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="h-full"><StatCard libelle="Défis ouverts" valeur={s.defisOuverts} icone={icone.defi} accent /></div>
+        <div className="h-full"><StatCard libelle="Matchs en cours" valeur={s.matchsEnCours} icone={icone.match} /></div>
+        <div className="h-full"><StatCard libelle="Litiges ouverts" valeur={s.litigesOuverts} icone={icone.litige} pied={s.litigesOuverts > 0 ? <Link to="/admin/litiges" className="inline-flex min-h-11 items-center underline">À arbitrer</Link> : 'Aucun en attente'} /></div>
+        <div className="h-full"><StatCard libelle="Matchs terminés" valeur={s.matchsTermines} icone={icone.trophee} /></div>
+        <div className="h-full"><StatCard libelle="Volume misé" valeur={s.volumeMise} format="montant" icone={icone.pieces} /></div>
+        <div className="h-full"><StatCard libelle="Commission cumulée" valeur={s.commissionCumulee} format="montant" icone={icone.couronne} accent /></div>
+        <div className="h-full"><StatCard libelle="Dépôts réussis" valeur={s.depotsReussis} format="montant" icone={icone.depot} /></div>
+        <div className="h-full"><StatCard libelle="Retraits réussis" valeur={s.retraitsReussis} format="montant" icone={icone.retrait} /></div>
+        <div className="h-full">
           <StatCard
             libelle="Messages à traiter"
             valeur={messagesATraiter}
@@ -56,7 +55,7 @@ function TableauDeBordAdmin() {
               messages.isError ? (
                 'Module contact indisponible'
               ) : messagesATraiter > 0 ? (
-                <Link to="/admin/messages" search={{ page: 1, statut: 'nouveau' }} className="underline">
+                <Link to="/admin/messages" search={{ page: 1, statut: 'nouveau' }} className="inline-flex min-h-11 items-center underline">
                   À lire
                 </Link>
               ) : (
@@ -64,8 +63,8 @@ function TableauDeBordAdmin() {
               )
             }
           />
-        </ElementCascade>
-      </Cascade>
+        </div>
+      </div>
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <GraphiqueRepartition
           titre="Activité de la plateforme"
@@ -115,18 +114,18 @@ const DESTINATION: Record<GenreEvenementAdmin, { to: string; icone: typeof icone
 function JournalDirect({ entrees }: { entrees: readonly EvenementAdmin[] }) {
   if (entrees.length === 0) return null
   return (
-    <section className="mt-6 border-2 border-encre bg-papier">
-      <div className="flex items-center gap-2 border-b-2 border-encre bg-gris px-4 py-2.5">
-        <span className="inline-block size-2 animate-pulsation bg-volt" aria-hidden="true" />
+    <section className="mt-6 overflow-hidden rounded-2xl border border-trait bg-papier shadow-carte">
+      <div className="flex items-center gap-2 border-b border-trait bg-gris px-4 py-2.5">
+        <span className="inline-block size-2 animate-pulsation rounded-full bg-vert" aria-hidden="true" />
         <h3 className="etiquette">Activité en direct</h3>
       </div>
       <ul className="divide-y divide-trait">
         {entrees.map((e) => {
           const destination = DESTINATION[e.genre]
           return (
-            <li key={e.cle} className="animate-apparition">
-              <Link to={destination.to} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-volt-fond">
-                <span className="flex size-8 shrink-0 items-center justify-center border-2 border-encre bg-volt text-nuit">
+            <li key={e.cle}>
+              <Link to={destination.to} className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-vert-pale">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-vert text-craie">
                   <FontAwesomeIcon icon={destination.icone} />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -145,8 +144,8 @@ function JournalDirect({ entrees }: { entrees: readonly EvenementAdmin[] }) {
 
 function Raccourci({ to, icone: ic, titre, texte }: { to: string; icone: typeof icone.defi; titre: string; texte: string }) {
   return (
-    <Link to={to} className="ticket-sm flex items-center gap-4 border-2 border-encre bg-papier p-4 transition-transform hover:-translate-y-0.5 hover:shadow-tampon">
-      <span className="flex size-10 shrink-0 items-center justify-center border-2 border-encre bg-volt text-nuit">
+    <Link to={to} className="flex items-center gap-4 rounded-2xl border border-trait bg-papier p-4 shadow-carte transition-shadow duration-150 hover:shadow-carte-forte">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-vert text-craie">
         <FontAwesomeIcon icon={ic} />
       </span>
       <span>

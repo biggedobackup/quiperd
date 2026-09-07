@@ -27,10 +27,10 @@ export function GraphiqueRepartition({ titre, donnees, format = 'entier', hauteu
   const [monte, setMonte] = useState(false)
   useEffect(() => setMonte(true), [])
 
-  const attente = <div className="h-full animate-pulsation bg-trait/40" aria-hidden="true" />
+  const attente = <div className="h-full animate-pulsation rounded-xl bg-trait/40" aria-hidden="true" />
 
   return (
-    <div className="border-2 border-encre bg-papier p-5">
+    <div className="rounded-2xl border border-trait bg-papier p-5 shadow-carte">
       <h3 className="etiquette text-muet">{titre}</h3>
       <div className="mt-4" style={{ height: hauteur }}>
         {monte ? (

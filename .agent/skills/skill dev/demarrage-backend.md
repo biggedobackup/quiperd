@@ -67,6 +67,15 @@ Vous mettrez en place une équipe d'agents composée de :
   `$null -eq $x`, pas avec une comparaison à `''`.
 - Client de test sous Windows : cibler `http://127.0.0.1:8080`, pas `localhost` (résolution
   `::1` tentée d'abord, ~2 s de délai par requête alors que le serveur répond en < 2 ms).
+- **Encodage de la recette (piège coûteux)** : `psql` écrit en UTF-8, mais PowerShell décode la
+  sortie d'un programme externe avec la page de codes de la console. Lancée depuis un terminal
+  en cp1252, la recette lisait « dÃ©lai » là où la base contenait « délai », et une vérification
+  portant sur un mot accentué échouait alors que **rien** n'était cassé côté produit. Les quatre
+  scripts posent donc, juste après `$ErrorActionPreference` :
+  `[Console]::OutputEncoding = [Text.Encoding]::UTF8`, `$OutputEncoding = [Text.Encoding]::UTF8`
+  et `$env:PGCLIENTENCODING = 'UTF8'`. Devant un échec isolé sur une chaîne accentuée, soupçonner
+  l'encodage **avant** de soupçonner le backend — et ne jamais « réparer » l'assertion en retirant
+  l'accent.
 - En cas d'**erreur**, l'agent principal en sera informé.
 - L'agent principal **redéléguera** la tâche concernée à l'agent approprié.
 - Ce processus sera **répété en boucle** jusqu'à ce que l'intégralité du travail soit
@@ -242,7 +251,37 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
    notification `litige_ouvert` (à l'adversaire, ou aux deux joueurs si automatique) et tâche
    Asynq `litige:relance` enfilée (24 h, `TaskID litige-relance:<id>`).
 10. **portefeuilles/** — solde disponible/bloqué par utilisateur, historique des mouvements
-    (`transactions_portefeuilles`).
+    (`transactions_portefeuilles`), **et la part non jouée d'un dépôt** (voir ci-dessous).
+
+    ### Un dépôt se joue avant de pouvoir être retiré
+
+    Demande explicite de l'utilisateur : « on ne doit pas pouvoir faire un dépôt et le retirer
+    directement ; quand on fait un dépôt on doit jouer cette somme en défi avant de pouvoir
+    retirer. » Sans cette règle, la plateforme sert de guichet de change : on dépose par Mobile
+    Money, on retire aussitôt, sans jamais miser.
+
+    Deux colonnes portent la règle :
+
+    - `portefeuilles.solde_non_joue` — la part du disponible qui vient d'un dépôt jamais misé.
+      **Alimentée uniquement par `Crediter`** (dépôt confirmé) ; les autres crédits passent par
+      `CrediterType` (gain, remboursement après match, retrait échoué) et restent libres.
+      Consommée par `BloquerMise`. Le solde réellement retirable est
+      `SoldeDisponible − SoldeNonJoue`, exposé en JSON sous **`soldeRetirable`** par un
+      `MarshalJSON` sur `Portefeuille` — les clients ne refont jamais la soustraction.
+    - `mises.part_non_jouee` — combien CETTE mise a consommé de la part non jouée. Sans elle,
+      annuler un défi financé par un gain rendrait ce gain non retirable. À la restitution
+      (`rendreMise` avec `matchID == nil`, c'est-à-dire défi annulé ou expiré, **jamais** un
+      match nul ou un remboursement croisé), on ne remet au compteur que cette part, plafonnée
+      au montant rendu.
+
+    `DebiterRetrait` refuse avec **`ErrDepotNonJoue`** — une erreur DISTINCTE de
+    `ErrSoldeInsuffisant`, traduite en 422 avec un message qui dit de jouer la somme : dire
+    « solde insuffisant » à quelqu'un qui voit son solde est incompréhensible.
+
+    **Piège qui a coûté un aller-retour :** `persister()` écrit une liste EXPLICITE de colonnes.
+    Ajouter un champ de solde au modèle sans l'ajouter à cette liste fait perdre silencieusement
+    toutes ses mises à jour — le champ reste à zéro, la règle ne s'applique pas, et rien ne
+    signale l'erreur. Seul un test de bout en bout (déposer → tenter un retrait) l'a montré.
 11. **paiements/** — dépôts et retraits via LigdiCash/MoneyFusion (voir compétences dédiées),
     callbacks, polling de secours Asynq. Les retraits appliquent `frais_retrait` (§5.7) : la
     configuration financière n'est pas décorative, chaque type de `configurations_financieres`
@@ -412,6 +451,14 @@ backend/
 | GET | `/api/plateformes` | Public | Catalogue des plateformes actives (admin : toutes), chacune porte `famille` ; `?famille=` filtre |
 | POST/PATCH/DELETE | `/api/plateformes/:id` | Admin | Gestion du catalogue — `famille` obligatoire à la création (`pc|console|mobile`) |
 | GET | `/api/defis/ouverts` | Public | Défis ouverts non expirés (100 max, plus récents d'abord) pour la page « Défis » du site vitrine — mêmes filtres et mêmes champs enrichis que `GET /api/defis`, sans jeton. Déclarée **avant** le groupe `/defis` protégé, sinon `/:id` l'intercepte |
+| GET | `/api/defis/{id}/public` | Public | Fiche d'UN défi, sans jeton — c'est elle que sert un **lien de partage** ouvert par quelqu'un qui n'a pas encore de compte. Mêmes colonnes que `/defis/ouverts`, **sans le match** (il regarde deux joueurs identifiés, pas un visiteur). Déclarée hors du groupe protégé, comme `/defis/ouverts` |
+
+`MatchEnrichi` joint aussi **`joueur1Photo` / `joueur2Photo`** (colonne `utilisateurs.photo_profil`).
+Ce n'est pas une URL : le fichier est servi par la route protégée `GET /utilisateurs/{id}/photo`,
+que les clients construisent depuis l'identifiant du joueur. Le champ ne dit que deux choses —
+s'il Y A une photo (chaîne vide = aucune, les clients affichent le monogramme) et, par sa valeur,
+la version à utiliser pour le cache de l'image. Sans lui, l'adversaire d'un match n'était qu'un
+pseudo : on joue de l'argent contre quelqu'un, on doit pouvoir voir son visage.
 | GET | `/api/defis` | Connecté | Défis ouverts (`?jeu=`, `?plateforme=`, `?categorie=`, `?famille=`, `?miseMax=`), enrichis de `createurNom`, `jeuNom`, `jeuCategorie`, `plateformeNom`, `plateformeFamille` ; `?mes=1` = mes défis, tous statuts |
 | POST | `/api/defis` | Connecté | Création — bloque la mise du créateur |
 | GET | `/api/defis/:id` | Connecté | Détail enrichi (`createurNom`, `jeuNom`, `plateformeNom`) + `match` enrichi s'il existe |
@@ -707,7 +754,12 @@ connexion : `connexion.refusee` puis bascule en visiteur (salons publics seuleme
    worker la traite dans les 5 s.
 5. **Production :** `docker compose up` construit et lance backend + PostgreSQL + Redis + Caddy,
    avec le dossier `public/preuves/` sur un volume persistant. Variables d'environnement
-   documentées dans `.env.example`. Le déploiement complet sur un serveur Debian (config, SSL,
+   documentées dans `.env.example`. **`EMAIL_EXPEDITEUR` porte le nom que le destinataire voit
+   dans sa boîte** : `construireMIME` recopie le `Name` de l'adresse analysée dans l'en-tête
+   `From`. Il doit toujours être **QUI PERD**, jamais celui d'un autre produit — un `.env` local
+   recopié depuis un autre projet avait fait partir les codes de confirmation sous le nom
+   « IKA DRIVE », ce que l'utilisateur a signalé. L'adresse, elle, reste celle de la boîte SMTP
+   authentifiée : seul le nom d'affichage change. Le déploiement complet sur un serveur Debian (config, SSL,
    sauvegardes, tests) est détaillé dans
    [`../skill deploiement/demarrage-deploiement.md`](../skill%20deploiement/demarrage-deploiement.md).
 6. **Clients de l'API :** le mobile Flutter (`demarrage-mobile.md`) et le frontend web

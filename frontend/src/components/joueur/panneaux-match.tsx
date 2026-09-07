@@ -23,7 +23,7 @@ export function PanneauAttente({
   surFinChrono: () => void
 }) {
   return (
-    <section className="ticket-sm border-2 border-encre bg-papier px-4 py-4 sm:px-5">
+    <section className="rounded-2xl border border-trait bg-papier px-4 py-4 shadow-carte sm:px-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-legende font-semibold">
           <FontAwesomeIcon icon={icone.sablier} className="animate-pulsation text-muet" aria-hidden="true" />
@@ -56,7 +56,7 @@ export function PanneauNul({
   onOuvrir: () => void
 }) {
   return (
-    <section className="ticket border-2 border-alerte bg-alerte-fond px-4 py-5 sm:px-6">
+    <section className="rounded-2xl border border-alerte bg-alerte-fond px-4 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="etiquette flex items-center gap-2 text-alerte">
           <FontAwesomeIcon icon={icone.poigneeDeMain} aria-hidden="true" />
@@ -76,7 +76,7 @@ export function PanneauNul({
         </p>
       )}
       {monChoix ? (
-        <p className="mt-4 flex items-center gap-2 border-2 border-encre bg-papier px-3 py-2.5 text-legende">
+        <p className="mt-4 flex items-center gap-2 rounded-xl border border-trait bg-papier px-3 py-2.5 text-legende">
           <FontAwesomeIcon icon={icone.valider} className="text-gain" aria-hidden="true" />
           Votre choix est enregistré : <strong>{monChoix === 'rejouer' ? 'rejouer' : 'partager'}</strong>. En attente de{' '}
           {nomAdversaire}.
@@ -109,8 +109,8 @@ export function PanneauPreuveRequise({
   onEnvoye: () => void
 }) {
   return (
-    <section className="ticket border-2 border-alerte bg-papier">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-alerte bg-alerte-fond px-4 py-2.5">
+    <section className="overflow-hidden rounded-2xl border border-alerte bg-papier shadow-carte">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-alerte bg-alerte-fond px-4 py-2.5">
         <span className="etiquette flex items-center gap-2 text-alerte">
           <FontAwesomeIcon icon={icone.attention} aria-hidden="true" />
           Preuve exigée
@@ -139,7 +139,7 @@ export function PanneauPreuveRequise({
 function EtatPreuve({ nom, fait }: { nom: string; fait: boolean }) {
   return (
     <li
-      className={`flex items-center gap-2 border-2 px-3 py-2 text-legende ${
+      className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-legende ${
         fait ? 'border-gain bg-gain-fond text-gain' : 'border-trait bg-gris text-muet'
       }`}
     >

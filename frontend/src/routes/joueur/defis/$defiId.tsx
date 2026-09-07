@@ -12,6 +12,7 @@ import { annulerDefi, rejoindreDefi } from '@/services/defis'
 import { salons } from '@/temps-reel/evenements'
 import { useEvenement } from '@/temps-reel/hooks'
 import { IndicateurDirect } from '@/temps-reel/indicateur-direct'
+import { BoutonPartageDefi } from '@/components/joueur/bouton-partage-defi'
 import { BlocEmailNonConfirme, estRefusEmail, toastRefusEmail, useEmailNonConfirme } from '@/components/joueur/email-non-verifie'
 import { useDefisEnDirect } from '@/components/partages/defis-en-direct/defis-en-direct'
 import { CompteAReboursDefi } from '@/components/partages/defis-en-direct/animation-defis'
@@ -20,7 +21,6 @@ import { Button, LienBouton } from '@/components/partages/button/button'
 import { BadgeStatut } from '@/components/partages/badge-statut/badge-statut'
 import { ConfirmModal } from '@/components/partages/confirm-modal/confirm-modal'
 import { TableauScore } from '@/components/partages/tableau-score/tableau-score'
-import { Apparition } from '@/components/partages/animation/animation'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
 /** Ce qui met fin au défi pendant qu'on le regarde — sert de bandeau et d'action suivante. */
@@ -169,6 +169,12 @@ function DetailDefi() {
                 Rejoindre pour {formatMontant(mise)}
               </Button>
             ) : null}
+            {/*
+              Partage possible tant que le défi cherche un adversaire — pour son créateur comme
+              pour n'importe qui : envoyer le lien à un ami est la façon la plus directe de lui
+              trouver un adversaire. Une fois le défi rejoint ou expiré, le lien n'a plus d'objet.
+            */}
+            {ouvert && <BoutonPartageDefi defiId={defiId} />}
           </>
         }
       />
@@ -196,7 +202,7 @@ function DetailDefi() {
             enDirect={match?.statut === 'en_cours'}
             sousTitre={match ? undefined : ouvert ? 'Défi ouvert — un adversaire peut rejoindre' : undefined}
           />
-          <dl className="grid gap-px border-2 border-encre bg-encre sm:grid-cols-2">
+          <dl className="grid gap-px overflow-hidden rounded-2xl border border-trait bg-trait sm:grid-cols-2">
             <Info libelle="Statut">
               <span className="flex flex-wrap items-center gap-2">
                 <BadgeStatut famille="defi" valeur={defi.statut} />
@@ -232,7 +238,7 @@ function DetailDefi() {
           </dl>
         </div>
 
-        <aside className="ticket-sm h-fit border-2 border-encre bg-nuit p-5 text-craie">
+        <aside className="h-fit rounded-2xl bg-encre p-5 text-craie">
           <span className="etiquette text-craie/60">Enjeu</span>
           <dl className="mt-3 space-y-2 text-legende">
             <LigneEnjeu libelle="Mise par joueur" valeur={formatMontant(mise)} />
@@ -293,7 +299,7 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
     denouement.genre === 'rejoint'
       ? {
           icone: icone.poigneeDeMain,
-          cadre: 'border-encre bg-volt-fond',
+          cadre: 'border-vert bg-vert-pale',
           titre: mien ? 'Un adversaire vient de rejoindre votre défi' : 'Ce défi vient d’être rejoint',
           texte: mien
             ? 'Les deux mises sont bloquées : le match peut commencer.'
@@ -311,7 +317,7 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
       : denouement.genre === 'annule'
         ? {
             icone: icone.interdire,
-            cadre: 'border-encre bg-gris',
+            cadre: 'border-trait bg-gris',
             titre: 'Ce défi vient d’être annulé',
             texte: mien ? 'Votre mise vous a été rendue, moins la commission.' : 'Son créateur l’a retiré de l’arène.',
             action: (
@@ -333,8 +339,8 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
           }
 
   return (
-    <Apparition className="mb-6">
-      <div role="status" aria-live="polite" className={`flex flex-col gap-3 border-2 p-4 sm:flex-row sm:items-center sm:justify-between ${contenu.cadre}`}>
+    <div className="mb-6">
+      <div role="status" aria-live="polite" className={`flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between ${contenu.cadre}`}>
         <div className="flex items-start gap-3">
           <FontAwesomeIcon icon={contenu.icone} className="mt-0.5 shrink-0" aria-hidden="true" />
           <div className="min-w-0">
@@ -344,7 +350,7 @@ function BandeauDenouement({ denouement, mien }: { denouement: Denouement; mien:
         </div>
         <div className="shrink-0">{contenu.action}</div>
       </div>
-    </Apparition>
+    </div>
   )
 }
 

@@ -15,7 +15,6 @@ import { EnTetePage } from '@/components/partages/en-tete-page/en-tete-page'
 import { Button } from '@/components/partages/button/button'
 import { Input } from '@/components/partages/input/input'
 import { Modal } from '@/components/partages/modal/modal'
-import { Cascade, ElementCascade } from '@/components/partages/animation/animation'
 import { toastErreur, toastSucces } from '@/components/partages/toast/toast'
 
 export const Route = createFileRoute('/admin/_prive/configurations')({
@@ -36,12 +35,12 @@ function PageConfigurations() {
   return (
     <>
       <EnTetePage surtitre="Règles financières" titre="Configurations" description="Chaque modification prend effet immédiatement sur les prochains défis et retraits, et reste historisée dans le journal d’audit." />
-      <Cascade className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2">
         {configs.map((c) => {
           const meta = libellesConfigurations[c.type]
           return (
-            <ElementCascade key={c.id}>
-              <div className="ticket-sm flex h-full flex-col border-2 border-encre bg-papier p-5">
+            <div key={c.id}>
+              <div className="flex h-full flex-col rounded-2xl border border-trait bg-papier p-5 shadow-carte">
                 <span className="etiquette text-muet">{meta?.libelle ?? c.type}</span>
                 <p className="chiffres mt-2 text-display-sm font-bold">{meta?.unite === 'pourcentage' ? formatPourcentage(c.valeur) : formatMontant(c.valeur, c.devise)}</p>
                 <p className="mt-2 text-legende text-muet">{meta?.aide}</p>
@@ -52,10 +51,10 @@ function PageConfigurations() {
                   </Button>
                 </div>
               </div>
-            </ElementCascade>
+            </div>
           )
         })}
-      </Cascade>
+      </div>
       {edition && <EditionConfigurationModal configuration={edition} onFermer={() => setEdition(null)} />}
     </>
   )
@@ -104,13 +103,13 @@ function EditionConfigurationModal({ configuration, onFermer }: { configuration:
           {...register('valeur', { valueAsNumber: true, required: 'Valeur obligatoire', min: { value: 0, message: 'Valeur positive' }, max: pourcentage ? { value: 100, message: '100 % maximum' } : undefined })}
           erreur={formState.errors.valeur?.message}
         />
-        <dl className="grid grid-cols-2 gap-2 border-2 border-trait bg-gris p-3 text-legende">
+        <dl className="grid grid-cols-2 gap-2 rounded-xl border border-trait bg-gris p-3 text-legende">
           <dt className="text-muet">Actuel</dt>
           <dd className="chiffres text-right">{pourcentage ? formatPourcentage(valeurActuelle) : formatMontant(valeurActuelle)}</dd>
           <dt className="text-muet">Nouveau</dt>
           <dd className="chiffres text-right font-bold">{Number.isFinite(nouvelle) ? (pourcentage ? formatPourcentage(nouvelle) : formatMontant(nouvelle)) : '—'}</dd>
         </dl>
-        <label className="flex cursor-pointer items-start gap-3 border-2 border-alerte bg-alerte-fond p-3 text-legende text-alerte">
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-alerte bg-alerte-fond p-3 text-legende text-alerte">
           <input type="checkbox" checked={confirme} onChange={(e) => setConfirme(e.target.checked)} className="mt-0.5 accent-alerte" />
           <span>Je comprends l’impact financier immédiat de ce changement.</span>
         </label>

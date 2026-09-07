@@ -19,24 +19,30 @@ export function Footer({ connecte }: { connecte: boolean }) {
   const colonnes = [
     {
       titre: 'Plateforme',
-      liens: [...LIENS_PLATEFORME, connecte ? { to: '/joueur/tableau-de-bord', libelle: 'Mon espace' } : { to: '/inscription', libelle: 'Créer un compte' }],
+      liens: [
+        ...LIENS_PLATEFORME,
+        connecte ? { to: '/joueur/tableau-de-bord', libelle: 'Mon espace' } : { to: '/inscription', libelle: 'Créer un compte' },
+      ],
     },
     { titre: 'Légal', liens: [...LIENS_LEGAL] },
   ] as const
+
   return (
-    <footer className="border-t-2 border-encre bg-nuit text-craie">
+    <footer className="border-t border-trait bg-craie">
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr]">
         <div className="space-y-4">
-          <Logo ton="clair" taille="lg" />
-          <p className="max-w-sm text-legende text-craie/70">
+          <Logo taille="lg" />
+          <p className="max-w-sm text-legende text-muet">
             Des défis entre gamers, sur tous les jeux compétitifs. Les mises sont conservées en séquestre le temps du match, le
             gagnant remporte tout.
           </p>
-          <p className="etiquette text-volt">Jeu réservé aux adultes · misez de manière responsable</p>
+          <p className="etiquette text-vert">
+            Jeu réservé aux adultes · misez de manière responsable
+          </p>
         </div>
         {colonnes.map((c) => (
           <div key={c.titre}>
-            <h3 className="etiquette mb-4 text-craie/60">{c.titre}</h3>
+            <h3 className="etiquette mb-3 text-muet">{c.titre}</h3>
             <ul className="space-y-0.5">
               {c.liens.map((l) => (
                 <li key={l.to}>
@@ -45,7 +51,7 @@ export function Footer({ connecte }: { connecte: boolean }) {
                     La zone cliquable est portée à 44 px sans changer la taille du texte ; l'espacement
                     de la liste est réduit d'autant (`space-y-0.5`) pour que le pied de page ne gonfle pas.
                   */}
-                  <Link to={l.to} className="inline-flex min-h-11 items-center text-legende text-craie transition-colors hover:text-volt">
+                  <Link to={l.to} className="inline-flex min-h-11 items-center text-legende text-encre transition-colors hover:text-vert">
                     {l.libelle}
                   </Link>
                 </li>
@@ -54,8 +60,8 @@ export function Footer({ connecte }: { connecte: boolean }) {
           </div>
         ))}
       </div>
-      <div className="border-t border-craie/15">
-        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-legende text-craie/60 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="border-t border-trait">
+        <div className="mx-auto flex max-w-7xl flex-col gap-2 px-4 py-5 text-legende text-muet sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span className="chiffres">© {new Date().getFullYear()} QUI PERD</span>
         </div>
       </div>

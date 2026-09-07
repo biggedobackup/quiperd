@@ -63,7 +63,7 @@ export function UploadPreuve({ matchId, onEnvoye }: { matchId: string; onEnvoye:
   }
 
   return (
-    <div className="ticket-sm border-2 border-dashed border-encre bg-papier p-4">
+    <div className="rounded-2xl border border-dashed border-trait bg-papier p-4">
       <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto] sm:items-end">
         <Select
           label="Type de preuve"
@@ -80,7 +80,7 @@ export function UploadPreuve({ matchId, onEnvoye }: { matchId: string; onEnvoye:
         />
         <div className="flex flex-col gap-1.5">
           <span className="etiquette text-muet">Fichier</span>
-          <label className="flex h-11 cursor-pointer items-center gap-3 border-2 border-trait bg-gris px-3 text-legende transition-colors hover:border-encre">
+          <label className="flex h-11 cursor-pointer items-center gap-3 rounded-[10px] border border-trait bg-gris px-3.5 text-legende transition-colors duration-150 hover:border-vert">
             <FontAwesomeIcon icon={type === 'video' ? icone.video : icone.preuve} className="text-muet" />
             <span className="truncate">{fichier ? `${fichier.name} · ${(fichier.size / 1024 / 1024).toFixed(1)} Mo` : 'Choisir un fichier…'}</span>
             <input ref={champ} type="file" accept={ACCEPT[type]} className="sr-only" onChange={(e) => setFichier(e.target.files?.[0] ?? null)} />

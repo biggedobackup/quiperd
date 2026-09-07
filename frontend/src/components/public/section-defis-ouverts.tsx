@@ -14,9 +14,13 @@ import { EmptyState } from '@/components/partages/empty-state/empty-state'
 export function SectionDefisOuverts({ defis, connecte, numero = '01' }: { defis: DefiListe[]; connecte: boolean; numero?: string }) {
   const visibles = defis.slice(0, 6)
   return (
-    <section className="border-b-2 border-encre bg-craie py-16 md:py-24">
+    <section className="border-b border-trait bg-craie py-16 md:py-20">
       <Conteneur>
-        <EnTeteSection numero={numero} titre="Défis en attente d’adversaire" intro="L’arène en direct : un défi rejoint bloque les deux mises, le match se joue tout de suite." />
+        <EnTeteSection
+          numero={numero}
+          titre="Défis en attente d’adversaire"
+          intro="L’arène en direct : un défi rejoint bloque les deux mises, le match se joue tout de suite."
+        />
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <IndicateurDirect variante="etiquette" avecCompteur cliquable />
           <span className="chiffres text-legende text-muet">

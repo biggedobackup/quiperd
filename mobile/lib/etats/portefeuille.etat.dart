@@ -137,6 +137,8 @@ class PortefeuilleEtat extends ChangeNotifier {
         _portefeuille = _portefeuille.copieAvec(
           soldeDisponible: texte(e.charge, 'soldeDisponible', _portefeuille.soldeDisponible),
           soldeBloque: texte(e.charge, 'soldeBloque', _portefeuille.soldeBloque),
+          soldeNonJoue: texte(e.charge, 'soldeNonJoue', _portefeuille.soldeNonJoue),
+          soldeRetirable: texte(e.charge, 'soldeRetirable', _portefeuille.soldeRetirable),
           devise: texte(e.charge, 'devise', _portefeuille.devise),
         );
         notifyListeners();

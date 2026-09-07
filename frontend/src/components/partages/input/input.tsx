@@ -12,7 +12,7 @@ export interface ProprietesInput extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const CLASSES_CHAMP =
-  'h-11 w-full border-2 border-trait bg-papier px-3 text-corps text-encre placeholder:text-muet transition-colors duration-150 focus:border-encre focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-perte'
+  'h-11 w-full rounded-[10px] border border-trait bg-papier px-3.5 text-corps text-encre placeholder:text-muet transition-colors duration-150 focus:border-vert focus:outline-none disabled:opacity-60 aria-[invalid=true]:border-perte'
 
 /** Champ texte avec libellé, aide et message d'erreur (états explicites). */
 export function Input({ label, aide, erreur, iconeDebut, suffixe, className = '', id, ref, ...reste }: ProprietesInput) {

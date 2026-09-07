@@ -66,6 +66,7 @@ import {
   faRightFromBracket,
   faRotateRight,
   faScaleBalanced,
+  faShareNodes,
   faShieldHalved,
   faSliders,
   faSpinner,
@@ -84,7 +85,7 @@ import {
   faWallet,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons'
-import { faPlaystation, faSteam, faWindows, faXbox } from '@fortawesome/free-brands-svg-icons'
+import { faAndroid, faApple, faPlaystation, faSteam, faWindows, faXbox } from '@fortawesome/free-brands-svg-icons'
 import type { IconDefinition } from '@fortawesome/fontawesome-svg-core'
 
 // Le CSS de fontawesome est importé dans styles/app.css : on désactive l'injection automatique
@@ -97,6 +98,7 @@ export const icone = {
   menu: faBars,
   fermer: faXmark,
   suivant: faArrowRight,
+  partage: faShareNodes,
   precedent: faArrowLeft,
   chevronBas: faChevronDown,
   chevronDroite: faChevronRight,
@@ -183,6 +185,9 @@ export const icone = {
   xbox: faXbox,
   pc: faWindows,
   steam: faSteam,
+  // marques (magasins d'applications)
+  android: faAndroid,
+  apple: faApple,
 } satisfies Record<string, IconDefinition>
 
 export type NomIcone = keyof typeof icone

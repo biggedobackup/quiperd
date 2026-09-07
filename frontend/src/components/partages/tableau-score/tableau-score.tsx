@@ -36,7 +36,7 @@ export function TableauScore({
   const tailleScore = compact ? 'text-display-sm' : 'text-display-md md:text-display'
   const tailleNom = compact ? 'text-[11px]' : 'text-[12px] md:text-[13px]'
   return (
-    <div className={`ticket border-2 border-encre bg-nuit text-craie ${className}`}>
+    <div className={`overflow-hidden rounded-2xl bg-encre text-craie ${className}`}>
       <div className="flex items-center justify-between gap-3 border-b border-craie/15 px-4 py-2.5">
         <span className="etiquette text-craie/70">{etiquette}</span>
         {enDirect ? (
@@ -55,7 +55,7 @@ export function TableauScore({
         <Joueur nom={joueur2} score={s2} gagnant={gagnant === 2} tailleScore={tailleScore} tailleNom={tailleNom} alignement="right" />
       </div>
       {!enDirect && sousTitre && (
-        <div className="motif-hachures border-t border-craie/15 px-4 py-2 text-center text-legende text-craie/80">{sousTitre}</div>
+        <div className="border-t border-craie/15 bg-craie/5 px-4 py-2.5 text-center text-legende text-craie/80">{sousTitre}</div>
       )}
     </div>
   )

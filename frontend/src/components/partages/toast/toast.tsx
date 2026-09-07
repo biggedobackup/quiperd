@@ -2,7 +2,7 @@ import { Toaster, toast } from 'sonner'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { icone } from '@/lib/icones'
 
-/** Conteneur des toasts (une fois, dans la racine). Style « ticket » : bord encre, ombre pleine. */
+/** Conteneur des toasts (une fois, dans la racine). Bloc arrondi, filet fin, ombre douce. */
 export function ToastProvider() {
   return (
     <Toaster
@@ -12,7 +12,7 @@ export function ToastProvider() {
         unstyled: true,
         classNames: {
           toast:
-            'ticket-sm flex w-full items-start gap-3 border-2 border-encre bg-papier px-4 py-3 text-encre shadow-tampon font-texte text-legende',
+            'flex w-full items-start gap-3 rounded-xl border border-trait bg-papier px-4 py-3 text-encre shadow-carte-forte font-texte text-legende',
           title: 'font-bold text-corps leading-tight',
           description: 'text-muet',
           success: 'border-gain',

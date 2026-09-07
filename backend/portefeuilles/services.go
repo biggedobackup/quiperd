@@ -15,6 +15,20 @@ var ErrSoldeInsuffisant = errors.New("solde insuffisant")
 
 func reference(prefixe string) string { return prefixe + "-" + uuid.NewString() }
 
+// plancherZero évite qu'un solde suivi (part non jouée) passe sous zéro : une mise plus
+// grosse que le dépôt non joué le remet simplement à zéro.
+func plancherZero(v decimal.Decimal) decimal.Decimal {
+	if v.LessThan(decimal.Zero) {
+		return decimal.Zero
+	}
+	return v
+}
+
+// ErrDepotNonJoue est renvoyé quand le retrait demandé mord sur la part du solde qui vient
+// d'un dépôt encore jamais misé. Ce n'est PAS un solde insuffisant : le joueur a bien
+// l'argent, il ne l'a simplement pas encore engagé dans l'arène.
+var ErrDepotNonJoue = errors.New("dépôt non encore joué")
+
 // ObtenirOuCreerPortefeuille garantit l'existence du portefeuille d'un joueur.
 func ObtenirOuCreerPortefeuille(tx *gorm.DB, userID uuid.UUID) (*Portefeuille, error) {
 	var p Portefeuille
@@ -45,9 +59,17 @@ func verrouiller(tx *gorm.DB, userID uuid.UUID) (*Portefeuille, error) {
 	return &p, nil
 }
 
+// persister écrit les trois soldes suivis. La liste est explicite (et non un `Save`) pour ne
+// jamais réécrire des colonnes qu'on n'a pas relues — mais toute nouvelle colonne de solde
+// DOIT y être ajoutée, sinon sa mise à jour est silencieusement perdue : c'est exactement ce
+// qui est arrivé à `solde_non_joue` à son ajout, et seul un test de bout en bout l'a montré.
 func persister(tx *gorm.DB, p *Portefeuille) error {
 	return tx.Model(&Portefeuille{}).Where("id = ?", p.ID).
-		Updates(map[string]any{"solde_disponible": p.SoldeDisponible, "solde_bloque": p.SoldeBloque}).Error
+		Updates(map[string]any{
+			"solde_disponible": p.SoldeDisponible,
+			"solde_bloque":     p.SoldeBloque,
+			"solde_non_joue":   p.SoldeNonJoue,
+		}).Error
 }
 
 // BloquerMise déplace `montant` de disponible vers bloqué et crée la mise + la transaction.
@@ -62,10 +84,23 @@ func BloquerMise(tx *gorm.DB, userID, defiID uuid.UUID, montant decimal.Decimal,
 	}
 	p.SoldeDisponible = p.SoldeDisponible.Sub(montant)
 	p.SoldeBloque = p.SoldeBloque.Add(montant)
+	// La mise consomme EN PREMIER la part non jouée : c'est précisément ce que la règle
+	// attend du joueur — engager dans l'arène l'argent qu'il vient de déposer. Miser 5 000
+	// quand seuls 2 000 sont non joués libère les 2 000, pas une dette de 3 000 ; et la
+	// mise garde en mémoire ce qu'elle a consommé, pour savoir quoi restituer si le défi
+	// est annulé sans avoir été joué.
+	partNonJouee := p.SoldeNonJoue
+	if partNonJouee.GreaterThan(montant) {
+		partNonJouee = montant
+	}
+	p.SoldeNonJoue = plancherZero(p.SoldeNonJoue.Sub(montant))
 	if err := persister(tx, p); err != nil {
 		return nil, err
 	}
-	mise := Mise{DefiID: defiID, UtilisateurID: userID, Montant: montant, Devise: devise, Statut: MiseBloquee}
+	mise := Mise{
+		DefiID: defiID, UtilisateurID: userID, Montant: montant, Devise: devise,
+		Statut: MiseBloquee, PartNonJouee: partNonJouee,
+	}
 	if err := tx.Create(&mise).Error; err != nil {
 		return nil, err
 	}
@@ -116,6 +151,20 @@ func rendreMise(tx *gorm.DB, p *Portefeuille, mise *Mise, taux decimal.Decimal, 
 
 	p.SoldeBloque = p.SoldeBloque.Sub(mise.Montant)
 	p.SoldeDisponible = p.SoldeDisponible.Add(rendu)
+	// `matchID == nil` signifie que la mise revient SANS avoir donné lieu à un match : défi
+	// annulé par son créateur, ou expiré faute d'adversaire. Cet argent n'a donc pas joué et
+	// redevient non retirable — sinon créer un défi puis l'annuler suffirait à contourner la
+	// règle (au prix de la commission, mais la règle ne s'achète pas). On ne restitue que ce
+	// que CETTE mise avait consommé : une mise financée par un gain reste librement
+	// retirable après annulation. Plafonné au montant rendu, la commission étant retenue.
+	// Un match nul ou un remboursement croisé, eux, portent un `matchID` : ils ont joué.
+	if matchID == nil && mise.PartNonJouee.GreaterThan(decimal.Zero) {
+		restitue := mise.PartNonJouee
+		if restitue.GreaterThan(rendu) {
+			restitue = rendu
+		}
+		p.SoldeNonJoue = p.SoldeNonJoue.Add(restitue)
+	}
 	if err = persister(tx, p); err != nil {
 		return rendu, commission, err
 	}
@@ -319,11 +368,24 @@ func PartagerEscrow(tx *gorm.DB, defiID, matchID, joueur1, joueur2 uuid.UUID, ta
 }
 
 // Crediter ajoute un montant au solde disponible (dépôt confirmé).
+//
+// C'est le SEUL point d'entrée qui gonfle la part non jouée : l'argent qui vient d'entrer
+// par Mobile Money doit passer par l'arène avant de pouvoir en ressortir. Les autres crédits
+// (gain, remboursement de mise après match, retrait échoué) passent par `CrediterType` et
+// restent librement retirables — ils ont déjà joué, ou n'ont jamais quitté la plateforme.
 func Crediter(tx *gorm.DB, userID uuid.UUID, montant decimal.Decimal, ref, description string) error {
 	if ref == "" {
 		ref = reference("DP")
 	}
-	return CrediterType(tx, userID, montant, TxDepot, ref, description)
+	if err := CrediterType(tx, userID, montant, TxDepot, ref, description); err != nil {
+		return err
+	}
+	p, err := verrouiller(tx, userID)
+	if err != nil {
+		return err
+	}
+	p.SoldeNonJoue = p.SoldeNonJoue.Add(montant)
+	return persister(tx, p)
 }
 
 // CrediterType ajoute un montant au solde disponible avec le type de mouvement
@@ -355,6 +417,12 @@ func DebiterRetrait(tx *gorm.DB, userID uuid.UUID, montant, frais decimal.Decima
 	}
 	if p.SoldeDisponible.LessThan(total) {
 		return ErrSoldeInsuffisant
+	}
+	// Un dépôt ne se retire pas tel quel : ce qui n'a pas encore été misé sur un défi n'est
+	// pas retirable, frais compris. Erreur DISTINCTE du solde insuffisant — le joueur a
+	// l'argent, il ne l'a pas encore joué, et le message doit le lui dire.
+	if p.SoldeRetirable().LessThan(total) {
+		return ErrDepotNonJoue
 	}
 	p.SoldeDisponible = p.SoldeDisponible.Sub(total)
 	if err := persister(tx, p); err != nil {

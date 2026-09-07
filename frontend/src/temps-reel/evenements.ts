@@ -81,7 +81,9 @@ export interface ChargesTempsReel {
   'match.abandon': { matchId: string; gagnantId: string; motif: string }
 
   // Compte joueur
-  'portefeuille.maj': { soldeDisponible: string; soldeBloque: string; devise: string }
+  // `soldeNonJoue` / `soldeRetirable` voyagent avec les deux soldes : un dépôt confirmé ou une
+  // mise bloquée change le plafond de retrait autant que le solde lui-même.
+  'portefeuille.maj': { soldeDisponible: string; soldeBloque: string; soldeNonJoue: string; soldeRetirable: string; devise: string }
   'transaction.creee': TransactionPortefeuille
   'paiement.statut': { paiementId: string; type: string; statut: string; montant: string; devise: string }
   'notification.nouvelle': Notification

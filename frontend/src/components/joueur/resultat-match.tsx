@@ -40,10 +40,13 @@ export function ResultatMatch({ match, moiId, nomAdversaire, gain, partage, aban
   const contenu = decrire({ match, moiId, nomAdversaire, gain, partage, abandon })
 
   return (
-    <section className={`ticket border-2 px-4 py-5 sm:px-6 ${contenu.cadre}`} aria-labelledby="titre-resultat">
+    <section
+      className={`rounded-2xl border px-4 py-5 shadow-carte sm:px-6 ${contenu.cadre}`}
+      aria-labelledby="titre-resultat"
+    >
       <div className="flex items-start gap-4">
         <span
-          className={`flex size-11 shrink-0 items-center justify-center border-2 ${contenu.pastille}`}
+          className={`flex size-11 shrink-0 items-center justify-center rounded-xl border ${contenu.pastille}`}
           aria-hidden="true"
         >
           <FontAwesomeIcon icon={contenu.icone} />
@@ -56,7 +59,7 @@ export function ResultatMatch({ match, moiId, nomAdversaire, gain, partage, aban
           <p className="mt-2 text-legende">{contenu.message}</p>
 
           {contenu.montants.length > 0 && (
-            <dl className="mt-4 grid gap-px border-2 border-encre bg-encre sm:grid-cols-2">
+            <dl className="mt-4 grid gap-px overflow-hidden rounded-xl border border-trait bg-trait sm:grid-cols-2">
               {contenu.montants.map((m) => (
                 <div key={m.libelle} className="bg-papier px-4 py-3">
                   <dt className="etiquette text-muet">{m.libelle}</dt>
@@ -105,8 +108,8 @@ function decrire({ match, moiId, nomAdversaire, gain, partage, abandon }: Propri
         ? 'Chacun a récupéré sa mise moins la commission de la plateforme. La somme est déjà créditée sur votre solde disponible.'
         : 'Le match s’est soldé par un partage : chacun a récupéré sa mise moins la commission de la plateforme. La somme est déjà créditée sur votre solde disponible.',
       icone: icone.poigneeDeMain,
-      cadre: 'border-encre bg-papier',
-      pastille: 'border-encre bg-gris text-encre',
+      cadre: 'border-trait bg-papier',
+      pastille: 'border-trait bg-gris text-encre',
       montants: partage
         ? [
             { libelle: 'Rendu à chacun', valeur: formatMontant(partage.rendu, match.devise), ton: 'text-gain' },

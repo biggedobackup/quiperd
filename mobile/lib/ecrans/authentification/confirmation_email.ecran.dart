@@ -18,7 +18,16 @@ import '../../theme/typographie.dart';
 /// 60 secondes côté serveur — le bouton décompte donc ce délai plutôt que de
 /// laisser le joueur se prendre un 429.
 class ConfirmationEmailEcran extends StatefulWidget {
-  const ConfirmationEmailEcran({super.key});
+  const ConfirmationEmailEcran({super.key, this.bloquant = false});
+
+  /// `true` quand cet écran est la RACINE de l'application, posée par l'aiguillage tant que
+  /// l'adresse n'est pas confirmée : il n'y a alors rien derrière lui, il faut une sortie
+  /// explicite (déconnexion) et le texte ne peut plus dire que le dépôt reste accessible.
+  ///
+  /// Ce drapeau ne se devine pas. `Navigator.of(context).canPop()` répond « oui » au premier
+  /// rendu — l'écran d'inscription est encore empilé au-dessus, il ne sera dépilé qu'à la fin
+  /// de la frame — et l'écran resterait alors sans bouton de sortie. Vécu, et corrigé ici.
+  final bool bloquant;
 
   @override
   State<ConfirmationEmailEcran> createState() => _ConfirmationEmailEcranState();
@@ -108,7 +117,11 @@ class _ConfirmationEmailEcranState extends State<ConfirmationEmailEcran> {
     await context.read<SessionEtat>().rafraichirUtilisateur();
     if (!mounted) return;
     Message.succes(context, 'Adresse confirmée', 'Vous pouvez miser et retirer.');
-    Navigator.of(context).pop(true);
+    // Cet écran a deux vies. Poussé par-dessus la coquille (bandeau de la création de défi ou
+    // du portefeuille, refus 403 du serveur), il se dépile. Racine de l'application, il n'a rien
+    // à dépiler : c'est `rafraichirUtilisateur()` juste au-dessus qui fait basculer
+    // l'aiguillage vers la coquille. Dépiler ici sortirait de l'application.
+    if (!widget.bloquant) Navigator.of(context).pop(true);
   }
 
   Future<void> _renvoyer() async {
@@ -131,6 +144,11 @@ class _ConfirmationEmailEcranState extends State<ConfirmationEmailEcran> {
   @override
   Widget build(BuildContext context) {
     final email = context.watch<SessionEtat>().utilisateur?.email ?? '';
+    // Écran racine = il BLOQUE l'accès à l'application. Deux conséquences : le texte de bas
+    // de page ne peut plus dire que le dépôt reste possible (on n'atteint pas le portefeuille),
+    // et il faut une sortie — sans elle, un joueur qui ne reçoit pas son courriel n'aurait plus
+    // aucun moyen de quitter son compte.
+    final bloquant = widget.bloquant;
 
     return Scaffold(
       backgroundColor: Couleurs.craie,
@@ -213,11 +231,26 @@ class _ConfirmationEmailEcranState extends State<ConfirmationEmailEcran> {
               ),
               const SizedBox(height: 18),
               Text(
-                'Le code est valable 30 minutes, avec 5 essais. Au-delà, demandez-en un '
-                'nouveau. Le dépôt reste possible sans confirmation — seuls les défis et '
-                'les retraits l’exigent.',
+                bloquant
+                    ? 'Le code est valable 30 minutes, avec 5 essais. Au-delà, demandez-en un '
+                        'nouveau. Tant que cette adresse n’est pas confirmée, votre compte reste '
+                        'fermé : c’est par elle que passent la récupération du mot de passe et '
+                        'les avis importants sur vos matchs.'
+                    : 'Le code est valable 30 minutes, avec 5 essais. Au-delà, demandez-en un '
+                        'nouveau. Le dépôt reste possible sans confirmation — seuls les défis et '
+                        'les retraits l’exigent.',
                 style: Typo.petit,
               ),
+              if (bloquant) ...[
+                const SizedBox(height: 24),
+                Bouton(
+                  libelle: 'Se déconnecter',
+                  bloc: true,
+                  variante: VarianteBouton.secondaire,
+                  icone: Icons.logout,
+                  onPressed: () => context.read<SessionEtat>().deconnexion(),
+                ),
+              ],
             ],
           ),
         ),

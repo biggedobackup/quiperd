@@ -26,6 +26,8 @@ dependencies:
   url_launcher: ^6.3.2
   video_player: ^2.11.1
   webview_flutter: ^4.14.1
+  # Liens profonds : ouvrir l'application sur le bon écran quand on tape un lien partagé.
+  app_links: ^6.4.1
 
 dev_dependencies:
   flutter_test:

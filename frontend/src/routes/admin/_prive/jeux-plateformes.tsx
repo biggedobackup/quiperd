@@ -206,8 +206,8 @@ function PanneauCatalogue({
   })
 
   return (
-    <section className="ticket-sm border-2 border-encre bg-papier">
-      <header className="flex items-center gap-3 border-b-2 border-encre px-5 py-3">
+    <section className="overflow-hidden rounded-2xl border border-trait bg-papier shadow-carte">
+      <header className="flex items-center gap-3 border-b border-trait bg-gris px-5 py-3">
         <FontAwesomeIcon icon={ic} />
         <h3 className="text-h3">{titre}</h3>
         <span className="chiffres ml-auto text-legende text-muet">
@@ -236,7 +236,7 @@ function PanneauCatalogue({
         {chargement ? (
           <SkeletonLignes lignes={4} colonnes={2} />
         ) : (
-          <ul className="max-h-[560px] divide-y divide-trait overflow-y-auto border-2 border-trait">
+          <ul className="max-h-[560px] divide-y divide-trait overflow-y-auto rounded-xl border border-trait">
             {visibles.map((e) => (
               <li key={e.id} className="grid items-center gap-2 px-3 py-2.5 sm:grid-cols-[auto_1fr_auto_auto_auto_auto]">
                 <FontAwesomeIcon icon={iconeElement(e)} className="hidden text-muet sm:block" />
@@ -256,7 +256,7 @@ function PanneauCatalogue({
                 <button
                   type="button"
                   onClick={() => setASupprimer(e)}
-                  className="flex size-11 items-center justify-center justify-self-end border-2 border-transparent text-perte hover:border-perte"
+                  className="flex size-11 items-center justify-center justify-self-end rounded-[10px] border border-transparent text-perte transition-colors hover:border-perte hover:bg-perte-fond"
                   aria-label={`Supprimer ${e.nom}`}
                 >
                   <FontAwesomeIcon icon={icone.fermer} />
@@ -268,7 +268,7 @@ function PanneauCatalogue({
         )}
 
         <form
-          className="grid gap-2 border-t-2 border-trait pt-4 sm:grid-cols-[1fr_180px_auto]"
+          className="grid gap-2 border-t border-trait pt-4 sm:grid-cols-[1fr_180px_auto]"
           onSubmit={(e) => {
             e.preventDefault()
             if (nom.trim().length >= 2 && groupeNouveau) mutCreer.mutate({ n: nom.trim(), g: groupeNouveau })

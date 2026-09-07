@@ -271,7 +271,7 @@ function PageMessages() {
               <div className="min-w-0">
                 <dt className="etiquette text-muet">E-mail</dt>
                 <dd className="mt-1 break-all">
-                  <a href={lienReponse(selection)} className="font-semibold underline decoration-2 underline-offset-4 hover:decoration-volt">
+                  <a href={lienReponse(selection)} className="font-semibold underline decoration-2 underline-offset-4 hover:decoration-vert">
                     {selection.email}
                   </a>
                 </dd>
@@ -295,7 +295,7 @@ function PageMessages() {
                     <>
                       <span className="chiffres">{formatIdentifiant(selection.utilisateurId)}</span>
                       {' · '}
-                      <Link to="/admin/utilisateurs" search={{ recherche: selection.email, statut: '' }} className="font-semibold underline decoration-2 underline-offset-4 hover:decoration-volt">
+                      <Link to="/admin/utilisateurs" search={{ recherche: selection.email, statut: '' }} className="font-semibold underline decoration-2 underline-offset-4 hover:decoration-vert">
                         Voir le compte
                       </Link>
                     </>
@@ -305,10 +305,10 @@ function PageMessages() {
                 </dd>
               </div>
             </dl>
-            <div className="perforation" />
+            <div className="border-t border-trait" />
             <div>
               <span className="etiquette text-muet">Message</span>
-              <p className="mt-2 whitespace-pre-wrap break-words border-2 border-trait bg-gris px-4 py-3 text-corps">{selection.message}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words rounded-xl border border-trait bg-gris px-4 py-3 text-corps">{selection.message}</p>
             </div>
             <form
               onSubmit={(e) => {

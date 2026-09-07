@@ -28,7 +28,7 @@ import 'defis/detail_defi.ecran.dart';
 import 'defis/nouveau_defi.ecran.dart';
 import 'matchs/detail_match.ecran.dart';
 
-/// Tableau de bord : solde, notifications, matchs en cours, défis ouverts.
+/// Tableau de bord, dans cet ordre : solde, matchs en cours, défis ouverts, notifications.
 ///
 /// Les listes vivent par le socket (salon public pour l'arène, salon privé pour
 /// l'argent) : **aucune minuterie de rafraîchissement**.
@@ -192,70 +192,91 @@ class _TableauDeBordEcranState extends State<TableauDeBordEcran> {
               ),
             ],
           ),
+          // Ordre voulu : l'argent, puis ce qui se joue, et les notifications tout en bas —
+          // elles rendent compte de ce qui vient d'arriver, les mettre avant les matchs
+          // repoussait l'essentiel sous la ligne de flottaison.
+          //
+          // Entre matchs et défis, l'ordre dépend de ce que le joueur a en cours : un match
+          // ouvert passe devant, mais sans aucun match il n'y a pas de raison d'ouvrir sur un
+          // grand cadre « Aucun match en cours » — les défis à relever passent alors devant et
+          // l'état vide descend. Pendant le chargement on ne SAIT pas encore : on garde l'ordre
+          // habituel plutôt que d'intervertir les blocs sous les yeux du joueur.
+          ...(!_chargement && _matchs.isEmpty
+              ? [..._sectionDefis(coquille, moi.id), ..._sectionMatchs(coquille, moi.id)]
+              : [..._sectionMatchs(coquille, moi.id), ..._sectionDefis(coquille, moi.id)]),
           const SizedBox(height: 24),
           _CarteNotifications(etat: notifications, onTout: () => coquille?.ouvrirNotifications()),
-          const SizedBox(height: 28),
-          TitreSection(
-            titre: 'Matchs en cours',
-            lien: 'Tous mes matchs',
-            onLien: () => coquille?.allerA(2),
-          ),
-          if (_chargement)
-            const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
-          else if (_matchs.isEmpty)
-            const EtatVide(
-              icone: Icons.sports_esports_outlined,
-              titre: 'Aucun match en cours',
-              description: 'Rejoignez un défi ouvert ou créez le vôtre : le match démarre '
-                  'dès qu’un adversaire accepte.',
-            )
-          else
-            ..._matchs.take(4).map(
-                  (m) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: CarteMatch(
-                      match: m,
-                      moiId: moi.id,
-                      onTap: () => coquille?.ouvrir(DetailMatchEcran(matchId: m.id)),
-                    ),
-                  ),
-                ),
-          const SizedBox(height: 20),
-          TitreSection(
-            titre: 'Défis ouverts',
-            lien: 'Tous les défis',
-            onLien: () => coquille?.allerA(1),
-          ),
-          if (_chargement)
-            const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
-          else if (_defis.isEmpty)
-            EtatVide(
-              icone: Icons.local_fire_department_outlined,
-              titre: 'Aucun défi disponible',
-              description: 'Créez le premier : votre mise est bloquée en séquestre jusqu’à '
-                  'ce qu’un adversaire rejoigne.',
-              action: Bouton(
-                libelle: 'Créer un défi',
-                variante: VarianteBouton.volt,
-                icone: Icons.add,
-                onPressed: () => coquille?.ouvrir(const NouveauDefiEcran()),
-              ),
-            )
-          else
-            ..._defis.take(3).map(
-                  (d) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: CarteDefi(
-                      defi: d,
-                      mien: d.createurId == moi.id,
-                      onTap: () => coquille?.ouvrir(DetailDefiEcran(defiId: d.id)),
-                    ),
-                  ),
-                ),
         ],
       ),
     );
   }
+
+  /// Bloc « Matchs en cours », renvoyé en liste pour pouvoir être placé avant ou après les
+  /// défis selon ce que le joueur a en cours.
+  List<Widget> _sectionMatchs(CoquilleEcranState? coquille, String moiId) => [
+        const SizedBox(height: 28),
+        TitreSection(
+          titre: 'Matchs en cours',
+          lien: 'Tous mes matchs',
+          onLien: () => coquille?.allerA(2),
+        ),
+        if (_chargement)
+          const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
+        else if (_matchs.isEmpty)
+          const EtatVide(
+            icone: Icons.sports_esports_outlined,
+            titre: 'Aucun match en cours',
+            description: 'Rejoignez un défi ouvert ou créez le vôtre : le match démarre '
+                'dès qu’un adversaire accepte.',
+          )
+        else
+          ..._matchs.take(4).map(
+                (m) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: CarteMatch(
+                    match: m,
+                    moiId: moiId,
+                    onTap: () => coquille?.ouvrir(DetailMatchEcran(matchId: m.id)),
+                  ),
+                ),
+              ),
+      ];
+
+  /// Bloc « Défis ouverts », même principe.
+  List<Widget> _sectionDefis(CoquilleEcranState? coquille, String moiId) => [
+        const SizedBox(height: 20),
+        TitreSection(
+          titre: 'Défis ouverts',
+          lien: 'Tous les défis',
+          onLien: () => coquille?.allerA(1),
+        ),
+        if (_chargement)
+          const SqueletteDiffere(child: SqueletteCartes(nombre: 2))
+        else if (_defis.isEmpty)
+          EtatVide(
+            icone: Icons.local_fire_department_outlined,
+            titre: 'Aucun défi disponible',
+            description: 'Créez le premier : votre mise est bloquée en séquestre jusqu’à '
+                'ce qu’un adversaire rejoigne.',
+            action: Bouton(
+              libelle: 'Créer un défi',
+              variante: VarianteBouton.volt,
+              icone: Icons.add,
+              onPressed: () => coquille?.ouvrir(const NouveauDefiEcran()),
+            ),
+          )
+        else
+          ..._defis.take(3).map(
+                (d) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: CarteDefi(
+                    defi: d,
+                    mien: d.createurId == moiId,
+                    onTap: () => coquille?.ouvrir(DetailDefiEcran(defiId: d.id)),
+                  ),
+                ),
+              ),
+      ];
 }
 
 class _CarteSolde extends StatelessWidget {
@@ -273,12 +294,15 @@ class _CarteSolde extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Cadre volontairement resserré : rembourrage 16 au lieu de 20, montant en 28 au lieu
+    // de 36, interlignes réduits. Il gagne une soixantaine de pixels, ce qui suffit à faire
+    // remonter « Matchs en cours » dans le premier écran sur un téléphone courant.
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Couleurs.encre,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,29 +314,29 @@ class _CarteSolde extends StatelessWidget {
                   style: Typo.etiquette.copyWith(
                       color: Couleurs.craie.withValues(alpha: 0.6), fontSize: 10)),
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: Couleurs.vert,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.account_balance_wallet_outlined,
-                    size: 18, color: Couleurs.craie),
+                    size: 17, color: Couleurs.craie),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               formatMontant(disponible, devise),
-              style: Typo.chiffres(taille: 36, poids: 700, couleur: Couleurs.volt),
+              style: Typo.chiffres(taille: 28, poids: 700, couleur: Couleurs.volt),
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           Divider(color: Couleurs.craie.withValues(alpha: 0.15), height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           Row(
             children: [
               Expanded(

@@ -87,7 +87,7 @@ export function ChampPhotoProfil({ utilisateurId, photoActuelle }: { utilisateur
     <div className="flex flex-col gap-1.5">
       <span className="etiquette text-muet">Photo de profil</span>
       <div className="flex flex-wrap items-center gap-4">
-        <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden border-2 border-trait bg-gris">
+        <span className="flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-trait bg-gris">
           {source ? (
             <img src={source} alt="Votre photo de profil" className="size-full object-cover" />
           ) : (
@@ -95,7 +95,7 @@ export function ChampPhotoProfil({ utilisateurId, photoActuelle }: { utilisateur
           )}
         </span>
         <div className="flex flex-wrap gap-2">
-          <label className="etiquette flex min-h-11 cursor-pointer items-center gap-2 border-2 border-trait bg-gris px-3.5 transition-colors duration-150 hover:border-vert">
+          <label className="etiquette flex min-h-11 cursor-pointer items-center gap-2 rounded-[10px] border border-trait bg-gris px-3.5 transition-colors duration-150 hover:border-vert">
             <FontAwesomeIcon icon={icone.televerser} className="text-muet" />
             {aUnePhoto ? 'Changer la photo' : 'Choisir une photo'}
             <input

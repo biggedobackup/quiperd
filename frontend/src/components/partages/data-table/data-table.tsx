@@ -52,16 +52,16 @@ export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, v
   const attente = useAttenteDouce(chargement)
   if (attente) return <SkeletonLignes colonnes={Math.min(colonnes.length, 5)} />
   if (chargement) return null
-  if (lignes.length === 0) return <>{vide ?? <p className="border-2 border-dashed border-trait px-4 py-8 text-legende text-muet">Aucune donnée.</p>}</>
+  if (lignes.length === 0) return <>{vide ?? <p className="rounded-2xl border border-dashed border-trait px-4 py-8 text-legende text-muet">Aucune donnée.</p>}</>
 
   return (
     <>
       {/* ≥ md : tableau */}
-      <div className="hidden overflow-x-auto border-2 border-encre bg-papier md:block">
+      <div className="hidden overflow-x-auto rounded-2xl border border-trait bg-papier md:block">
         <table className="w-full text-legende">
           <caption className="sr-only">{legende}</caption>
           <thead>
-            <tr className="border-b-2 border-encre bg-gris">
+            <tr className="border-b border-trait bg-gris">
               {colonnes.map((c) => (
                 <th
                   key={c.cle}
@@ -79,7 +79,7 @@ export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, v
                 key={cleLigne(l)}
                 onClick={onClicLigne ? () => onClicLigne(l) : undefined}
                 {...(onClicLigne ? proprietesActivation(() => onClicLigne(l)) : {})}
-                className={`h-10 transition-colors ${onClicLigne ? 'cursor-pointer hover:bg-volt-fond focus-visible:bg-volt-fond focus-visible:outline-2 focus-visible:outline-encre' : 'hover:bg-gris'}`}
+                className={`h-10 transition-colors ${onClicLigne ? 'cursor-pointer hover:bg-vert-pale focus-visible:bg-vert-pale focus-visible:outline-2 focus-visible:outline-encre' : 'hover:bg-gris'}`}
               >
                 {colonnes.map((c) => (
                   <td key={c.cle} className={`px-3 py-2 align-middle ${c.droite ? 'chiffres text-right' : ''} ${c.className ?? ''}`}>
@@ -98,7 +98,7 @@ export function DataTable<T>({ colonnes, lignes, cleLigne, chargement = false, v
             key={cleLigne(l)}
             onClick={onClicLigne ? () => onClicLigne(l) : undefined}
             {...(onClicLigne ? proprietesActivation(() => onClicLigne(l)) : {})}
-            className={`ticket-sm border-2 border-encre bg-papier p-4 ${onClicLigne ? 'cursor-pointer active:bg-volt-fond focus-visible:outline-2 focus-visible:outline-encre' : ''}`}
+            className={`rounded-2xl border border-trait bg-papier p-4 ${onClicLigne ? 'cursor-pointer active:bg-vert-pale focus-visible:outline-2 focus-visible:outline-encre' : ''}`}
           >
             <dl className="grid grid-cols-[minmax(0,40%)_1fr] gap-x-3 gap-y-2 text-legende">
               {colonnes

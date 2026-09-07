@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Politique réseau d'Android, pendant natif de `lib/noyau/reseau.dart`.
+
+  1. `cleartextTrafficPermitted="true"` : l'API interne est servie en HTTP en clair
+     (10.0.2.2 depuis l'émulateur, une adresse 192.168.x.x depuis un téléphone du
+     réseau local). Depuis Android 9, le système coupe ces requêtes par défaut et
+     l'application semble hors ligne alors que le serveur répond.
+  2. Ancre de confiance `user` : un certificat auto-signé ou une autorité maison
+     installée sur l'appareil devient une autorité valide, y compris pour la WebView
+     du paiement, qui n'est PAS concernée par les overrides Dart.
+
+  Ce fichier vaut pour TOUS les types de compilation (il est dans le source set
+  `main`), et non plus pour le seul `debug` : la recette se fait sur des APK release
+  installés à la main, qui doivent joindre les mêmes serveurs internes.
+  Pour revenir à une politique stricte, retirer l'attribut `networkSecurityConfig`
+  du manifeste et compiler avec l'option `dart-define` RESEAU_PERMISSIF=false
+  (la double barre d'option ne peut pas être écrite ici : XML l'interdit dans un commentaire).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -30,7 +30,7 @@ export function PaiementModal({ ouvert, url, onFermer }: { ouvert: boolean; url:
             // `allow` autorise le prestataire à ouvrir l'application Mobile Money du
             // téléphone quand l'opérateur le propose.
             allow="payment *; clipboard-write"
-            className="-mx-5 h-[68dvh] w-[calc(100%+2.5rem)] border-2 border-trait bg-papier sm:mx-0 sm:w-full"
+            className="-mx-5 h-[68dvh] w-[calc(100%+2.5rem)] rounded-xl border border-trait bg-papier sm:mx-0 sm:w-full"
           />
         )}
         <p className="text-legende text-muet">

@@ -32,6 +32,7 @@ import { Route as JoueurNotificationsRouteImport } from './routes/joueur/notific
 import { Route as JoueurPortefeuilleRouteImport } from './routes/joueur/portefeuille'
 import { Route as JoueurProfilRouteImport } from './routes/joueur/profil'
 import { Route as JoueurTableauDeBordRouteImport } from './routes/joueur/tableau-de-bord'
+import { Route as PublicDefisDefiIdRouteImport } from './routes/_public/defis_.$defiId'
 import { Route as AdminPriveConfigurationsRouteImport } from './routes/admin/_prive/configurations'
 import { Route as AdminPriveJeuxPlateformesRouteImport } from './routes/admin/_prive/jeux-plateformes'
 import { Route as AdminPriveJournalAuditRouteImport } from './routes/admin/_prive/journal-audit'
@@ -167,6 +168,11 @@ const JoueurTableauDeBordRoute = JoueurTableauDeBordRouteImport.update({
   path: '/tableau-de-bord',
   getParentRoute: () => JoueurRoute,
 } as any)
+const PublicDefisDefiIdRoute = PublicDefisDefiIdRouteImport.update({
+  id: '/defis_/$defiId',
+  path: '/defis/$defiId',
+  getParentRoute: () => PublicRoute,
+} as any)
 const AdminPriveConfigurationsRoute =
   AdminPriveConfigurationsRouteImport.update({
     id: '/configurations',
@@ -291,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/joueur/portefeuille': typeof JoueurPortefeuilleRoute
   '/joueur/profil': typeof JoueurProfilRoute
   '/joueur/tableau-de-bord': typeof JoueurTableauDeBordRoute
+  '/defis/$defiId': typeof PublicDefisDefiIdRoute
   '/admin/configurations': typeof AdminPriveConfigurationsRoute
   '/admin/jeux-plateformes': typeof AdminPriveJeuxPlateformesRoute
   '/admin/journal-audit': typeof AdminPriveJournalAuditRoute
@@ -334,6 +341,7 @@ export interface FileRoutesByTo {
   '/joueur/profil': typeof JoueurProfilRoute
   '/joueur/tableau-de-bord': typeof JoueurTableauDeBordRoute
   '/': typeof PublicIndexRoute
+  '/defis/$defiId': typeof PublicDefisDefiIdRoute
   '/admin/configurations': typeof AdminPriveConfigurationsRoute
   '/admin/jeux-plateformes': typeof AdminPriveJeuxPlateformesRoute
   '/admin/journal-audit': typeof AdminPriveJournalAuditRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/joueur/profil': typeof JoueurProfilRoute
   '/joueur/tableau-de-bord': typeof JoueurTableauDeBordRoute
   '/_public/': typeof PublicIndexRoute
+  '/_public/defis_/$defiId': typeof PublicDefisDefiIdRoute
   '/admin/_prive/configurations': typeof AdminPriveConfigurationsRoute
   '/admin/_prive/jeux-plateformes': typeof AdminPriveJeuxPlateformesRoute
   '/admin/_prive/journal-audit': typeof AdminPriveJournalAuditRoute
@@ -424,6 +433,7 @@ export interface FileRouteTypes {
     | '/joueur/portefeuille'
     | '/joueur/profil'
     | '/joueur/tableau-de-bord'
+    | '/defis/$defiId'
     | '/admin/configurations'
     | '/admin/jeux-plateformes'
     | '/admin/journal-audit'
@@ -467,6 +477,7 @@ export interface FileRouteTypes {
     | '/joueur/profil'
     | '/joueur/tableau-de-bord'
     | '/'
+    | '/defis/$defiId'
     | '/admin/configurations'
     | '/admin/jeux-plateformes'
     | '/admin/journal-audit'
@@ -511,6 +522,7 @@ export interface FileRouteTypes {
     | '/joueur/profil'
     | '/joueur/tableau-de-bord'
     | '/_public/'
+    | '/_public/defis_/$defiId'
     | '/admin/_prive/configurations'
     | '/admin/_prive/jeux-plateformes'
     | '/admin/_prive/journal-audit'
@@ -706,6 +718,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JoueurTableauDeBordRouteImport
       parentRoute: typeof JoueurRoute
     }
+    '/_public/defis_/$defiId': {
+      id: '/_public/defis_/$defiId'
+      path: '/defis/$defiId'
+      fullPath: '/defis/$defiId'
+      preLoaderRoute: typeof PublicDefisDefiIdRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/admin/_prive/configurations': {
       id: '/admin/_prive/configurations'
       path: '/configurations'
@@ -855,6 +874,7 @@ interface PublicRouteChildren {
   PublicMotDePasseOublieRoute: typeof PublicMotDePasseOublieRoute
   PublicReinitialisationMotDePasseRoute: typeof PublicReinitialisationMotDePasseRoute
   PublicIndexRoute: typeof PublicIndexRoute
+  PublicDefisDefiIdRoute: typeof PublicDefisDefiIdRoute
 }
 
 const PublicRouteChildren: PublicRouteChildren = {
@@ -870,6 +890,7 @@ const PublicRouteChildren: PublicRouteChildren = {
   PublicMotDePasseOublieRoute: PublicMotDePasseOublieRoute,
   PublicReinitialisationMotDePasseRoute: PublicReinitialisationMotDePasseRoute,
   PublicIndexRoute: PublicIndexRoute,
+  PublicDefisDefiIdRoute: PublicDefisDefiIdRoute,
 }
 
 const PublicRouteWithChildren =

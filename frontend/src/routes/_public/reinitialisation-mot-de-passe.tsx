@@ -56,7 +56,7 @@ function PageReinitialisation() {
       titre="Nouveau mot de passe"
       sousTitre="Choisissez un mot de passe d’au moins 6 caractères."
       pied={
-        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-volt">
+        <Link to="/connexion" className="inline-flex min-h-11 items-center font-semibold text-encre underline decoration-2 underline-offset-4 hover:decoration-vert">
           Retour à la connexion
         </Link>
       }
@@ -66,7 +66,7 @@ function PageReinitialisation() {
         <InputMotDePasse label="Nouveau mot de passe" autoComplete="new-password" {...register('nouveauMotDePasse')} erreur={errors.nouveauMotDePasse?.message} />
         <InputMotDePasse label="Confirmation" autoComplete="new-password" {...register('confirmation')} erreur={errors.confirmation?.message} />
         {erreurGlobale && (
-          <p className="border-2 border-perte bg-perte-fond px-3 py-2 text-legende font-semibold text-perte" role="alert">
+          <p className="rounded-xl border border-perte bg-perte-fond px-3.5 py-2.5 text-legende font-semibold text-perte" role="alert">
             {erreurGlobale}
           </p>
         )}

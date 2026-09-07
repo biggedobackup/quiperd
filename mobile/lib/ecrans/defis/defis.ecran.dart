@@ -1,26 +1,22 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../composants/communs/badge_statut.dart';
 import '../../composants/communs/bouton.dart';
-import '../../composants/communs/champ_texte.dart';
 import '../../composants/communs/confirmation.dart';
 import '../../composants/communs/en_tete_page.dart';
 import '../../composants/communs/etat_vide.dart';
 import '../../composants/communs/indicateur_direct.dart';
-import '../../composants/communs/liste_deroulante.dart';
 import '../../composants/communs/message.dart';
 import '../../composants/communs/squelette.dart';
 import '../../composants/joueur/carte_defi.dart';
 import '../../composants/joueur/compte_a_rebours.dart';
-import '../../etats/catalogue.etat.dart';
+import '../../composants/joueur/feuilles/filtres_defis.feuille.dart';
 import '../../etats/portefeuille.etat.dart';
 import '../../etats/session.etat.dart';
 import '../../modeles/defi.modele.dart';
-import '../../noyau/catalogue.dart';
 import '../../noyau/format.dart';
 import '../../noyau/resultat.dart';
 import '../../noyau/statuts.dart';
@@ -183,6 +179,15 @@ class _DefisEcranState extends State<DefisEcran> {
     if (r is Succes<List<Defi>>) setState(() => _ouverts = r.donnees);
   }
 
+  /// Ouvre la feuille de filtres. Elle rend `null` si on la referme sans valider : on garde
+  /// alors les filtres en place et on ne relance aucune requête pour rien.
+  Future<void> _ouvrirFiltres() async {
+    final choisis = await ouvrirFiltresDefis(context, _filtres);
+    if (choisis == null || !mounted) return;
+    setState(() => _filtres = choisis);
+    await _rechargerOuverts();
+  }
+
   Future<void> _annuler(Defi defi) async {
     final ok = await confirmer(
       context,
@@ -247,10 +252,11 @@ class _DefisEcranState extends State<DefisEcran> {
           ),
           const SizedBox(height: 16),
           if (_onglet == 0) ...[
-            _Filtres(
+            _BarreFiltres(
               filtres: _filtres,
-              onChange: (f) {
-                setState(() => _filtres = f);
+              onOuvrir: _ouvrirFiltres,
+              onEffacer: () {
+                setState(() => _filtres = FiltresDefis.aucun);
                 _rechargerOuverts();
               },
             ),
@@ -376,95 +382,43 @@ class _Onglets extends StatelessWidget {
   }
 }
 
-class _Filtres extends StatefulWidget {
-  const _Filtres({required this.filtres, required this.onChange});
+/// Barre compacte des filtres : un bouton qui ouvre la feuille, et le moyen de tout effacer
+/// sans la rouvrir. Les quatre champs dépliés qui vivaient ici prenaient plus de la moitié de
+/// l'écran avant le premier défi — sur un téléphone, la liste doit commencer tout de suite.
+class _BarreFiltres extends StatelessWidget {
+  const _BarreFiltres({
+    required this.filtres,
+    required this.onOuvrir,
+    required this.onEffacer,
+  });
 
   final FiltresDefis filtres;
-  final ValueChanged<FiltresDefis> onChange;
-
-  @override
-  State<_Filtres> createState() => _FiltresState();
-}
-
-class _FiltresState extends State<_Filtres> {
-  // Le champ garde son propre contrôleur : reconstruire un `TextField` à chaque
-  // frappe lui ferait perdre le focus et le curseur au premier chiffre tapé.
-  late final TextEditingController _miseMax = TextEditingController(
-    text: widget.filtres.miseMax == null ? '' : widget.filtres.miseMax!.toStringAsFixed(0),
-  );
-
-  @override
-  void dispose() {
-    _miseMax.dispose();
-    super.dispose();
-  }
-
-  FiltresDefis get filtres => widget.filtres;
-  ValueChanged<FiltresDefis> get onChange => widget.onChange;
+  final VoidCallback onOuvrir;
+  final VoidCallback onEffacer;
 
   @override
   Widget build(BuildContext context) {
-    final catalogue = context.watch<CatalogueEtat>();
-    final jeux = catalogue.jeuxDeCategorie(filtres.categorie);
-
-    return Column(
+    final n = filtres.nombreActifs;
+    return Row(
       children: [
-        ListeDeroulante(
-          label: 'Catégorie',
-          valeur: filtres.categorie,
-          placeholder: 'Toutes les catégories',
-          options: categoriesJeu.map((c) => OptionListe(c.valeur, c.libelle)).toList(),
-          // Changer de catégorie remet le jeu à zéro : garder un jeu d'une autre
-          // catégorie donnerait une liste vide sans explication.
-          onChanged: (v) => onChange(filtres.copieAvec(categorie: v, jeu: null)),
+        Expanded(
+          child: Bouton(
+            // Le compte est DANS le libellé : sans lui, une liste filtrée ressemble à une
+            // arène vide et l'on croit qu'il n'y a aucun défi.
+            libelle: n == 0 ? 'Filtrer' : 'Filtres · $n',
+            bloc: true,
+            variante: n == 0 ? VarianteBouton.secondaire : VarianteBouton.volt,
+            icone: Icons.tune,
+            onPressed: onOuvrir,
+          ),
         ),
-        const SizedBox(height: 14),
-        ListeDeroulante(
-          label: 'Jeu',
-          valeur: filtres.jeu,
-          placeholder: 'Tous les jeux',
-          options: jeux.map((j) => OptionListe(j.id, j.nom)).toList(),
-          onChanged: (v) => onChange(filtres.copieAvec(jeu: v)),
-        ),
-        const SizedBox(height: 14),
-        ListeDeroulante(
-          label: 'Plateforme',
-          valeur: filtres.plateforme,
-          placeholder: 'Toutes les plateformes',
-          groupes: catalogue.plateformesGroupees.entries
-              .map((e) => GroupeOptions(
-                    e.key.libelle,
-                    e.value.map((p) => OptionListe(p.id, p.nom)).toList(),
-                  ))
-              .toList(),
-          onChanged: (v) => onChange(filtres.copieAvec(plateforme: v)),
-        ),
-        const SizedBox(height: 14),
-        ChampTexte(
-          controleur: _miseMax,
-          label: 'Mise max',
-          suffixe: 'FCFA',
-          chiffres: true,
-          clavier: const TextInputType.numberWithOptions(decimal: false),
-          formateurs: [FilteringTextInputFormatter.digitsOnly],
-          placeholder: 'Toutes les mises',
-          onChanged: (valeur) {
-            final n = double.tryParse(valeur.trim());
-            onChange(filtres.copieAvec(miseMax: (n == null || n <= 0) ? null : n));
-          },
-        ),
-        if (filtres.actifs) ...[
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Bouton(
-              libelle: 'Effacer les filtres',
-              variante: VarianteBouton.lien,
-              onPressed: () {
-                _miseMax.clear();
-                onChange(FiltresDefis.aucun);
-              },
-            ),
+        if (n > 0) ...[
+          const SizedBox(width: 10),
+          Bouton(
+            libelle: 'Effacer',
+            variante: VarianteBouton.secondaire,
+            icone: Icons.filter_alt_off_outlined,
+            onPressed: onEffacer,
           ),
         ],
       ],

@@ -122,9 +122,9 @@ export function BandeauNouveautes({ nombre, singulier, plurielForme, onAfficher,
     <div
       role="status"
       aria-live="polite"
-      className={`flex flex-wrap items-center gap-3 border-2 border-encre bg-volt-fond px-4 py-3 ${className}`}
+      className={`flex flex-wrap items-center gap-3 rounded-xl border border-trait bg-vert-pale px-4 py-3 ${className}`}
     >
-      <span className="inline-block size-2 shrink-0 animate-pulsation bg-volt" aria-hidden="true" />
+      <span className="inline-block size-2 shrink-0 animate-pulsation rounded-full bg-vert" aria-hidden="true" />
       <p className="text-legende font-semibold">
         <span className="chiffres">{nombre}</span> {nombre > 1 ? plurielForme : singulier}
       </p>

@@ -7,20 +7,26 @@ import { icone } from '@/lib/icones'
 export type VarianteBouton = 'primaire' | 'secondaire' | 'volt' | 'danger' | 'fantome' | 'lien'
 export type TailleBouton = 'sm' | 'md' | 'lg'
 
+/**
+ * Refonte v2 : angles arrondis et bordure fine à la place du trait de 2 px. La typographie du
+ * bouton ne bouge pas (Unbounded, capitales) ; le vert plein porte l'action principale avec du
+ * texte blanc, le secondaire est un contour gris discret.
+ */
 const BASE =
-  'inline-flex items-center justify-center gap-2 border-2 font-titre uppercase tracking-wider font-bold select-none whitespace-nowrap transition-[transform,background-color,color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50'
+  'inline-flex items-center justify-center gap-2 rounded-[10px] border font-titre uppercase tracking-wider font-bold select-none whitespace-nowrap transition-[transform,background-color,color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50'
 
 const VARIANTES: Record<VarianteBouton, string> = {
-  primaire: 'border-encre bg-encre text-craie hover:bg-volt hover:text-nuit hover:border-encre',
-  secondaire: 'border-encre bg-papier text-encre hover:bg-volt hover:text-nuit',
-  volt: 'border-encre bg-volt text-nuit hover:bg-encre hover:text-craie',
-  danger: 'border-perte bg-perte text-papier hover:bg-encre hover:border-encre hover:text-craie',
-  fantome: 'border-transparent bg-transparent text-encre hover:border-encre',
-  lien: 'border-transparent bg-transparent normal-case tracking-normal font-texte font-semibold underline decoration-2 underline-offset-4 hover:decoration-volt',
+  primaire: 'border-transparent bg-vert text-craie shadow-carte hover:bg-vert-sombre',
+  secondaire: 'border-trait bg-papier text-encre hover:border-encre hover:bg-gris',
+  // `volt` reste le nom de l'action principale dans tout le code : la refonte en fait le bouton vert.
+  volt: 'border-transparent bg-vert text-craie shadow-carte hover:bg-vert-sombre',
+  danger: 'border-transparent bg-perte text-craie hover:bg-encre',
+  fantome: 'border-transparent bg-transparent text-muet hover:bg-gris hover:text-encre',
+  lien: 'border-transparent bg-transparent normal-case tracking-normal font-texte font-semibold underline decoration-2 underline-offset-4 hover:decoration-vert',
 }
 
 const TAILLES: Record<TailleBouton, string> = {
-  sm: 'h-9 px-3 text-[11px]',
+  sm: 'h-11 px-4 text-[11px] sm:h-9',
   md: 'h-11 px-5 text-[12px]',
   lg: 'h-14 px-7 text-[13px]',
 }

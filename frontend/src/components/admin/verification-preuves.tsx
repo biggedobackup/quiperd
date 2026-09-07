@@ -42,7 +42,7 @@ export function VerificationPreuves({ matchId, nomDe, onChangement }: { matchId:
   })
 
   if (preuves.isPending) return <SkeletonCarte nombre={2} />
-  if (!preuves.data || preuves.data.length === 0) return <p className="border-2 border-dashed border-trait px-4 py-6 text-legende text-muet">Aucune preuve envoyée pour ce match.</p>
+  if (!preuves.data || preuves.data.length === 0) return <p className="rounded-2xl border border-dashed border-trait px-4 py-6 text-legende text-muet">Aucune preuve envoyée pour ce match.</p>
 
   return (
     <>

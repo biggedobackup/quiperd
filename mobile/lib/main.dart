@@ -3,9 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 import 'app.dart';
+import 'noyau/reseau.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Avant la première requête : l'API et le socket sont joints sur des serveurs
+  // internes dont le certificat n'est pas signé par une autorité connue du
+  // téléphone. Voir `noyau/reseau.dart` pour la contrepartie et l'interrupteur.
+  ReseauPermissif.installer();
 
   // Dates et montants en français : sans cette initialisation, `DateFormat`
   // lève une exception dès le premier écran qui affiche une date.

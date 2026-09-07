@@ -5,7 +5,7 @@ import '../composants/communs/confirmation.dart';
 import '../composants/communs/indicateur_direct.dart';
 import '../composants/communs/logo.dart';
 import '../composants/communs/message.dart';
-import '../composants/joueur/bandeau_email_non_confirme.dart';
+import '../composants/communs/pile_paresseuse.dart';
 import '../etats/catalogue.etat.dart';
 import '../etats/notifications.etat.dart';
 import '../etats/portefeuille.etat.dart';
@@ -83,6 +83,21 @@ class CoquilleEcranState extends State<CoquilleEcran> {
     };
   }
 
+  /// Les cinq écrans de la barre basse, dans l'ordre des onglets.
+  static const List<Widget> _ecrans = [
+    TableauDeBordEcran(),
+    DefisEcran(),
+    MatchsEcran(),
+    PortefeuilleEcran(),
+    ProfilEcran(),
+  ];
+
+  /// Onglet affiché, lu par le tiroir pour marquer l'entrée en cours.
+  int get ongletActif => _index;
+
+  /// Les cinq entrées de la barre basse, reprises telles quelles par le tiroir.
+  static List<({String court, String complet, IconData icone})> get onglets => _onglets;
+
   void allerA(int index) {
     if (index == _index) return;
     setState(() => _index = index);
@@ -115,7 +130,7 @@ class CoquilleEcranState extends State<CoquilleEcran> {
 
     return Scaffold(
       backgroundColor: Couleurs.craie,
-      drawer: const _Tiroir(),
+      drawer: _Tiroir(ongletActif: _index),
       appBar: AppBar(
         titleSpacing: 16,
         title: const Logo(taille: 26),
@@ -141,27 +156,15 @@ class CoquilleEcranState extends State<CoquilleEcran> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (session.emailNonConfirme)
-            BandeauEmailNonConfirme(
-              email: utilisateur.email,
-              onConfirmer: ouvrirConfirmationEmail,
-            ),
-          Expanded(
-            child: IndexedStack(
-              index: _index,
-              children: const [
-                TableauDeBordEcran(),
-                DefisEcran(),
-                MatchsEcran(),
-                PortefeuilleEcran(),
-                ProfilEcran(),
-              ],
-            ),
-          ),
-        ],
-      ),
+      // Onglets construits à la demande : un onglet jamais ouvert n'a rien à charger. Avant,
+      // les cinq écrans lançaient leurs appels au démarrage — 19 requêtes mesurées avant le
+      // premier écran utile, sur un réseau mobile où chacune coûte un aller-retour.
+      //
+      // Aucun bandeau « adresse non confirmée » au-dessus : l'aiguillage racine ne construit
+      // cette coquille QUE lorsque l'adresse est confirmée, un tel bandeau ne pourrait donc
+      // plus jamais s'afficher. Il reste là où il garde un sens — création de défi et
+      // portefeuille — pour le cas où le serveur refuse en 403 une session qui se croyait à jour.
+      body: PileParesseuse(index: _index, enfants: _ecrans),
       bottomNavigationBar: NavigationBarTheme(
         data: NavigationBarThemeData(
           backgroundColor: Couleurs.encre,
@@ -186,7 +189,7 @@ class CoquilleEcranState extends State<CoquilleEcran> {
         ),
         child: NavigationBar(
           selectedIndex: _index,
-          onDestinationSelected: (i) => setState(() => _index = i),
+          onDestinationSelected: allerA,
           height: 66,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: _onglets
@@ -301,11 +304,16 @@ class _MenuCompte extends StatelessWidget {
 
 /// Tiroir : écrans secondaires et pages légales.
 class _Tiroir extends StatelessWidget {
-  const _Tiroir();
+  const _Tiroir({required this.ongletActif});
+
+  /// Reçu en paramètre, pas lu depuis la coquille : un `const _Tiroir()` ne se reconstruirait
+  /// pas au changement d'onglet et marquerait la mauvaise entrée.
+  final int ongletActif;
 
   @override
   Widget build(BuildContext context) {
-    final session = context.watch<SessionEtat>();
+    // (plus de `session` ici : la seule entrée qui en dépendait, « Confirmer mon e-mail »,
+    // a disparu — le tiroir n'existe que dans une coquille dont l'adresse est confirmée.)
     final portefeuille = context.watch<PortefeuilleEtat>().portefeuille;
     final nonLues = context.watch<NotificationsEtat>().nonLues;
     final coquille = CoquilleEcran.de(context);
@@ -347,6 +355,22 @@ class _Tiroir extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 children: [
+                  // Le tiroir liste TOUT, y compris les cinq onglets de la barre basse. Il ne
+                  // faut pas avoir à refermer le tiroir pour aller au portefeuille : celui qui
+                  // ouvre le menu cherche une destination, pas la moitié des destinations.
+                  // La source est `_onglets`, la même liste que la barre basse — impossible que
+                  // les deux divergent, et l'entrée en cours est marquée en vert.
+                  for (final (i, o) in CoquilleEcranState.onglets.indexed)
+                    _Entree(
+                      icone: o.icone,
+                      libelle: o.complet,
+                      actif: ongletActif == i,
+                      onTap: () {
+                        Navigator.of(context).pop();
+                        coquille?.allerA(i);
+                      },
+                    ),
+                  const Divider(height: 24),
                   _Entree(
                     icone: Icons.gavel_outlined,
                     libelle: 'Litiges',
@@ -380,16 +404,8 @@ class _Tiroir extends StatelessWidget {
                       coquille?.ouvrir(const AideEcran());
                     },
                   ),
-                  if (session.emailNonConfirme)
-                    _Entree(
-                      icone: Icons.mark_email_unread_outlined,
-                      libelle: 'Confirmer mon e-mail',
-                      accent: Couleurs.alerte,
-                      onTap: () {
-                        Navigator.of(context).pop();
-                        coquille?.ouvrirConfirmationEmail();
-                      },
-                    ),
+                  // Pas d'entrée « Confirmer mon e-mail » : ce tiroir n'existe que dans la
+                  // coquille, et la coquille n'est construite qu'une fois l'adresse confirmée.
                   const Divider(height: 24),
                   _Entree(
                     icone: Icons.logout,
@@ -434,6 +450,7 @@ class _Entree extends StatelessWidget {
     required this.onTap,
     this.badge = 0,
     this.accent,
+    this.actif = false,
   });
 
   final IconData icone;
@@ -442,12 +459,25 @@ class _Entree extends StatelessWidget {
   final int badge;
   final Color? accent;
 
+  /// Onglet en cours : le tiroir reprend les cinq entrées de la barre basse, il doit donc
+  /// dire où l'on se trouve — sinon on ne sait plus lequel on vient d'ouvrir.
+  final bool actif;
+
   @override
   Widget build(BuildContext context) {
+    final couleur = accent ?? (actif ? Couleurs.vert : Couleurs.encre);
     return ListTile(
       minTileHeight: 52,
-      leading: Icon(icone, size: 20, color: accent ?? Couleurs.muet),
-      title: Text(libelle, style: Typo.corps.copyWith(color: accent ?? Couleurs.encre)),
+      selected: actif,
+      selectedTileColor: Couleurs.vertPale,
+      leading: Icon(icone, size: 20, color: accent ?? (actif ? Couleurs.vert : Couleurs.muet)),
+      title: Text(
+        libelle,
+        style: Typo.corps.copyWith(
+          color: couleur,
+          fontWeight: actif ? FontWeight.w700 : null,
+        ),
+      ),
       trailing: badge > 0
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

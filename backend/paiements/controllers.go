@@ -126,6 +126,12 @@ func Retrait(c fiber.Ctx) error {
 	if err == portefeuilles.ErrSoldeInsuffisant {
 		return utils.Erreur(c, fiber.StatusUnprocessableEntity, "solde disponible insuffisant")
 	}
+	// Message distinct du solde insuffisant : le joueur a l'argent, il ne l'a pas encore
+	// engagé. Lui dire « solde insuffisant » alors qu'il voit son solde serait incompréhensible.
+	if err == portefeuilles.ErrDepotNonJoue {
+		return utils.Erreur(c, fiber.StatusUnprocessableEntity,
+			"un dépôt doit d'abord être joué en défi avant de pouvoir être retiré : seul le solde retirable peut partir")
+	}
 	if err != nil {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "demande de retrait impossible")
 	}

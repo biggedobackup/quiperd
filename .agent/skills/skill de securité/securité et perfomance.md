@@ -40,7 +40,7 @@ frame-ancestors, base-uri et form-action restreints à 'self'. Mécanisme de rap
 * Compression des assets
 * Cache navigateur
 * Réduction des requêtes HTTP
-* Optimisation Angular (`OnPush`, `track`, `@defer`, etc.)
+* Optimisation du frontend et du mobile
 * Éviter les calculs et rendus inutiles
 * Vérifier les erreurs console
 * Vérifier les erreurs réseau

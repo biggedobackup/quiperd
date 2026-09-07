@@ -17,15 +17,15 @@ export interface ProprietesLecteurPreuve {
 export function LecteurPreuve({ preuve, role = 'joueur', auteur, actions }: ProprietesLecteurPreuve) {
   const src = urlFichierPreuve(preuve.id, role)
   return (
-    <figure className="ticket-sm border-2 border-encre bg-papier">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-trait px-3 py-2 text-legende">
+    <figure className="overflow-hidden rounded-2xl border border-trait bg-papier">
+      <div className="flex items-center justify-between gap-3 border-b border-trait px-3 py-2 text-legende">
         <div className="min-w-0">
           <span className="etiquette text-muet">{preuve.type === 'video' ? 'Vidéo' : 'Capture'}</span>
           {auteur && <span className="ml-2 font-semibold">{auteur}</span>}
         </div>
         <BadgeStatut famille="preuve" valeur={preuve.statut} />
       </div>
-      <div className="bg-nuit">
+      <div className="bg-encre">
         {preuve.type === 'video' ? (
           <video src={src} controls preload="metadata" className="max-h-80 w-full" />
         ) : (

@@ -12,6 +12,13 @@
 # Chaque vérification part du principe que RIEN n'est redemandé par le client : si un changement
 # d'état n'arrive pas poussé par le serveur dans le délai imparti, le test échoue.
 $ErrorActionPreference = 'Continue'
+# psql écrit en UTF-8 ; PowerShell, lui, décode la sortie d'un programme externe avec la page
+# de codes de la console. Sur un terminal en cp1252, « délai » revenait en « dÃ©lai » et une
+# vérification portant sur un mot accentué échouait alors que la base était juste. Fixer les
+# deux bouts rend la recette indépendante du terminal qui la lance.
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$OutputEncoding = [Text.Encoding]::UTF8
+$env:PGCLIENTENCODING = 'UTF8'
 $Base = 'http://127.0.0.1:8080/api'   # IPv4 direct : « localhost » tente ::1 d'abord sous Windows
 $WsBase = 'ws://127.0.0.1:8080/api/temps-reel'
 $Scratch = Join-Path $PSScriptRoot 'tmp'; New-Item -ItemType Directory -Force $Scratch | Out-Null

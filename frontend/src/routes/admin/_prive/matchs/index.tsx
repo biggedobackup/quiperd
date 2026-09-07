@@ -72,7 +72,7 @@ function PageMatchsAdmin() {
         titre="Matchs & preuves"
         description="Deux déclarations concordantes règlent le match immédiatement, sans preuve ni arbitre. Les preuves ne sont exigées qu’en cas de désaccord."
       />
-      <div role="tablist" className="mb-4 inline-flex max-w-full overflow-x-auto border-2 border-encre bg-papier">
+      <div role="tablist" className="mb-4 inline-flex max-w-full gap-1 overflow-x-auto rounded-full border border-trait bg-papier p-1">
         {STATUTS_MATCH_ADMIN.map((s) => (
           <button
             key={s || 'tous'}
@@ -80,7 +80,7 @@ function PageMatchsAdmin() {
             role="tab"
             aria-selected={statut === s}
             onClick={() => navigate({ search: { statut: s, page: 1 } })}
-            className={`etiquette h-11 shrink-0 px-4 transition-colors ${statut === s ? 'bg-encre text-craie' : 'text-muet hover:bg-volt-fond hover:text-encre'}`}
+            className={`etiquette h-11 shrink-0 rounded-full px-4 transition-colors ${statut === s ? 'bg-vert text-craie' : 'text-muet hover:bg-vert-pale hover:text-vert'}`}
           >
             {libelleStatutMatch(s)}
           </button>

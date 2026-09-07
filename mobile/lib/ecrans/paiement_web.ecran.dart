@@ -4,6 +4,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../composants/communs/bouton.dart';
 import '../composants/communs/message.dart';
+import '../noyau/reseau.dart';
 import '../theme/couleurs.dart';
 import '../theme/typographie.dart';
 
@@ -46,6 +47,12 @@ class _PaiementWebEcranState extends State<PaiementWebEcran> {
           onPageStarted: (_) {
             if (mounted) setState(() => _erreur = null);
           },
+          // La WebView est un composant natif : les overrides `dart:io` de
+          // `ReseauPermissif` ne s'appliquent pas à elle. Sans ce rappel, une page
+          // de paiement servie par un serveur interne au certificat auto-signé
+          // resterait blanche, sans message exploitable. Rappel non posé quand le
+          // mode permissif est coupé : Android et iOS refusent alors d'eux-mêmes.
+          onSslAuthError: ReseauPermissif.actif ? (erreur) => erreur.proceed() : null,
           onWebResourceError: (erreur) {
             // Une ressource secondaire qui échoue (police, pixel de suivi) ne doit
             // pas faire croire au joueur que le paiement est cassé : seul l'échec

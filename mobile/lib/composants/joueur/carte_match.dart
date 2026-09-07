@@ -6,6 +6,7 @@ import '../../noyau/statuts.dart';
 import '../../theme/couleurs.dart';
 import '../../theme/typographie.dart';
 import '../communs/badge_statut.dart';
+import 'avatar_joueur.dart';
 import 'compte_a_rebours.dart';
 
 /// Carte d'un match dans « Mes matchs » et sur le tableau de bord : adversaire,
@@ -46,6 +47,15 @@ class CarteMatch extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  // Le visage de l'adversaire vaut mieux qu'un pseudo seul : on voit à qui
+                  // on joue dès la liste, sans ouvrir le match.
+                  AvatarJoueur(
+                    utilisateurId: match.adversaireDe(moiId),
+                    pseudo: match.nomAdversaireDe(moiId),
+                    photo: match.photoAdversaireDe(moiId),
+                    taille: 30,
+                  ),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       'Face à ${match.nomAdversaireDe(moiId)}',

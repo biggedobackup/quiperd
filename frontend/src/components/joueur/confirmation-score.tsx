@@ -39,9 +39,9 @@ export function ConfirmationScore({
   return (
     <section
       aria-labelledby="titre-confirmation"
-      className="ticket border-2 border-encre bg-papier shadow-tampon-volt"
+      className="overflow-hidden rounded-2xl border border-trait bg-papier shadow-carte-forte"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-encre bg-volt px-4 py-2.5 text-nuit">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-vert px-4 py-2.5 text-craie">
         <span className="etiquette flex items-center gap-2">
           <FontAwesomeIcon icon={icone.attention} aria-hidden="true" />
           Score à confirmer
@@ -54,7 +54,7 @@ export function ConfirmationScore({
           <span className="font-bold">{nomAdversaire}</span> déclare ce score
         </h3>
 
-        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-3 border-2 border-encre bg-nuit px-4 py-4 text-craie">
+        <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-start gap-3 rounded-2xl bg-encre px-4 py-4 text-craie">
           <ColonneScore nom={`${nomMoi} (vous)`} score={scoreMoi} alignement="left" />
           <span className="chiffres pt-1 text-h2 text-craie/40" aria-hidden="true">
             —

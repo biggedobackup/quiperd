@@ -53,12 +53,12 @@ export function IndicateurDirect({
   // même élément se disputent selon l'ordre du fichier CSS, pas selon l'ordre des classes.
   const cadre = variante === 'etiquette' ? 'border border-current/20' : ''
   const espacement = relancable ? 'min-h-11 px-3' : variante === 'etiquette' ? 'h-6 px-2' : ''
-  const socle = `etiquette inline-flex items-center gap-1.5 bg-craie ${apparence.texte} ${cadre} ${espacement}`
+  const socle = `etiquette inline-flex items-center gap-1.5 rounded-full bg-craie ${apparence.texte} ${cadre} ${espacement}`
 
   const contenu = (
     <>
       <span
-        className={`inline-block size-2 shrink-0 ${apparence.point} ${apparence.pulse ? 'animate-pulsation' : ''}`}
+        className={`inline-block size-2 shrink-0 rounded-full ${apparence.point} ${apparence.pulse ? 'animate-pulsation' : ''}`}
         aria-hidden="true"
       />
       <span>
