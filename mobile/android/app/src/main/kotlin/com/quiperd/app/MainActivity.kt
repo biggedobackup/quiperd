@@ -1,4 +1,4 @@
-package com.example.quiperd
+package com.quiperd.app
 
 import io.flutter.embedding.android.FlutterActivity
 
