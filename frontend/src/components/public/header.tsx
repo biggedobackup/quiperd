@@ -162,7 +162,7 @@ export function Header({ connecte }: { connecte: boolean }) {
           <div className="shrink-0 border-b border-trait bg-craie">
             <div className={CLASSES_BARRE}>
               <Link to="/" aria-label="Défis en Ligne — accueil" className="inline-flex" onClick={fermerParLien}>
-                <Logo lien={false} taille="lg" />
+                <Logo lien={false} echelleMarque={3.4} />
               </Link>
               <button
                 ref={boutonFermer}
@@ -231,7 +231,7 @@ export function Header({ connecte }: { connecte: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-trait bg-craie shadow-barre">
       <div className={CLASSES_BARRE}>
-        <Logo taille="lg" />
+        <Logo echelleMarque={3.4} />
         <nav className="hidden items-center gap-7 lg:flex" aria-label="Navigation principale">
           {LIENS.map((l) => (
             <Link
