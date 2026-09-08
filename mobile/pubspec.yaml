@@ -29,6 +29,18 @@ dependencies:
   # Liens profonds : ouvrir l'application sur le bon écran quand on tape un lien partagé.
   app_links: ^6.4.1
 
+  # Notifications push Firebase (projet `defisenligne`).
+  #
+  # Le socket ne couvre que l'application OUVERTE : dès qu'elle passe en arrière-plan ou qu'elle
+  # est fermée, seul FCM peut prévenir le joueur qu'un adversaire a rejoint son défi ou déclaré
+  # un résultat. C'est le complément du temps réel, pas son remplaçant.
+  firebase_core: ^3.15.2
+  firebase_messaging: ^15.2.10
+  # Android n'affiche RIEN quand un message FCM arrive alors que l'application est au premier
+  # plan : c'est ce paquet qui dessine la bannière dans ce cas, et qui déclare le canal de
+  # notification exigé depuis Android 8.
+  flutter_local_notifications: ^17.2.4
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

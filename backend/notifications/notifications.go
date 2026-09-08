@@ -156,6 +156,16 @@ func JetonFCMUtilisateur(db *gorm.DB, userID uuid.UUID) string {
 	return sess.JetonFCM
 }
 
+// OublierJetonFCM efface un jeton d'appareil que Firebase a déclaré mort (application
+// désinstallée, données effacées). Sans cet oubli, le worker le rejouerait à chaque
+// notification et l'échec reviendrait indéfiniment dans les journaux.
+func OublierJetonFCM(db *gorm.DB, jeton string) {
+	if jeton == "" {
+		return
+	}
+	db.Model(&auth.SessionUtilisateur{}).Where("jeton_fcm = ?", jeton).Update("jeton_fcm", "")
+}
+
 // Enregistrer monte les routes des notifications (toutes protégées).
 func Enregistrer(api fiber.Router) {
 	grp := api.Group("/notifications", auth.Connecte())

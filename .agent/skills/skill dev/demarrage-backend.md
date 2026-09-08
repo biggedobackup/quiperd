@@ -305,6 +305,28 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
     (dépôt crédité). Un type ne sert jamais pour un autre événement (pas de `match_termine`
     pour une expiration de défi). Toute notification créée dans une transaction est passée au
     `*tempsreel.Tampon` de l'appelant (§5 bis) : elle n'est diffusée qu'après le commit.
+
+    **Envoi réel (FCM HTTP v1).** `utils/fcm.go` porte le client : il lit le compte de service
+    désigné par `FCM_CREDENTIALS_FILE`, signe une assertion JWT RS256 et l'échange contre un
+    jeton d'accès qu'il garde en mémoire jusqu'à expiration. L'échange est fait à la main plutôt
+    qu'avec `golang.org/x/oauth2/google` : trente lignes, une dépendance de moins sur un chemin
+    qui touche à une clé privée, et `golang-jwt` est déjà là. Trois règles apprises :
+
+    - **`FCM_ACTIF=false` n'arrête rien.** Toute la chaîne (notification en base, file Asynq,
+      worker) continue de tourner, seul l'envoi est remplacé par une ligne de journal : la
+      recette passe sans compte Firebase. À l'inverse, `FCM_ACTIF=true` avec un fichier
+      illisible **arrête le démarrage** — un push muet qu'on croit parti est pire qu'un push
+      éteint qu'on sait éteint.
+    - **Un jeton d'appareil mort n'est pas une panne.** FCM répond 404 / `registration-token-not-registered`
+      quand l'application a été désinstallée : `gererPush` traduit ça en `ErrJetonFCMInvalide`,
+      oublie le jeton (`notifications.OublierJetonFCM`) et rend la tâche pour faite. Réessayer
+      trois fois un jeton mort ne remplirait que les journaux.
+    - **`defi_cree` n'est PAS une notification en base.** C'est une DIFFUSION (tâche
+      `notification:diffusion`) vers le topic `defis-ouverts`, avec une condition qui exclut
+      l'auteur via son topic personnel `utilisateur-<id>`. Une ligne par joueur et par défi pour
+      un événement adressé à personne en particulier n'aurait aucun sens. Contrepartie mesurée
+      en séance : **la diffusion par topic met de 10 s à une minute** à arriver, contre moins
+      d'une seconde par jeton. Réservée aux annonces ; jamais pour un événement de match.
 13. **administration/** — statistiques globales, gestion des litiges, `configurations_financieres`
     (commission, mise minimale/maximale, frais de retrait **et les trois délais de la machine à
     états**, lus par `DelaiConfirmation` / `DelaiPreuve` / `DelaiChoixNul` — repli sur la valeur
@@ -347,12 +369,13 @@ backend/
 │   ├── logger.go
 │   ├── reponses.go
 │   ├── validation.go
-│   ├── notifications_push.go   # FCM
+│   ├── fcm.go                  # client FCM HTTP v1 : compte de service -> jeton OAuth2, envoi par jeton et par condition de topics
+│   ├── notifications_push.go   # FCM : EnvoyerPush (un appareil) et EnvoyerPushDefiCree (diffusion)
 │   └── stockage.go             # écriture/lecture des preuves sur le disque local
 ├── jobs/
 │   └── client.go            # client Asynq : noms des tâches, charges utiles, fonctions d'enfilage (aucun import métier)
 ├── worker/
-│   └── worker.go            # serveur Asynq : handlers defi:expiration, paiement:reverification, notification:push, litige:relance, match:echeance
+│   └── worker.go            # serveur Asynq : handlers defi:expiration, paiement:reverification, notification:push, notification:diffusion, litige:relance, match:echeance
 ├── tempsreel/               # couche WebSocket (§5 bis) — n'importe que config et utils
 │   ├── evenements.go        # CONTRAT GELÉ : noms d'événements, salons, charges utiles (miroir de frontend/src/temps-reel/evenements.ts)
 │   ├── hub.go               # registre des connexions et des salons, boucle du compteur

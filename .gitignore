@@ -12,6 +12,9 @@
 *.keystore
 google-services.json
 GoogleService-Info.plist
+# Compte de service Firebase (clé privée RSA du backend, désigné par FCM_CREDENTIALS_FILE).
+# Il donne le droit d'écrire à TOUS les appareils du projet : il ne va nulle part dans git.
+backend/secrets/
 
 # Backend Go
 backend/defisenligne-backend

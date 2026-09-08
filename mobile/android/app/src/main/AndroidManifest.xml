@@ -2,6 +2,10 @@
     <!-- Appels à l'API, socket temps réel et images distantes. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Notifications push. Depuis Android 13 la permission se DEMANDE à l'exécution : la
+         déclarer ici ne suffit pas, l'application doit la solliciter (voir services/push.dart). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:label="Défis en Ligne"
         android:name="${applicationName}"
@@ -57,6 +61,21 @@
                 <data android:scheme="defisenligne" android:host="defis"/>
             </intent-filter>
         </activity>
+        <!-- Canal, icône et teinte utilisés quand un message FCM arrive alors que l'application
+             est FERMÉE : c'est le système qui dessine la bannière, il ne passe pas par le code
+             Dart. Le canal doit porter le même identifiant que celui créé côté application ET
+             que celui envoyé par le serveur (backend/utils/fcm.go), sinon Android en fabrique un
+             second, sans son, et les notifications tombent sans se faire remarquer. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="defis_en_ligne_defaut" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/couleur_notification" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

@@ -2,6 +2,7 @@ package defis
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"defisenligne/backend/administration"
@@ -176,6 +177,9 @@ func Creer(c fiber.Ctx) error {
 	expiration := time.Now().UTC().Add(time.Duration(dureeHeures) * time.Hour)
 
 	var defi Defi
+	// Retenue hors de la transaction : elle porte les libellés joints (nom du jeu, pseudo du
+	// créateur) dont l'annonce push a besoin, et qu'un simple `Defi` n'a pas.
+	var ligneCreee *DefiListe
 	tampon := tempsreel.NouveauTampon()
 	err := config.DB.Transaction(func(tx *gorm.DB) error {
 		defi = Defi{
@@ -197,6 +201,7 @@ func Creer(c fiber.Ctx) error {
 		// Le défi apparaît en direct dans « Défis ouverts », y compris chez son créateur :
 		// la charge est la ligne complète de GET /api/defis/ouverts (libellés joints).
 		if ligne, e := chargerLigne(tx, defi.ID); e == nil {
+			ligneCreee = ligne
 			tampon.Ajouter(tempsreel.EvtDefiCree, ligne, tempsreel.SalonDefisPublics)
 		}
 		portefeuilles.AjouterMiseEtEtat(tx, tampon, mise.ID, userID)
@@ -209,6 +214,23 @@ func Creer(c fiber.Ctx) error {
 		return utils.Erreur(c, fiber.StatusInternalServerError, "création du défi impossible")
 	}
 	tampon.Diffuser()
+
+	// Un défi ouvert n'intéresse personne s'il reste invisible : l'événement temps réel ne
+	// touche que les joueurs qui ont l'application OUVERTE sur la liste. Le push va chercher
+	// les autres — c'est ce qui donne au défi une chance d'être relevé avant d'expirer.
+	//
+	// Aucune notification en base ici, contrairement aux autres annonces : ce serait une ligne
+	// par joueur et par défi, pour un événement qui n'est pas adressé à quelqu'un en
+	// particulier. Le push part vers un abonnement, en un seul appel.
+	if ligneCreee != nil {
+		jobs.EnfilerPushDefiCree(
+			userID.String(),
+			"Nouveau défi ouvert",
+			fmt.Sprintf("%s propose un défi sur %s pour %s F.",
+				ligneCreee.CreateurNom, ligneCreee.JeuNom, defi.MontantMise.StringFixed(0)),
+			defi.ID.String(),
+		)
+	}
 
 	jobs.EnfilerDefiExpiration(defi.ID.String(), time.Until(expiration))
 	return utils.OK(c, defi, fiber.StatusCreated)

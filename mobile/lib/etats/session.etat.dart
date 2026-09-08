@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../modeles/utilisateur.modele.dart';
@@ -5,6 +7,7 @@ import '../noyau/client_api.dart';
 import '../noyau/resultat.dart';
 import '../noyau/session_locale.dart';
 import '../services/auth.service.dart';
+import '../services/push.service.dart';
 import '../temps_reel/client_temps_reel.dart';
 import '../temps_reel/evenements.dart';
 
@@ -128,6 +131,9 @@ class SessionEtat extends ChangeNotifier {
   }
 
   Future<void> _terminer({String? message}) async {
+    // Avant tout le reste : un téléphone prêté ne doit plus recevoir « votre défi a été
+    // rejoint » pour le compte du joueur précédent.
+    await Push.desactiver();
     _direct.deconnecter(oublierSalons: true);
     await SessionLocale.effacerSession();
     ClientApi.definirJeton(null);
@@ -163,6 +169,15 @@ class SessionEtat extends ChangeNotifier {
     if (id == null) return;
     _direct.reprendre();
     _direct.abonner([Salons.utilisateur(id), Salons.defisPublics]);
+
+    // Le socket ne couvre que l'application ouverte ; le push prend le relais dès qu'elle
+    // passe en arrière-plan. Les deux se montent au même endroit parce qu'ils répondent à la
+    // même question — « comment le joueur apprend-il qu'il se passe quelque chose ? » — et
+    // qu'un seul des deux monté, c'est un joueur prévenu la moitié du temps.
+    //
+    // Volontairement pas attendu : demander la permission ouvre une boîte de dialogue système,
+    // et l'ouverture de session ne doit pas rester suspendue à la réponse du joueur.
+    unawaited(Push.activer(id));
   }
 
   @override

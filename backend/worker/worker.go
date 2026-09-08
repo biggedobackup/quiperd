@@ -41,6 +41,7 @@ func Demarrer(cfg *config.Config) *asynq.Server {
 	mux.HandleFunc(jobs.TypeDefiExpiration, gererDefiExpiration)
 	mux.HandleFunc(jobs.TypePaiementReverif, gererPaiementReverif)
 	mux.HandleFunc(jobs.TypeNotificationPush, gererPush)
+	mux.HandleFunc(jobs.TypeNotificationDiffusion, gererPushDiffusion)
 	mux.HandleFunc(jobs.TypeLitigeRelance, gererLitigeRelance)
 	mux.HandleFunc(jobs.TypeMatchEcheance, gererMatchEcheance)
 	mux.HandleFunc(jobs.TypeCourrielEnvoi, gererCourriel)
@@ -119,7 +120,26 @@ func gererPush(ctx context.Context, t *asynq.Task) error {
 		return nil
 	}
 	jeton := notifications.JetonFCMUtilisateur(config.DB, id)
-	return utils.EnvoyerPush(jeton, p.Titre, p.Message, p.Type)
+	// Pas d'identifiant de cible : la notification n'en porte pas encore en base. Le type
+	// suffit à ouvrir la bonne SECTION ; ouvrir le match précis demanderait une colonne de plus.
+	err = utils.EnvoyerPush(jeton, p.Titre, p.Message, p.Type, "")
+	if errors.Is(err, utils.ErrJetonFCMInvalide) {
+		// Appareil disparu : on oublie son jeton et on considère la tâche faite. Réessayer
+		// trois fois un jeton mort ne ferait que polluer les journaux.
+		notifications.OublierJetonFCM(config.DB, jeton)
+		return nil
+	}
+	return err
+}
+
+// gererPushDiffusion annonce un nouveau défi à la salle. Contrairement à `gererPush`, il ne vise
+// pas un appareil : FCM distribue lui-même le message aux abonnés du topic.
+func gererPushDiffusion(ctx context.Context, t *asynq.Task) error {
+	var p jobs.ChargeNotificationDiffusion
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return err
+	}
+	return utils.EnvoyerPushDefiCree(p.AuteurID, p.Titre, p.Message, p.DefiID)
 }
 
 func gererLitigeRelance(ctx context.Context, t *asynq.Task) error {

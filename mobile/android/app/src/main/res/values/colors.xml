@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Teinte de la petite icône dans la barre d'état : le vert d'identité (Couleurs.vert). -->
+    <color name="couleur_notification">#FF15803D</color>
+</resources>

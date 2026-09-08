@@ -96,13 +96,48 @@ Document de référence pour le développement de l'application mobile **QUI PER
 | **Icônes** | `cupertino_icons` + `Icons` Material | Aucune icône SVG copiée, aucun emoji dans l'interface |
 | **Lint** | `flutter_lints` | `flutter analyze` doit rester à zéro avertissement |
 
-**Deuxième phase — notifications push (pas encore dans `pubspec.yaml`).** Le backend est déjà
-prêt : `POST /api/notifications/jeton-fcm` enregistre le jeton dans
-`sessions_utilisateurs.jeton_fcm`, et le worker envoie réellement le push
-(`backend/worker/worker.go` → `utils.EnvoyerPush`). Brancher `firebase_messaging` demande
-d'ajouter le paquet, le fichier `google-services.json` et le plugin Gradle ; tant que ce n'est
-pas fait, **les notifications arrivent par le socket** quand l'application est ouverte, ce qui
-couvre déjà tout le parcours de match.
+### Notifications push — Firebase Cloud Messaging
+
+Branché en septembre 2026 sur le projet Firebase **`defisenligne`** (application Android
+`com.defisenligne.app`). Paquets : `firebase_core`, `firebase_messaging`,
+`flutter_local_notifications`. Tout vit dans `lib/services/push.service.dart`.
+
+**Le push ne remplace pas le socket, il le prolonge.** Le temps réel couvre l'application
+OUVERTE ; il meurt avec le premier plan. FCM va chercher le joueur qui a rangé son téléphone.
+Les deux se montent au même endroit, dans `SessionEtat._ouvrirLeDirect()` — un seul des deux
+branché, c'est un joueur prévenu la moitié du temps.
+
+Quatre chemins, et il faut les traiter tous les quatre :
+
+| Situation | Qui affiche | Où c'est câblé |
+|---|---|---|
+| Application fermée / en arrière-plan | Android, à partir du bloc `notification` | `AndroidManifest.xml` (canal, icône, teinte) |
+| Application au premier plan | `flutter_local_notifications` | `Push._surMessageAuPremierPlan` |
+| Appui sur la bannière, application morte | — | `getInitialMessage()` |
+| Appui sur la bannière, application en veille | — | `onMessageOpenedApp` |
+
+Pièges vérifiés en séance, à ne pas réapprendre :
+
+- **Le canal doit porter le même identifiant aux trois endroits** : `AndroidManifest.xml`,
+  `Push._canal` et `backend/utils/fcm.go` (`defis_en_ligne_defaut`). S'ils divergent, Android
+  fabrique un second canal, sans son, et les notifications tombent sans se faire remarquer.
+- **L'icône de la barre d'état n'est pas le logo.** Depuis Android 5, seul l'alpha est gardé :
+  une icône couleur devient un carré blanc. `res/drawable-*/ic_notification.png` est une
+  silhouette blanche, générée depuis `ic_launcher_foreground.png`.
+- **`POST_NOTIFICATIONS` se DEMANDE** depuis Android 13 : la déclarer au manifeste ne suffit
+  pas, `requestPermission()` doit être appelé. Un refus n'est pas une erreur — l'application
+  marche sans.
+- **`flutter_local_notifications` exige le désucrage** (`isCoreLibraryDesugaringEnabled` +
+  `desugar_jdk_libs`), sans quoi la compilation Android s'arrête net.
+- **Un défi ouvert est annoncé par TOPIC**, pas jeton par jeton : `defis-ouverts`, avec une
+  condition qui exclut l'auteur grâce à son topic personnel `utilisateur-<id>`. Un appel FCM au
+  lieu d'un par joueur. En contrepartie, **la diffusion par topic met de 10 s à une minute** à
+  atteindre l'appareil, là où un envoi par jeton arrive dans la seconde. C'est acceptable pour
+  « un défi vient de s'ouvrir » ; ne jamais s'en servir pour un événement de match.
+- **La désinscription se fait AVANT `deleteToken()`** : effacer le jeton coupe aussi les
+  abonnements, et les `unsubscribeFromTopic` qui suivraient échoueraient.
+- `google-services.json` est **ignoré par git** : il faut le reprendre dans la console Firebase
+  sur une machine neuve, sinon `Firebase.initializeApp()` échoue au démarrage.
 
 ### Charte Graphique — les tokens du web, à l'identique
 

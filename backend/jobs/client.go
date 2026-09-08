@@ -18,7 +18,10 @@ const (
 	TypeDefiExpiration   = "defi:expiration"
 	TypePaiementReverif  = "paiement:reverification"
 	TypeNotificationPush = "notification:push"
-	TypeLitigeRelance    = "litige:relance"
+	// TypeNotificationDiffusion annonce un événement public (un défi vient d'être ouvert) à
+	// tous les appareils abonnés, en un seul appel — pas une notification par joueur.
+	TypeNotificationDiffusion = "notification:diffusion"
+	TypeLitigeRelance         = "litige:relance"
 	// TypeMatchEcheance déclenche l'expiration d'un chrono de match : confirmation du
 	// score (victoire au déclarant), dépôt des preuves (ouverture du litige) ou choix
 	// après un nul (partage automatique). Le handler est idempotent.
@@ -73,6 +76,16 @@ type ChargeNotificationPush struct {
 	Type          string `json:"type"`
 }
 
+// ChargeNotificationDiffusion porte une annonce publique. Pas d'identifiant de destinataire :
+// la diffusion vise un ABONNEMENT (topic FCM), et `AuteurID` sert seulement à retirer l'auteur
+// du lot.
+type ChargeNotificationDiffusion struct {
+	AuteurID string `json:"auteur_id"`
+	Titre    string `json:"titre"`
+	Message  string `json:"message"`
+	DefiID   string `json:"defi_id"`
+}
+
 type ChargeLitigeRelance struct {
 	LitigeID string `json:"litigeId"`
 }
@@ -106,6 +119,16 @@ func EnfilerDefiExpiration(defiID string, dans time.Duration) {
 func EnfilerPaiementReverif(paiementID string, tentative int, dans time.Duration) {
 	enfiler(TypePaiementReverif, ChargePaiementReverif{PaiementID: paiementID, Tentative: tentative},
 		asynq.ProcessIn(dans), asynq.MaxRetry(2))
+}
+
+// EnfilerPushDefiCree programme l'annonce d'un nouveau défi à tous les appareils abonnés.
+//
+// Elle passe par la file d'attente comme les autres pushs : un FCM lent ou indisponible ne doit
+// jamais retarder la réponse HTTP du joueur qui vient de créer son défi.
+func EnfilerPushDefiCree(auteurID, titre, message, defiID string) {
+	enfiler(TypeNotificationDiffusion, ChargeNotificationDiffusion{
+		AuteurID: auteurID, Titre: titre, Message: message, DefiID: defiID,
+	}, asynq.MaxRetry(3), asynq.Queue("push"))
 }
 
 // EnfilerPush programme l'envoi d'une notification push FCM.

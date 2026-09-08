@@ -50,7 +50,16 @@ func main() {
 	if manques := cfg.VerifierProduction(); len(manques) > 0 {
 		utils.Log.Fatal("configuration de production incomplète : " + strings.Join(manques, " ; "))
 	}
+	// Notifications push : on ne démarre avec FCM_ACTIF que si le compte de service est
+	// réellement exploitable. Un push silencieusement muet serait pire qu'un push désactivé —
+	// on croirait les joueurs prévenus alors qu'ils ne le sont pas.
 	utils.PushActif = cfg.FCMActif
+	if cfg.FCMActif {
+		if err := utils.InitialiserFCM(cfg.FCMCredentialsFile); err != nil {
+			utils.Log.Fatal("FCM_ACTIF=true mais le compte de service est inutilisable : " + err.Error())
+		}
+		utils.Log.Info("notifications push actives (projet Firebase " + utils.ProjetFCM() + ")")
+	}
 
 	if err := config.ConnecterDB(cfg); err != nil {
 		utils.Log.Fatal("connexion PostgreSQL impossible: " + err.Error())
