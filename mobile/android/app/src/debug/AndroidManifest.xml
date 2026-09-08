@@ -5,7 +5,12 @@
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
-    <!-- La politique réseau (HTTP en clair + certificats installés sur l'appareil)
-         est désormais dans le source set `main` : elle s'applique à tous les types de
-         compilation, pas seulement à `debug`. Voir `main/res/xml/network_security_config.xml`. -->
+    <!-- HTTP en clair, pour le développement seulement.
+         `main` ne le déclare plus : l'APK distribué aux joueurs ne parle qu'en HTTPS. -->
+    <application android:usesCleartextTraffic="true" />
+
+    <!-- La politique réseau permissive (HTTP en clair vers 10.0.2.2, et les certificats
+         installés sur l'appareil traités comme des autorités valides) vit dans
+         `debug/res/xml/network_security_config.xml` : Android la substitue à celle du source
+         set `main`, qui est stricte. Rien à commenter ni décommenter à la main. -->
 </manifest>

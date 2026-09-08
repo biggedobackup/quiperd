@@ -31,10 +31,16 @@ export function SectionApplication({ liens, numero = '02' }: { liens: LiensAppli
         */}
         <div className="flex flex-wrap justify-center gap-6 sm:gap-8">
           <Telephone
-            magasin="Google Play"
+            // Tant que l'application n'est pas sur Google Play, elle se télécharge
+            // directement. Écrire « Google Play » au-dessus d'un lien qui n'y mène pas
+            // tromperait le joueur sur ce qui va se passer quand il appuie — et sur une
+            // plateforme où l'on dépose de l'argent, c'est le genre de petite fausseté qui
+            // coûte cher. Le libellé suit donc la destination réelle du lien.
+            magasin={estLienMagasin(liens.android) ? 'Google Play' : 'Téléchargement direct'}
             plateforme="Android"
             iconeMarque={icone.android}
             lien={liens.android}
+            detail={detailApk(liens)}
           />
           <Telephone
             magasin="App Store"
@@ -52,6 +58,26 @@ export function SectionApplication({ liens, numero = '02' }: { liens: LiensAppli
   )
 }
 
+/** Vrai si l'adresse mène à un magasin d'applications plutôt qu'à un fichier à installer. */
+function estLienMagasin(lien: string | null): boolean {
+  return !!lien && /play\.google\.com|apps\.apple\.com/.test(lien)
+}
+
+/**
+ * Ligne d'information sous le bouton Android : version et poids, séparés par un point médian.
+ *
+ * Un magasin affiche déjà ces informations sur sa fiche ; un téléchargement direct, non. Or
+ * c'est précisément là qu'elles comptent : le joueur est sur son forfait mobile et il a le
+ * droit de savoir ce qu'il engage avant d'appuyer. Renvoie `null` si l'environnement ne
+ * renseigne rien — mieux vaut ne rien afficher qu'un chiffre inventé.
+ */
+function detailApk(liens: LiensApplication): string | null {
+  if (!liens.android || estLienMagasin(liens.android)) return null
+  const morceaux = [liens.androidVersion && `Version ${liens.androidVersion}`, liens.androidTaille]
+  const utiles = morceaux.filter(Boolean)
+  return utiles.length ? utiles.join(' · ') : null
+}
+
 /**
  * Un téléphone dessiné en CSS : cadre noir épais, haut-parleur, écran, barre d'accueil.
  *
@@ -64,11 +90,14 @@ function Telephone({
   plateforme,
   iconeMarque,
   lien,
+  detail = null,
 }: {
   magasin: string
   plateforme: string
   iconeMarque: IconDefinition
   lien: string | null
+  /** Précision affichée sous le bouton (version, poids). Ignorée s'il n'y a pas de lien. */
+  detail?: string | null
 }) {
   return (
     <div className="w-full max-w-[260px]">
@@ -98,7 +127,7 @@ function Telephone({
               rel="noopener noreferrer"
               className="etiquette flex min-h-11 items-center justify-center gap-2 rounded-xl bg-vert px-3 text-craie transition-colors hover:bg-vert-sombre"
             >
-              Télécharger l’app <FontAwesomeIcon icon={icone.suivant} />
+              Télécharger <FontAwesomeIcon icon={icone.suivant} />
             </a>
           ) : (
             <span
@@ -110,6 +139,9 @@ function Telephone({
               Bientôt disponible
             </span>
           )}
+          {lien && detail ? (
+            <p className="mt-2 text-center text-legende text-muet">{detail}</p>
+          ) : null}
         </div>
 
         {/* Barre d'accueil, en bas de l'écran comme sur un vrai téléphone. */}

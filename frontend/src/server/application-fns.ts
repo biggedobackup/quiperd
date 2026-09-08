@@ -14,6 +14,13 @@ export interface LiensApplication {
   android: string | null
   /** Fiche App Store. `null` tant que rien n'est publié. */
   ios: string | null
+  /**
+   * Version et poids de l'APK Android, affichés sous le bouton quand le téléchargement est
+   * direct (hors magasin). Les deux sont facultatifs : un magasin affiche déjà ces
+   * informations sur sa propre fiche, et une valeur inventée serait pire que rien.
+   */
+  androidVersion: string | null
+  androidTaille: string | null
 }
 
 /** Une valeur d'environnement vide ou faite d'espaces vaut « pas encore publié ». */
@@ -26,5 +33,7 @@ export const obtenirLiensApplication = createServerFn({ method: 'GET' }).handler
   async (): Promise<LiensApplication> => ({
     android: nettoyer(process.env.APP_ANDROID_URL),
     ios: nettoyer(process.env.APP_IOS_URL),
+    androidVersion: nettoyer(process.env.APP_ANDROID_VERSION),
+    androidTaille: nettoyer(process.env.APP_ANDROID_TAILLE),
   }),
 )

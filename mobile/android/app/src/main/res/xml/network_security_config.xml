@@ -1,27 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Politique réseau d'Android, pendant natif de `lib/noyau/reseau.dart`.
+  Politique réseau de l'APK DISTRIBUÉ (release et profile), pendant natif de
+  `lib/noyau/reseau.dart`.
 
-  1. `cleartextTrafficPermitted="true"` : l'API interne est servie en HTTP en clair
-     (10.0.2.2 depuis l'émulateur, une adresse 192.168.x.x depuis un téléphone du
-     réseau local). Depuis Android 9, le système coupe ces requêtes par défaut et
-     l'application semble hors ligne alors que le serveur répond.
-  2. Ancre de confiance `user` : un certificat auto-signé ou une autorité maison
-     installée sur l'appareil devient une autorité valide, y compris pour la WebView
-     du paiement, qui n'est PAS concernée par les overrides Dart.
+  Elle est volontairement stricte :
 
-  Ce fichier vaut pour TOUS les types de compilation (il est dans le source set
-  `main`), et non plus pour le seul `debug` : la recette se fait sur des APK release
-  installés à la main, qui doivent joindre les mêmes serveurs internes.
-  Pour revenir à une politique stricte, retirer l'attribut `networkSecurityConfig`
-  du manifeste et compiler avec l'option `dart-define` RESEAU_PERMISSIF=false
-  (la double barre d'option ne peut pas être écrite ici : XML l'interdit dans un commentaire).
+  1. `cleartextTrafficPermitted="false"` — aucun HTTP en clair. L'application ne parle plus
+     qu'à https://quiperd.ouesergegedeon.com, qui porte un certificat valide.
+  2. Ancres de confiance : le magasin `system` SEUL. Pas de `user`.
+
+  Ce second point est celui qui compte. Une ancre `user` fait d'un certificat installé sur le
+  téléphone — par le joueur lui-même, ou par une application qui l'y aura poussé — une autorité
+  valide pour NOTRE trafic. Sur une plateforme où l'on dépose de l'argent et où transitent des
+  jetons de session, cela revient à laisser n'importe qui s'interposer entre le joueur et le
+  serveur avec son propre certificat. Acceptable sur un poste de développement qui vise des
+  serveurs internes ; pas dans un APK qu'on met en téléchargement.
+
+  La version permissive (HTTP en clair vers 10.0.2.2, ancre `user` pour les serveurs internes
+  et pour la WebView du paiement) vit dans le source set `debug` :
+  `app/src/debug/res/xml/network_security_config.xml`. Android la substitue à celle-ci pour les
+  compilations de debug, sans que rien n'ait à être commenté ou décommenté à la main.
+
+  Pour joindre malgré tout un serveur interne depuis une compilation release — recette sur un
+  réseau local, par exemple — compiler avec l'option `dart-define` RESEAU_PERMISSIF=true ET
+  revenir temporairement à l'ancienne politique. Les deux vont ensemble : les overrides Dart ne
+  couvrent pas la WebView, et cette politique-ci ne couvre pas `HttpClient`.
+  (La double barre de l'option ne peut pas être écrite ici : XML l'interdit dans un
+  commentaire, et c'est exactement ce qui a fait échouer une compilation.)
 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
 </network-security-config>

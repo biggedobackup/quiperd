@@ -1,9 +1,26 @@
+// Import explicite : dans un script Gradle Kotlin, `java` désigne l'extension Gradle du même
+// nom et masque le paquet — `java.util.Properties` ne se résout pas.
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
     id("com.google.gms.google-services")
+}
+
+// Clé de signature de production, lue dans `android/key.properties` (non versionné, comme le
+// keystore lui-même). Le fichier est ABSENT sur un poste qui n'a pas à publier : dans ce cas on
+// retombe sur la clé de debug, et `flutter run` continue de marcher sans rien configurer.
+//
+// Signer pour de vrai n'est pas une coquetterie ici : la clé de debug a un mot de passe public
+// et connu de tous. Un APK signé avec elle peut être remplacé par n'importe qui, et Android
+// accepterait la mise à jour — sur une application où l'on dépose de l'argent, c'est
+// inacceptable.
+val proprietesCle = Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
 }
 
 android {
@@ -47,11 +64,22 @@ android {
             (project.findProperty("deep-link-host") as String?) ?: "10.0.2.2"
     }
 
+    signingConfigs {
+        if (proprietesCle.isNotEmpty()) {
+            create("production") {
+                storeFile = rootProject.file(proprietesCle.getProperty("storeFile"))
+                storePassword = proprietesCle.getProperty("storePassword")
+                keyAlias = proprietesCle.getProperty("keyAlias")
+                keyPassword = proprietesCle.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // La clé de production quand elle est là, celle de debug sinon — de sorte que
+            // `flutter run --release` marche encore sur un poste sans keystore.
+            signingConfig = signingConfigs.findByName("production") ?: signingConfigs.getByName("debug")
         }
     }
 }
