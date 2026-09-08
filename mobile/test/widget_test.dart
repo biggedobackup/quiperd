@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:provider/provider.dart';
 
 import 'package:defisenligne/composants/communs/badge_statut.dart';
 import 'package:defisenligne/composants/communs/squelette.dart';
@@ -9,6 +10,7 @@ import 'package:defisenligne/composants/communs/pile_paresseuse.dart';
 import 'package:defisenligne/composants/joueur/compte_a_rebours.dart';
 import 'package:defisenligne/composants/joueur/feuilles/depot.feuille.dart';
 import 'package:defisenligne/composants/joueur/tableau_score.dart';
+import 'package:defisenligne/etats/catalogue.etat.dart';
 import 'package:defisenligne/modeles/match_defi.modele.dart';
 import 'package:defisenligne/modeles/paiement.modele.dart';
 import 'package:defisenligne/noyau/format.dart';
@@ -180,14 +182,22 @@ void main() {
 
   group('Feuille de dépôt', () {
     /// Ouvre la feuille comme le fait l'écran du portefeuille.
+    ///
+    /// La feuille ne reçoit plus la liste en paramètre : elle la lit dans `CatalogueEtat`, ce
+    /// qui lui permet de se reconstruire toute seule quand la configuration du serveur change
+    /// pendant qu'elle est ouverte. Le test monte donc l'état, comme l'application.
     Future<void> ouvrir(WidgetTester tester, List<PrestatairePublic> prestataires) async {
-      await tester.pumpWidget(MaterialApp(
-        home: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () => ouvrirDepot(context, prestataires: prestataires),
-                child: const Text('ouvrir'),
+      final catalogue = CatalogueEtat()..definirPrestataires(prestataires);
+      await tester.pumpWidget(ChangeNotifierProvider<CatalogueEtat>.value(
+        value: catalogue,
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => ouvrirDepot(context),
+                  child: const Text('ouvrir'),
+                ),
               ),
             ),
           ),
@@ -201,7 +211,11 @@ void main() {
         (WidgetTester tester) async {
       // Le backend refuse un prestataire non configuré : proposer le formulaire
       // reviendrait à envoyer le joueur droit sur un 400 incompréhensible.
+      //
+      // La feuille commence par REVÉRIFIER auprès du serveur — ici injoignable, donc la liste
+      // reste vide — avant d'annoncer l'indisponibilité. On laisse cette tentative se terminer.
       await ouvrir(tester, const []);
+      await tester.pumpAndSettle();
       expect(find.textContaining('Aucun moyen de paiement'), findsOneWidget);
       expect(find.text('MONTANT'), findsNothing);
     });

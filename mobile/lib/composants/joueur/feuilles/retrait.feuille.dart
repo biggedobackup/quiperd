@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../../etats/catalogue.etat.dart';
 import '../../../modeles/paiement.modele.dart';
 import '../../../noyau/format.dart';
 import '../../../theme/couleurs.dart';
@@ -28,7 +30,6 @@ Future<DemandeRetrait?> ouvrirRetrait(
   required double retirable,
   required double nonJoue,
   required double tauxFrais,
-  required List<PrestatairePublic> prestataires,
   String? telephone,
 }) {
   return showModalBottomSheet<DemandeRetrait>(
@@ -39,7 +40,6 @@ Future<DemandeRetrait?> ouvrirRetrait(
       retirable: retirable,
       nonJoue: nonJoue,
       tauxFrais: tauxFrais,
-      prestataires: prestataires,
       telephone: telephone,
     ),
   );
@@ -50,7 +50,6 @@ class _FeuilleRetrait extends StatefulWidget {
     required this.retirable,
     required this.nonJoue,
     required this.tauxFrais,
-    required this.prestataires,
     this.telephone,
   });
 
@@ -61,8 +60,6 @@ class _FeuilleRetrait extends StatefulWidget {
   final double nonJoue;
   final double tauxFrais;
 
-  /// Moyens de paiement annoncés par le backend — jamais une liste en dur ici.
-  final List<PrestatairePublic> prestataires;
   final String? telephone;
 
   @override
@@ -73,7 +70,18 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
   final _cleFormulaire = GlobalKey<FormState>();
   final _montant = TextEditingController(text: '1000');
   late final _numero = TextEditingController(text: widget.telephone ?? '');
-  late String _prestataire = widget.prestataires.isEmpty ? '' : widget.prestataires.first.code;
+  /// `null` tant que le joueur n'a rien choisi : voir la note de `depot.feuille.dart`.
+  String? _prestataireChoisi;
+
+  List<PrestatairePublic> get _prestataires => context.watch<CatalogueEtat>().prestataires;
+
+  PrestatairePublic? get _choisi {
+    final liste = _prestataires;
+    if (liste.isEmpty) return null;
+    return liste.where((p) => p.code == _prestataireChoisi).firstOrNull ?? liste.first;
+  }
+
+  String get _prestataire => _choisi?.code ?? '';
 
   double get _valeur => double.tryParse(_montant.text.trim().replaceAll(',', '.')) ?? 0;
   double get _frais => _valeur * widget.tauxFrais;
@@ -88,12 +96,15 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
 
   void _valider() {
     if (!(_cleFormulaire.currentState?.validate() ?? false)) return;
-    Navigator.of(context).pop(DemandeRetrait(_valeur, _prestataire, _numero.text.trim()));
+    final code = _choisi?.code;
+    if (code == null) return; // la passerelle a disparu entre-temps : ne rien envoyer
+    Navigator.of(context).pop(DemandeRetrait(_valeur, code, _numero.text.trim()));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.prestataires.isEmpty) return const AucunPrestataire(pour: 'retrait');
+    final prestataires = _prestataires;
+    if (prestataires.isEmpty) return const AucunPrestataire(pour: 'retrait');
 
     final insuffisant = _total > widget.retirable;
 
@@ -170,18 +181,18 @@ class _FeuilleRetraitState extends State<_FeuilleRetrait> {
                   ),
                 ),
                 const SizedBox(height: 18),
-                if (widget.prestataires.length > 1)
+                if (prestataires.length > 1)
                   ListeDeroulante(
                     label: 'Prestataire',
                     valeur: _prestataire,
-                    options: widget.prestataires
+                    options: prestataires
                         .map((p) => OptionListe(p.code, p.libelle))
                         .toList(),
                     onChanged: (v) =>
-                        setState(() => _prestataire = v ?? widget.prestataires.first.code),
+                        setState(() => _prestataireChoisi = v),
                   )
                 else
-                  Text('Transfert via ${widget.prestataires.first.libelle}.', style: Typo.petit),
+                  Text('Transfert via ${prestataires.first.libelle}.', style: Typo.petit),
                 const SizedBox(height: 18),
                 ChampTexte(
                   controleur: _numero,

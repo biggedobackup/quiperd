@@ -33,6 +33,37 @@ class CatalogueEtat extends ChangeNotifier {
   List<PrestatairePublic> get prestataires => _prestataires;
   bool get charge => _charge;
 
+  /// Relit la liste des passerelles, sans toucher au reste du catalogue.
+  ///
+  /// Le catalogue (jeux, plateformes, règles) ne bouge presque jamais et se contente d'être
+  /// chargé une fois. Les passerelles, elles, dépendent de la CONFIGURATION du serveur : une
+  /// clé qu'on renseigne, un prestataire qu'on rétablit, et la liste change sans que
+  /// l'application soit au courant. Or elle vit longtemps sur un téléphone — on la garde
+  /// ouverte des jours durant.
+  ///
+  /// Vécu en production : la configuration du serveur a été corrigée, le site s'est remis à
+  /// proposer MoneyFusion au bout de cinq minutes (péremption TanStack Query), mais
+  /// l'application a continué d'afficher « aucun moyen de paiement n'est disponible » — elle
+  /// gardait la liste vide lue au lancement, et seule une fermeture complète la débloquait.
+  /// Un joueur ne devine pas cela : il croit la plateforme en panne.
+  /// Injecte la liste sans passer par le réseau — réservé aux tests de widgets, qui doivent
+  /// pouvoir monter une feuille de dépôt dans un état donné sans serveur.
+  @visibleForTesting
+  void definirPrestataires(List<PrestatairePublic> liste) {
+    _prestataires = liste;
+    notifyListeners();
+  }
+
+  Future<void> rafraichirPrestataires() async {
+    final r = await PaiementsService.prestataires();
+    if (r is Succes<List<PrestatairePublic>>) {
+      _prestataires = r.donnees;
+      notifyListeners();
+    }
+    // Un échec réseau ne vide PAS la liste : mieux vaut proposer une passerelle qui existait
+    // il y a une minute que d'annoncer à tort qu'il n'y en a aucune.
+  }
+
   Jeu? jeu(String id) => _jeux.where((j) => j.id == id).firstOrNull;
   Plateforme? plateforme(String id) => _plateformes.where((p) => p.id == id).firstOrNull;
 

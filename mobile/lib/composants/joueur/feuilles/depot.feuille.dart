@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
+import '../../../etats/catalogue.etat.dart';
 import '../../../modeles/paiement.modele.dart';
 import '../../../noyau/format.dart';
 import '../../../theme/couleurs.dart';
@@ -19,24 +21,23 @@ class DemandeDepot {
 
 /// Dépôt Mobile Money. Le paiement se termine sur la page hébergée du
 /// prestataire ; le solde, lui, se met à jour tout seul par le socket.
-Future<DemandeDepot?> ouvrirDepot(
-  BuildContext context, {
-  required List<PrestatairePublic> prestataires,
-  String? telephone,
-}) {
+///
+/// La liste des passerelles n'est PAS passée en paramètre : la feuille la lit dans
+/// `CatalogueEtat` et se reconstruit toute seule si elle change pendant qu'elle est ouverte.
+/// C'est ce qui lui permet de revérifier avant d'annoncer « aucun moyen de paiement » — un
+/// message qu'on ne doit jamais fonder sur une liste lue au lancement de l'application.
+Future<DemandeDepot?> ouvrirDepot(BuildContext context, {String? telephone}) {
   return showModalBottomSheet<DemandeDepot>(
     context: context,
     isScrollControlled: true,
     backgroundColor: Couleurs.papier,
-    builder: (context) => _FeuilleDepot(prestataires: prestataires, telephone: telephone),
+    builder: (context) => _FeuilleDepot(telephone: telephone),
   );
 }
 
 class _FeuilleDepot extends StatefulWidget {
-  const _FeuilleDepot({required this.prestataires, this.telephone});
+  const _FeuilleDepot({this.telephone});
 
-  /// Moyens de paiement annoncés par le backend — jamais une liste en dur ici.
-  final List<PrestatairePublic> prestataires;
   final String? telephone;
 
   @override
@@ -47,10 +48,21 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
   final _cleFormulaire = GlobalKey<FormState>();
   final _montant = TextEditingController(text: '5000');
   late final _numero = TextEditingController(text: widget.telephone ?? '');
-  late String _prestataire = widget.prestataires.isEmpty ? '' : widget.prestataires.first.code;
 
-  PrestatairePublic? get _choisi =>
-      widget.prestataires.where((p) => p.code == _prestataire).firstOrNull;
+  /// `null` tant que le joueur n'a rien choisi : on prend alors la première passerelle de la
+  /// liste. La sélection ne peut pas être figée à la construction — la liste peut arriver
+  /// après, quand la feuille s'ouvre pendant que le catalogue se relit.
+  String? _prestataireChoisi;
+
+  List<PrestatairePublic> get _prestataires => context.watch<CatalogueEtat>().prestataires;
+
+  PrestatairePublic? get _choisi {
+    final liste = _prestataires;
+    if (liste.isEmpty) return null;
+    return liste.where((p) => p.code == _prestataireChoisi).firstOrNull ?? liste.first;
+  }
+
+  String get _prestataire => _choisi?.code ?? '';
 
   /// MoneyFusion exige le numéro ; LigdiCash le demande sur sa propre page.
   /// Le serveur fait foi : on ne devine pas la règle à partir du code.
@@ -70,14 +82,17 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
   void _valider() {
     if (!(_cleFormulaire.currentState?.validate() ?? false)) return;
     final montant = double.tryParse(_montant.text.trim().replaceAll(',', '.')) ?? 0;
+    final code = _choisi?.code;
+    if (code == null) return; // la passerelle a disparu entre-temps : ne rien envoyer
     Navigator.of(context).pop(
-      DemandeDepot(montant, _prestataire, _numero.text.trim().isEmpty ? null : _numero.text.trim()),
+      DemandeDepot(montant, code, _numero.text.trim().isEmpty ? null : _numero.text.trim()),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.prestataires.isEmpty) return const AucunPrestataire(pour: 'dépôt');
+    final prestataires = _prestataires;
+    if (prestataires.isEmpty) return const AucunPrestataire(pour: 'dépôt');
 
     return SafeArea(
       child: Padding(
@@ -125,20 +140,17 @@ class _FeuilleDepotState extends State<_FeuilleDepot> {
                       .toList(),
                 ),
                 const SizedBox(height: 18),
-                if (widget.prestataires.length > 1)
+                if (prestataires.length > 1)
                   ListeDeroulante(
                     label: 'Prestataire',
                     valeur: _prestataire,
-                    options: widget.prestataires
-                        .map((p) => OptionListe(p.code, p.libelle))
-                        .toList(),
-                    onChanged: (v) =>
-                        setState(() => _prestataire = v ?? widget.prestataires.first.code),
+                    options: prestataires.map((p) => OptionListe(p.code, p.libelle)).toList(),
+                    onChanged: (v) => setState(() => _prestataireChoisi = v),
                   )
                 else
                   // Un seul moyen actif : on l'annonce en clair plutôt que d'imposer
                   // une liste déroulante à un choix.
-                  Text('Paiement via ${widget.prestataires.first.libelle}.', style: Typo.petit),
+                  Text('Paiement via ${prestataires.first.libelle}.', style: Typo.petit),
                 const SizedBox(height: 18),
                 ChampTexte(
                   controleur: _numero,
@@ -205,13 +217,49 @@ class _MiseRapide extends StatelessWidget {
 
 /// Aucune passerelle Mobile Money active : on le dit, au lieu de laisser le
 /// joueur remplir un formulaire que le backend refusera par un 400.
-class AucunPrestataire extends StatelessWidget {
+class AucunPrestataire extends StatefulWidget {
   const AucunPrestataire({super.key, required this.pour});
 
   final String pour;
 
   @override
+  State<AucunPrestataire> createState() => _AucunPrestataireState();
+}
+
+class _AucunPrestataireState extends State<AucunPrestataire> {
+  bool _verification = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // On ne DÉCLARE pas l'indisponibilité, on la vérifie d'abord.
+    //
+    // La liste des passerelles suit la configuration du serveur, pas le catalogue : une clé
+    // qu'on renseigne et elle change, sans que l'application en sache rien. Or une application
+    // mobile vit des jours sans être relancée. Sans cette relecture, un joueur restait devant
+    // « aucun moyen de paiement » longtemps après que le serveur eut été réparé, et seule une
+    // fermeture complète de l'application le débloquait — ce qu'aucun joueur ne devine.
+    //
+    // Si la relecture trouve une passerelle, `CatalogueEtat` prévient ses auditeurs et la
+    // feuille se reconstruit d'elle-même sur le vrai formulaire : cet écran disparaît sans que
+    // le joueur ait rien à faire.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<CatalogueEtat>().rafraichirPrestataires();
+      if (mounted) setState(() => _verification = false);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_verification) {
+      return const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: Center(child: CircularProgressIndicator(color: Couleurs.vert)),
+        ),
+      );
+    }
+    final pour = widget.pour;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),

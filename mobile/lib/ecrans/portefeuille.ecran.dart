@@ -42,7 +42,15 @@ class PortefeuilleEcran extends StatefulWidget {
 const String routePaiementWeb = 'paiement-web';
 
 class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
-  bool _action = false;
+  /// Un drapeau PAR opération, et non un seul pour les deux.
+  ///
+  /// Une seule variable partagée faisait tourner l'indicateur sur « Retirer » pendant qu'un
+  /// dépôt était en cours : le joueur croyait avoir lancé les deux, sur un écran où l'on
+  /// déplace de l'argent. Chaque bouton n'annonce désormais que son propre travail — l'autre
+  /// est seulement désactivé le temps de l'appel, pour qu'aucune demande n'en croise une autre.
+  bool _depotEnCours = false;
+  bool _retraitEnCours = false;
+
   bool _retraitRefuse = false;
 
   /// Paiement dont la page hébergée est ouverte, s'il y en a une.
@@ -54,6 +62,11 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<PortefeuilleEtat>().surEvenementPaiement = _annoncerPaiement;
+      // Une seule relecture, à l'entrée dans le portefeuille : la liste des passerelles suit la
+      // configuration du serveur, pas le catalogue, et l'application vit longtemps sans être
+      // relancée. Ce n'est pas du rafraîchissement périodique — c'est une lecture au moment
+      // précis où la donnée va servir.
+      context.read<CatalogueEtat>().rafraichirPrestataires();
     });
   }
 
@@ -94,21 +107,20 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
 
   Future<void> _deposer() async {
     final session = context.read<SessionEtat>();
-    final demande = await ouvrirDepot(
-      context,
-      prestataires: context.read<CatalogueEtat>().prestataires,
-      telephone: session.utilisateur?.telephone,
-    );
+    // La feuille lit elle-même la liste des passerelles et la revérifie si elle est vide :
+    // rien à passer ici, et aucun indicateur de chargement à allumer sur l'écran — c'est la
+    // feuille qui montre qu'elle vérifie, à l'endroit où le joueur regarde.
+    final demande = await ouvrirDepot(context, telephone: session.utilisateur?.telephone);
     if (demande == null || !mounted) return;
 
-    setState(() => _action = true);
+    setState(() => _depotEnCours = true);
     final r = await PaiementsService.deposer(
       montant: demande.montant,
       prestataire: demande.prestataire,
       numero: demande.numero,
     );
     if (!mounted) return;
-    setState(() => _action = false);
+    setState(() => _depotEnCours = false);
 
     if (r is Echec) {
       Message.erreur(context, 'Dépôt impossible', (r as Echec).message);
@@ -166,19 +178,18 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
       retirable: versNombre(etat.portefeuille.soldeRetirable),
       nonJoue: versNombre(etat.portefeuille.soldeNonJoue),
       tauxFrais: regles.fraisRetrait,
-      prestataires: context.read<CatalogueEtat>().prestataires,
       telephone: session.utilisateur?.telephone,
     );
     if (demande == null || !mounted) return;
 
-    setState(() => _action = true);
+    setState(() => _retraitEnCours = true);
     final r = await PaiementsService.retirer(
       montant: demande.montant,
       prestataire: demande.prestataire,
       numero: demande.numero,
     );
     if (!mounted) return;
-    setState(() => _action = false);
+    setState(() => _retraitEnCours = false);
 
     if (r is Echec) {
       final echec = r as Echec;
@@ -275,10 +286,12 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
                   libelle: retraitBloque ? 'Confirmer pour retirer' : 'Retirer',
                   variante: VarianteBouton.secondaire,
                   icone: retraitBloque ? Icons.mail_outline : Icons.north_east,
-                  chargement: _action,
-                  onPressed: retraitBloque
-                      ? () => CoquilleEcran.de(context)?.ouvrirConfirmationEmail()
-                      : _retirer,
+                  chargement: _retraitEnCours,
+                  onPressed: _depotEnCours
+                      ? null
+                      : retraitBloque
+                          ? () => CoquilleEcran.de(context)?.ouvrirConfirmationEmail()
+                          : _retirer,
                 ),
               ),
               const SizedBox(width: 10),
@@ -287,8 +300,8 @@ class _PortefeuilleEcranState extends State<PortefeuilleEcran> {
                   libelle: 'Déposer',
                   variante: VarianteBouton.volt,
                   icone: Icons.south_west,
-                  chargement: _action,
-                  onPressed: _deposer,
+                  chargement: _depotEnCours,
+                  onPressed: _retraitEnCours ? null : _deposer,
                 ),
               ),
             ],
