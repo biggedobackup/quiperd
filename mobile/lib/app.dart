@@ -23,6 +23,17 @@ import 'theme/theme.dart';
 /// écrans du joueur précédent.
 final GlobalKey<NavigatorState> cleNavigateur = GlobalKey<NavigatorState>();
 
+/// Clé du gestionnaire de messages éphémères.
+///
+/// Les messages sont très souvent déclenchés par un ÉVÉNEMENT du socket, pas par un geste :
+/// un litige ouvert par le worker, une preuve déposée par l'adversaire, un match réglé. Passer
+/// par le `context` de l'écran pour les afficher était fragile — `ScaffoldMessenger.maybeOf`
+/// inscrit ce contexte comme dépendant d'un `InheritedWidget`, et si l'événement arrive pendant
+/// que l'écran se démonte, l'ancêtre est démonté avec un dépendant encore accroché : Flutter
+/// s'arrête alors sur « _dependents.isEmpty ». Une clé globale ne dépend d'aucun contexte et
+/// affiche le message même si l'écran d'origine a disparu entre-temps.
+final GlobalKey<ScaffoldMessengerState> cleMessager = GlobalKey<ScaffoldMessengerState>();
+
 class ApplicationDefisEnLigne extends StatelessWidget {
   const ApplicationDefisEnLigne({super.key});
 
@@ -51,6 +62,7 @@ class ApplicationDefisEnLigne extends StatelessWidget {
         title: 'Défis en Ligne',
         debugShowCheckedModeBanner: false,
         navigatorKey: cleNavigateur,
+        scaffoldMessengerKey: cleMessager,
         theme: construireTheme(),
         // Thème CLAIR uniquement : pas de `darkTheme`, pas de `ThemeMode.system`.
         themeMode: ThemeMode.light,

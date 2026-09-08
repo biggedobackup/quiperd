@@ -151,6 +151,11 @@ class _DetailMatchEcranState extends State<DetailMatchEcran> {
   }
 
   void _surEvenement(EvenementRecu e) {
+    // Le socket vit plus longtemps que l'écran : un événement du worker peut tomber pendant
+    // que l'utilisateur revient en arrière. Sans cette garde, la lecture du contexte ci-dessous
+    // s'exécuterait sur un élément en cours de démontage.
+    if (!mounted) return;
+
     final detail = _detail;
     final moi = context.read<SessionEtat>().utilisateur?.id ?? '';
 

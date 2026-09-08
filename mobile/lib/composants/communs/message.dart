@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app.dart' show cleMessager;
 import '../../theme/couleurs.dart';
 import '../../theme/typographie.dart';
 
@@ -26,8 +27,19 @@ class Message {
   static void attention(BuildContext context, String titre, [String? detail]) =>
       _afficher(context, TonMessage.attention, titre, detail);
 
+  /// Le `context` ne sert plus à ATTEINDRE le gestionnaire de messages : on passe par la clé
+  /// globale posée sur le `MaterialApp`.
+  ///
+  /// Le lire depuis le contexte de l'écran inscrivait celui-ci comme dépendant d'un
+  /// `InheritedWidget`. Or la plupart de ces messages sont déclenchés par un ÉVÉNEMENT du
+  /// socket — un litige ouvert par le worker, une preuve déposée par l'adversaire — et pas par
+  /// un geste : quand l'événement tombait pendant le démontage de l'écran, l'ancêtre était
+  /// démonté avec un dépendant encore accroché et Flutter s'arrêtait sur « _dependents.isEmpty ».
+  ///
+  /// Le paramètre est conservé — il évite de réécrire la centaine d'appels — et sert de filet
+  /// tant que la clé n'est pas montée (tout premier build, tests de widgets isolés).
   static void _afficher(BuildContext context, TonMessage ton, String titre, String? detail) {
-    final messager = ScaffoldMessenger.maybeOf(context);
+    final messager = cleMessager.currentState ?? ScaffoldMessenger.maybeOf(context);
     if (messager == null) return;
 
     final (Color accent, IconData icone) = switch (ton) {

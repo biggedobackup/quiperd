@@ -933,6 +933,27 @@ unique (miroir web : `frontend/src/temps-reel/evenements.ts`).
 
 ---
 
+
+### Un événement arrive quand l'écran n'est peut-être plus là
+
+Le socket vit plus longtemps qu'un écran : le worker ouvre un litige, l'adversaire dépose une
+preuve, un chrono expire — et l'événement tombe alors que l'utilisateur a déjà appuyé sur retour,
+ou pendant que l'application dort. Deux règles en découlent, apprises après un écran rouge
+`'_dependents.isEmpty': is not true` survenu la nuit, sur un litige ouvert par le worker :
+
+- **`if (!mounted) return;` en TÊTE du gestionnaire d'événements**, avant toute lecture du
+  `BuildContext` — y compris un `context.read<X>()`, qui n'écoute rien mais remonte quand même
+  l'arbre.
+- **Ne jamais atteindre `ScaffoldMessenger` par le contexte de l'écran** pour un message
+  déclenché par un événement. `ScaffoldMessenger.maybeOf(context)` inscrit ce contexte comme
+  dépendant d'un `InheritedWidget` ; si l'écran se démonte dans la foulée, l'ancêtre est démonté
+  avec un dépendant encore accroché et Flutter s'arrête. On passe par la clé globale
+  `cleMessager` posée sur le `MaterialApp` (`lib/app.dart`), que `Message` utilise déjà : elle ne
+  dépend d'aucun contexte et affiche le message même si l'écran d'origine a disparu.
+
+Le symptôme est trompeur : l'assertion pointe `framework.dart`, jamais le code fautif, et elle ne
+se reproduit pas en manipulant l'application à la main — il faut provoquer l'événement serveur
+pendant le démontage pour la voir.
 ## 8. Points d'attention spécifiques au mobile
 
 - **Jamais de calcul d'argent côté mobile.** Solde, commission, gain, frais de retrait, issue
