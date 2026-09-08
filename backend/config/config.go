@@ -251,13 +251,53 @@ func (c *Config) VerifierProduction() []string {
 	if c.SeedAdminMotDePasse == AdminMotDePasseDefaut {
 		manques = append(manques, "SEED_ADMIN_MOTDEPASSE est resté à la valeur de développement")
 	}
-	if c.CorsOrigin == "" || strings.Contains(c.CorsOrigin, "localhost") {
-		manques = append(manques, "CORS_ORIGIN pointe encore localhost")
+	if c.CorsOrigin == "" || estAdresseLocale(c.CorsOrigin) {
+		manques = append(manques, "CORS_ORIGIN pointe encore une adresse locale")
 	}
 	if strings.Contains(strings.Join(c.WSOriginesAutorisees, ","), "*") {
 		manques = append(manques, "WS_ORIGINES_AUTORISEES contient « * » (socket ouvert à toute origine)")
 	}
+
+	// Paiements. Un prestataire ANNONCÉ mais inutilisable est le pire des deux mondes : le
+	// serveur démarre, le joueur ouvre la modale de dépôt, et se heurte à « aucun moyen de
+	// paiement disponible » sans que rien n'ait signalé quoi que ce soit — ou pire, il paie et
+	// la confirmation n'arrive jamais parce que l'URL de rappel est injoignable depuis
+	// l'extérieur. Les deux cas se sont produits en production ; ils sont désormais bloquants.
+	for _, p := range c.PaiementPrestataires {
+		switch strings.ToLower(strings.TrimSpace(p)) {
+		case "ligdicash":
+			if c.LigdicashAPIKey == "" || c.LigdicashAPIToken == "" {
+				manques = append(manques, "PAIEMENT_PRESTATAIRES annonce ligdicash mais LIGDICASH_API_KEY/LIGDICASH_API_TOKEN sont vides")
+			} else if estAdresseLocale(c.LigdicashCallbackURL) {
+				manques = append(manques, "LIGDICASH_CALLBACK_URL pointe une adresse locale : le prestataire ne pourra jamais confirmer un dépôt")
+			}
+		case "fusionmoney":
+			if c.FusionMoneyAPIURL == "" {
+				manques = append(manques, "PAIEMENT_PRESTATAIRES annonce fusionmoney mais FUSIONMONEY_API_URL est vide")
+			} else if estAdresseLocale(c.FusionMoneyCallbackURL) {
+				manques = append(manques, "FUSIONMONEY_CALLBACK_URL pointe une adresse locale : le prestataire ne pourra jamais confirmer un dépôt")
+			}
+		}
+	}
 	return manques
+}
+
+// estAdresseLocale reconnaît une adresse qui ne sort pas de la machine.
+//
+// Chercher le seul mot « localhost » ne suffisait pas : la production tournait avec
+// `http://127.0.0.1:8082`, qui passait le contrôle sans encombre et cassait à la fois l'adresse
+// de retour du joueur après paiement et l'URL de rappel du prestataire.
+func estAdresseLocale(adresse string) bool {
+	a := strings.ToLower(strings.TrimSpace(adresse))
+	if a == "" {
+		return false
+	}
+	for _, motif := range []string{"localhost", "127.0.0.1", "0.0.0.0", "[::1]", "10.0.2.2"} {
+		if strings.Contains(a, motif) {
+			return true
+		}
+	}
+	return false
 }
 
 func getEnvBool(cle string, defaut bool) bool {

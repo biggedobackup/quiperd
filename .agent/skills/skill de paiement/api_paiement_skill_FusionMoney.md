@@ -221,6 +221,52 @@ frais change). En cas d'écart : ne PAS créditer, journaliser une alerte.
 
 ## 6. Retour d'expérience — intégration QUI PERD (septembre 2026, Go/Fiber + TanStack Start + Flutter)
 
+### Le piège de la mise en production : la liste vide et le rappel injoignable
+
+Vécu en production, et c'est le premier symptôme que le joueur remonte :
+**« aucun moyen de paiement n'est disponible pour le moment »**. Ce message ne veut pas dire que
+l'intégration est cassée — il veut dire que `GET /api/paiements/prestataires` a renvoyé `[]`,
+c'est-à-dire qu'aucune passerelle n'était à la fois **annoncée** et **configurée**.
+
+Le diagnostic tient en une commande, à faire avant toute autre chose :
+
+```bash
+curl -s https://<domaine>/api/paiements/prestataires   # [] = configuration, pas code
+```
+
+Trois réglages du `.env` de production étaient en cause, et ils cassent le parcours à trois
+endroits différents :
+
+| Réglage | Valeur trouvée | Ce que le joueur voit |
+|---|---|---|
+| `FUSIONMONEY_API_URL` | **vide** | « aucun moyen de paiement disponible » — la modale ne propose rien |
+| `FUSIONMONEY_CALLBACK_URL` | `http://127.0.0.1:8082/...` | il paie **vraiment**, et le dépôt reste « en attente » pour toujours |
+| `CORS_ORIGIN` (donc `SITE_URL`) | `http://127.0.0.1:8082` | après avoir payé, il est renvoyé vers une adresse morte |
+
+Le deuxième est de loin le plus coûteux : l'argent part, la confirmation n'arrive jamais.
+MoneyFusion appelle le webhook **depuis ses serveurs** — une adresse de bouclage ne peut
+évidemment pas être jointe. Vérifier que le rappel répond depuis l'extérieur fait partie de la
+mise en production, au même titre que le reste :
+
+```bash
+curl -o /dev/null -w "%{http_code}
+" -X POST -H 'Content-Type: application/json'   -d '{}' https://<domaine>/api/paiements/callback-fusion    # doit répondre 200
+```
+
+**Ce qui a permis à cette configuration de passer**, et qui est corrigé : le contrôle de
+démarrage `config.VerifierProduction()` cherchait le seul mot « localhost ». `127.0.0.1`
+passait sans encombre. Il reconnaît maintenant toute adresse de bouclage, et surtout il **refuse
+de démarrer** quand `PAIEMENT_PRESTATAIRES` annonce une passerelle sans identifiants, ou avec
+une URL de rappel locale. Le raisonnement est le même que pour FCM : une panne bruyante au
+démarrage vaut mieux qu'un joueur bloqué devant une modale vide, ou qu'un dépôt payé que rien ne
+vient confirmer. `backend/config/config_test.go` fige les quatre cas.
+
+Corollaire : **ne lister dans `PAIEMENT_PRESTATAIRES` que ce qu'on peut réellement servir.**
+La production annonçait `ligdicash,fusionmoney` alors que les clés LigdiCash étaient vides —
+sans effet visible tant que la route filtrait, mais c'est un mensonge dans la configuration, et
+le nouveau contrôle le refuse.
+
+
 Quatre écarts trouvés en branchant ce skill sur une plateforme d'argent réel, avec
 le correctif retenu. Ils valent pour toute intégration à trois clients (API, web,
 mobile).
