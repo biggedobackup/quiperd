@@ -247,6 +247,7 @@ class Push {
       case 'litige_resolu':
         coquille.allerA(2); // Mes matchs
       case 'paiement_confirme':
+      case 'paiement_echoue':
         coquille.allerA(3); // Portefeuille
       default:
         coquille.ouvrirNotifications();
