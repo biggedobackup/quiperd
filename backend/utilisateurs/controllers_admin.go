@@ -3,11 +3,11 @@ package utilisateurs
 import (
 	"errors"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // EntreeCreation est le corps de POST /utilisateurs : les champs de l'inscription

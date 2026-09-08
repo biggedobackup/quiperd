@@ -23,7 +23,7 @@
 //
 //	go run ./tests/outils/stub-fusion -port 8099
 //	# puis, dans le .env du backend :
-//	#   FUSIONMONEY_API_URL=http://127.0.0.1:8099/quiperd/paiement
+//	#   FUSIONMONEY_API_URL=http://127.0.0.1:8099/defisenligne/paiement
 //	#   FUSIONMONEY_CALLBACK_URL=http://127.0.0.1:8080/api/paiements/callback-fusion
 //
 // Réservé aux recettes : aucun binaire de production ne le référence, et il ne
@@ -90,7 +90,7 @@ func main() {
 
 	adresse := fmt.Sprintf("127.0.0.1:%d", *port)
 	log.Printf("doublure MoneyFusion sur http://%s (webhook par défaut : %s)", adresse, webhookDefaut)
-	log.Printf("  FUSIONMONEY_API_URL=http://%s/quiperd/paiement", adresse)
+	log.Printf("  FUSIONMONEY_API_URL=http://%s/defisenligne/paiement", adresse)
 	serveur := &http.Server{Addr: adresse, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	log.Fatal(serveur.ListenAndServe())
 }

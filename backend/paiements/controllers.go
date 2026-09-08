@@ -5,16 +5,16 @@ import (
 	"fmt"
 	"strings"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/portefeuilles"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/portefeuilles"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
 )
 
 type entreeDepot struct {

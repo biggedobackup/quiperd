@@ -26,17 +26,17 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
-	"quiperd/backend/administration"
-	"quiperd/backend/config"
-	"quiperd/backend/jobs"
-	"quiperd/backend/litiges"
-	"quiperd/backend/matchs"
-	"quiperd/backend/migrations"
-	"quiperd/backend/notifications"
-	"quiperd/backend/routes"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
-	"quiperd/backend/worker"
+	"defisenligne/backend/administration"
+	"defisenligne/backend/config"
+	"defisenligne/backend/jobs"
+	"defisenligne/backend/litiges"
+	"defisenligne/backend/matchs"
+	"defisenligne/backend/migrations"
+	"defisenligne/backend/notifications"
+	"defisenligne/backend/routes"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
+	"defisenligne/backend/worker"
 )
 
 func main() {

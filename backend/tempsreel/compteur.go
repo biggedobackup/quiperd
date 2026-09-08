@@ -10,7 +10,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"quiperd/backend/config"
+	"defisenligne/backend/config"
 )
 
 // Compteur de joueurs en ligne, partagé entre les instances de l'API.

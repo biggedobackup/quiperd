@@ -9,8 +9,8 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 )
 
 // CanalRedis est le canal Pub/Sub par lequel transitent TOUTES les diffusions.

@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"defisenligne/backend/config"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"quiperd/backend/config"
 )
 
 // Rôles portés par le jeton.

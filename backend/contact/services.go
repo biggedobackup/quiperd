@@ -5,11 +5,11 @@ import (
 	"strings"
 	"time"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/administration"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 const (

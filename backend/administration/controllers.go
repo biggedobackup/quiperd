@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"time"
 
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // Statistiques godoc

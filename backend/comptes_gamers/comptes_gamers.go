@@ -5,11 +5,11 @@ package comptes_gamers
 import (
 	"time"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // CompteGamer (table 4).

@@ -35,7 +35,7 @@ export const Route = createFileRoute('/_public/confidentialite')({
         },
         {
           titre: 'Vos droits',
-          contenu: <p>Accès, rectification, suppression, opposition : écrivez à support@quiperd.com depuis l’adresse liée à votre compte.</p>,
+          contenu: <p>Accès, rectification, suppression, opposition : écrivez à support@defisenligne.com depuis l’adresse liée à votre compte.</p>,
         },
       ]}
     />

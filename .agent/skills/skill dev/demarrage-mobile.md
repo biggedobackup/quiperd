@@ -92,7 +92,7 @@ Document de référence pour le développement de l'application mobile **QUI PER
 | **Média** | `image_picker` | Capture d'écran et vidéo de preuve (galerie **et** appareil photo) |
 | **Page de paiement** | `webview_flutter` | Page hébergée du prestataire, affichée DANS l'application (`ecrans/paiement_web.ecran.dart`) |
 | **Ouverture externe** | `url_launcher` | Échappatoire « ouvrir dans le navigateur » si la WebView échoue |
-| **Liens profonds** | `app_links` | Un lien de défi partagé ouvre l'application sur la fiche du défi (`https://<hôte>/defis/<id>` et `quiperd://defis/<id>`) |
+| **Liens profonds** | `app_links` | Un lien de défi partagé ouvre l'application sur la fiche du défi (`https://<hôte>/defis/<id>` et `defisenligne://defis/<id>`) |
 | **Icônes** | `cupertino_icons` + `Icons` Material | Aucune icône SVG copiée, aucun emoji dans l'interface |
 | **Lint** | `flutter_lints` | `flutter analyze` doit rester à zéro avertissement |
 
@@ -395,7 +395,7 @@ montant, seule la formulation change, à la demande de l'utilisateur pour le mob
 **« Copier le lien du défi »**, tant que le défi est ouvert. Le lien est
 `Environnement.lienDefi(id)` = `<SITE_BASE_URL>/defis/<id>`, la page **publique** du site : le
 destinataire voit le défi avant même d'avoir un compte. `SITE_BASE_URL` s'impose à la
-compilation (`--dart-define=SITE_BASE_URL=https://quiperd.com`) ; en développement on vise
+compilation (`--dart-define=SITE_BASE_URL=https://defisenligne.com`) ; en développement on vise
 `http://10.0.2.2:3000`, l'alias de l'hôte vu depuis l'émulateur.
 
 Le bouton **copie**, il n'ouvre pas la feuille de partage du système : `share_plus` n'est pas
@@ -419,7 +419,7 @@ aucun téléchargement).
 | Forme | Vérification | Rôle |
 |---|---|---|
 | `https://<hôte>/defis/<id>` | App Link : exige `assetlinks.json` servi par le domaine | le lien qui circule vraiment (WhatsApp, SMS) |
-| `quiperd://defis/<id>` | aucune | développement et porte de secours |
+| `defisenligne://defis/<id>` | aucune | développement et porte de secours |
 
 Les deux sont déclarés dans `AndroidManifest.xml`. L'hôte n'est **pas** écrit en dur : il vient
 d'un `manifestPlaceholders["deepLinkHost"]` alimenté par `-Pdeep-link-host=…`, par défaut
@@ -435,7 +435,7 @@ production). Le site le sert déjà en `application/json`.
 Sans ce fichier publié en **https** sur le vrai domaine, Android 12+ laisse le lien au
 navigateur : ce n'est pas une panne, la page publique du site prend le relais. Pour tester sur
 l'émulateur, on force l'association :
-`adb shell pm set-app-links-user-selection --user 0 --package com.quiperd.app true <hôte>`.
+`adb shell pm set-app-links-user-selection --user 0 --package com.defisenligne.app true <hôte>`.
 
 **Côté Dart** : `_RacineState` écoute `AppLinks().uriLinkStream` et lit `getInitialLink()`.
 `defiIdDepuis()` (`noyau/liens_profonds.dart`) extrait l'identifiant — et **n'accepte qu'un
@@ -952,8 +952,8 @@ unique (miroir web : `frontend/src/temps-reel/evenements.ts`).
 - **Permissions** : `INTERNET` seule dans le manifeste principal ; l'appareil photo et la
   galerie sont demandés **au moment** de l'envoi d'une preuve, avec une explication, et un refus
   n'empêche jamais d'accéder au reste de l'application.
-- **`applicationId` / `namespace` = `com.quiperd.app`** (et `MainActivity.kt` sous
-  `kotlin/com/quiperd/app/`) — plus aucun reste de `com.example.quiperd`.
+- **`applicationId` / `namespace` = `com.defisenligne.app`** (et `MainActivity.kt` sous
+  `kotlin/com/defisenligne/app/`) — plus aucun reste de `com.example.defisenligne`.
 - **Déconnexion et compte suspendu** : un `401` sur n'importe quelle requête efface le jeton,
   vide l'état local, ferme le socket et ramène à `/connexion` avec un message clair.
 - **Accessibilité** : chaque bouton d'icône porte un `tooltip`/`semanticsLabel`, les contrastes

@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"time"
 
-	"quiperd/backend/config"
+	"defisenligne/backend/config"
 )
 
 // clientHTTP partagé (timeouts stricts).

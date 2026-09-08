@@ -4,11 +4,11 @@ import (
 	"errors"
 	"time"
 
+	"defisenligne/backend/config"
+	"defisenligne/backend/jobs"
+	"defisenligne/backend/tempsreel"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/config"
-	"quiperd/backend/jobs"
-	"quiperd/backend/tempsreel"
 )
 
 // PoserEcheance inscrit un chrono sur le match et programme la tâche Asynq `match:echeance`

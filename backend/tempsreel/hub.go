@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"quiperd/backend/utils"
+	"defisenligne/backend/utils"
 )
 
 // ─── Rôles portés par une connexion ────────────────────────────────────────────

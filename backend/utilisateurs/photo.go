@@ -8,10 +8,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 )
 
 // PhotoMaxOctets : 3 Mo. Une photo de profil est affichée dans un rond de quelques

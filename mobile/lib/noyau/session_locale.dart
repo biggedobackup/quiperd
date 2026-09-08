@@ -9,9 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SessionLocale {
   const SessionLocale._();
 
-  static const _cleJeton = 'quiperd.jeton';
-  static const _cleExpiration = 'quiperd.expiration';
-  static const _cleOnboarding = 'quiperd.onboarding_vu';
+  static const _cleJeton = 'defisenligne.jeton';
+  static const _cleExpiration = 'defisenligne.expiration';
+  static const _cleOnboarding = 'defisenligne.onboarding_vu';
 
   static SharedPreferences? _prefs;
 

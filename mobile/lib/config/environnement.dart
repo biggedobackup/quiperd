@@ -4,7 +4,7 @@ import 'dart:io' show Platform;
 /// l'application.
 ///
 /// La valeur peut être imposée à la compilation :
-/// `flutter run --dart-define=API_BASE_URL=https://api.quiperd.com/api`.
+/// `flutter run --dart-define=API_BASE_URL=https://api.defisenligne.com/api`.
 /// Sans cela, on vise le poste de développement : `10.0.2.2` est l'alias de la
 /// machine hôte vu depuis l'émulateur Android (le HTTP en clair n'y est autorisé
 /// que par le `network_security_config` du source set `debug`).
@@ -32,7 +32,7 @@ class Environnement {
   ///
   /// Ce n'est pas l'API : le lien part dans une conversation, il doit s'ouvrir dans un
   /// navigateur, sur la fiche publique du défi. En production, l'imposer :
-  /// `flutter build apk --dart-define=SITE_BASE_URL=https://quiperd.com`. Sans cela on vise
+  /// `flutter build apk --dart-define=SITE_BASE_URL=https://defisenligne.com`. Sans cela on vise
   /// le poste de développement, où le frontend écoute sur le port 3000.
   static String get siteBaseUrl {
     if (_siteImpose.isNotEmpty) return _siteImpose.replaceFirst(RegExp(r'/+$'), '');

@@ -213,7 +213,7 @@ Chaque module backend est **autonome** : `models.go`, `services.go`, `controller
    en 409 (message explicite) si `solde_bloque > 0`, s'il reste un défi `ouvert` ou un match dans un
    statut actif (`matchs.StatutsActifs()` : `en_cours`, `preuve_requise`, `nul_en_attente`,
    `verification`, `litige`) ; sinon 204 — `statut = supprime`, e-mail
-   `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 premiers caractères de l'id>`,
+   `supprime-<id>@defisenligne.invalid`, pseudo `supprime_<8 premiers caractères de l'id>`,
    téléphone et photo vidés, sessions révoquées, audit `utilisateur:suppression` (ancien
    pseudo/e-mail en `ancienne_valeur`). La ligne reste en base (historique des matchs, grand
    livre, audit) : `GET /api/utilisateurs/:id` répond **200 avec `statut = supprime`** (pas
@@ -442,7 +442,7 @@ backend/
 | GET | `/api/utilisateurs/:id` | Admin | Détail : l'utilisateur à plat + `portefeuille: { soldeDisponible, soldeBloque }` (zéros si le portefeuille n'existe pas encore) ; un compte supprimé répond 200 avec `statut = supprime` |
 | POST | `/api/utilisateurs/moi/photo` | Connecté | Photo de profil : **fichier** multipart (3 Mo, contenu vérifié). `DELETE` retire, `GET /api/utilisateurs/{id}/photo` sert l'image (route protégée). `PATCH` n'accepte plus d'adresse |
 | PATCH | `/api/utilisateurs/:id` | Connecté† | `{ nomUtilisateur?, telephone?, photoProfil?, pays? }` pour le propriétaire ; l'admin peut aussi envoyer `email?`, `statut?` (`actif|suspendu|en_attente`, suspension = sessions révoquées), `motDePasse?` (nouveau hash bcrypt + sessions révoquées) → 200 l'utilisateur ; 409 unicité pseudo/e-mail ou compte `supprime` ; audit `utilisateur:modification` |
-| DELETE | `/api/utilisateurs/:id` | Admin | Suppression **logique** → 204 (statut `supprime`, e-mail `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 car.>`, téléphone/photo vidés, sessions révoquées, audit `utilisateur:suppression`) ; 409 `{ erreur }` explicite si solde bloqué > 0, défi `ouvert` ou match dans un statut actif (`en_cours|preuve_requise|nul_en_attente|verification|litige`), ou déjà supprimé ; 404 introuvable |
+| DELETE | `/api/utilisateurs/:id` | Admin | Suppression **logique** → 204 (statut `supprime`, e-mail `supprime-<id>@defisenligne.invalid`, pseudo `supprime_<8 car.>`, téléphone/photo vidés, sessions révoquées, audit `utilisateur:suppression`) ; 409 `{ erreur }` explicite si solde bloqué > 0, défi `ouvert` ou match dans un statut actif (`en_cours|preuve_requise|nul_en_attente|verification|litige`), ou déjà supprimé ; 404 introuvable |
 | PATCH | `/api/utilisateurs/:id/statut` | Admin | Actif / suspendu (409 sur un compte `supprime`, 404 introuvable) |
 | GET/POST | `/api/comptes-gamers` | Connecté | Mes identifiants de joueur par jeu/plateforme |
 | PATCH/DELETE | `/api/comptes-gamers/:id` | Connecté | Modification / suppression |

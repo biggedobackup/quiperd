@@ -12,8 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 )
 
 // prefixeTicket est l'espace de noms Redis des tickets d'ouverture de socket.

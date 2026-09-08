@@ -1,10 +1,10 @@
 package portefeuilles
 
 import (
+	"defisenligne/backend/tempsreel"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
-	"quiperd/backend/tempsreel"
 )
 
 // ChargeMaj est la charge utile de l'événement portefeuille.maj : le solde d'un joueur

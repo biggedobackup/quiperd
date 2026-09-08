@@ -3,9 +3,9 @@ package paiements
 import (
 	"time"
 
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"quiperd/backend/utils"
 )
 
 // Types, prestataires et statuts.

@@ -23,8 +23,8 @@ import 'theme/theme.dart';
 /// écrans du joueur précédent.
 final GlobalKey<NavigatorState> cleNavigateur = GlobalKey<NavigatorState>();
 
-class ApplicationQuiPerd extends StatelessWidget {
-  const ApplicationQuiPerd({super.key});
+class ApplicationDefisEnLigne extends StatelessWidget {
+  const ApplicationDefisEnLigne({super.key});
 
   @override
   Widget build(BuildContext context) {

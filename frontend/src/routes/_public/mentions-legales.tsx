@@ -10,7 +10,7 @@ export const Route = createFileRoute('/_public/mentions-legales')({
       sections={[
         {
           titre: 'Éditeur',
-          contenu: <p>Défis en Ligne — plateforme de défis entre joueurs. Contact : support@quiperd.com. Les informations d’immatriculation et l’adresse du siège sont complétées avant l’ouverture publique du service.</p>,
+          contenu: <p>Défis en Ligne — plateforme de défis entre joueurs. Contact : support@defisenligne.com. Les informations d’immatriculation et l’adresse du siège sont complétées avant l’ouverture publique du service.</p>,
         },
         {
           titre: 'Hébergement',

@@ -3,14 +3,14 @@ package matchs
 import (
 	"errors"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
 )
 
 // Lister godoc

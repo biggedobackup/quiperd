@@ -6,8 +6,8 @@ package contact
 import (
 	"time"
 
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
-	"quiperd/backend/utils"
 )
 
 // Statuts de traitement d'un message (valeurs françaises en snake_case, charte API).

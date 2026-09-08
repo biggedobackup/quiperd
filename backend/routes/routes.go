@@ -2,26 +2,26 @@
 package routes
 
 import (
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/classement"
+	"defisenligne/backend/comptes_gamers"
+	"defisenligne/backend/config"
+	"defisenligne/backend/contact"
+	"defisenligne/backend/defis"
+	_ "defisenligne/backend/docs" // spécification Swagger générée (swag init)
+	"defisenligne/backend/jeux"
+	"defisenligne/backend/litiges"
+	"defisenligne/backend/matchs"
+	"defisenligne/backend/notifications"
+	"defisenligne/backend/paiements"
+	"defisenligne/backend/plateformes"
+	"defisenligne/backend/portefeuilles"
+	"defisenligne/backend/preuves"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utilisateurs"
 	"github.com/gofiber/fiber/v3"
 	"github.com/swaggo/swag"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/classement"
-	"quiperd/backend/comptes_gamers"
-	"quiperd/backend/config"
-	"quiperd/backend/contact"
-	"quiperd/backend/defis"
-	_ "quiperd/backend/docs" // spécification Swagger générée (swag init)
-	"quiperd/backend/jeux"
-	"quiperd/backend/litiges"
-	"quiperd/backend/matchs"
-	"quiperd/backend/notifications"
-	"quiperd/backend/paiements"
-	"quiperd/backend/plateformes"
-	"quiperd/backend/portefeuilles"
-	"quiperd/backend/preuves"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utilisateurs"
 )
 
 // Enregistrer monte /api et toutes les routes des modules.

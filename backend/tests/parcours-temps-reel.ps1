@@ -5,7 +5,7 @@
 # Le serveur testé est le hub Go/Fiber (backend/tempsreel). Ce script n'est qu'un CLIENT : il utilise
 # System.Net.WebSockets.ClientWebSocket, fourni par PowerShell 7, sans rien installer.
 #
-# Prérequis : l'API tourne (go run . ou quiperd-backend.exe), PostgreSQL + Redis accessibles,
+# Prérequis : l'API tourne (go run . ou defisenligne-backend.exe), PostgreSQL + Redis accessibles,
 # psql dans le PATH — mêmes prérequis que parcours-api.ps1.
 #   pwsh -File tests/parcours-temps-reel.ps1
 #
@@ -23,7 +23,7 @@ $Base = 'http://127.0.0.1:8080/api'   # IPv4 direct : « localhost » tente ::1 
 $WsBase = 'ws://127.0.0.1:8080/api/temps-reel'
 $Scratch = Join-Path $PSScriptRoot 'tmp'; New-Item -ItemType Directory -Force $Scratch | Out-Null
 $DotEnv = @{}; Get-Content (Join-Path $PSScriptRoot '..\.env') | Where-Object { $_ -match '^\s*([A-Z_]+)\s*=\s*(.*?)\s*$' } | ForEach-Object { $DotEnv[$Matches[1]] = $Matches[2] }
-$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'quiperd'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
+$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'defisenligne'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
 $Suffix = (Get-Date -Format 'HHmmss')
 
 $script:Results = [System.Collections.Generic.List[object]]::new()

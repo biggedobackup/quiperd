@@ -19,8 +19,8 @@
 #
 # Prérequis : API sur 127.0.0.1:8080, PostgreSQL + Redis, psql dans le PATH, et le .env
 # du backend pointant FUSIONMONEY_API_URL vers la doublure :
-#   go build -o quiperd-stub-fusion.exe ./tests/outils/stub-fusion ; .\quiperd-stub-fusion.exe -port 8099
-#   FUSIONMONEY_API_URL=http://127.0.0.1:8099/quiperd/paiement
+#   go build -o defisenligne-stub-fusion.exe ./tests/outils/stub-fusion ; .\defisenligne-stub-fusion.exe -port 8099
+#   FUSIONMONEY_API_URL=http://127.0.0.1:8099/defisenligne/paiement
 #
 # Usage :  pwsh -File tests/parcours-paiement.ps1  [-SansPolling]
 param([switch]$SansPolling)
@@ -36,7 +36,7 @@ $env:PGCLIENTENCODING = 'UTF8'
 $Base = 'http://127.0.0.1:8080/api'   # IPv4 direct : « localhost » tente ::1 d'abord sous Windows
 $Stub = 'http://127.0.0.1:8099'
 $DotEnv = @{}; Get-Content (Join-Path $PSScriptRoot '..\.env') | Where-Object { $_ -match '^\s*([A-Z_]+)\s*=\s*(.*?)\s*$' } | ForEach-Object { $DotEnv[$Matches[1]] = $Matches[2] }
-$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'quiperd'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
+$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'defisenligne'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
 $Suffix = (Get-Date -Format 'HHmmss')
 
 $script:Results = [System.Collections.Generic.List[object]]::new()
@@ -96,11 +96,11 @@ $r = Api GET '/sante'
 Check 'API en ligne (postgres + redis ok)' ($r.Status -eq 200 -and $r.Body.postgres -eq 'ok' -and $r.Body.redis -eq 'ok') $r.Raw
 $stubOk = $false
 try { Invoke-RestMethod "$Stub/_recette/transactions" -TimeoutSec 5 | Out-Null; $stubOk = $true } catch { $stubOk = $false }
-Check 'doublure MoneyFusion joignable sur 127.0.0.1:8099' $stubOk 'lancer : .\quiperd-stub-fusion.exe -port 8099'
+Check 'doublure MoneyFusion joignable sur 127.0.0.1:8099' $stubOk 'lancer : .\defisenligne-stub-fusion.exe -port 8099'
 if (-not $stubOk) { Write-Host "`nDoublure absente : parcours interrompu." -ForegroundColor Red; exit 1 }
 if ($DotEnv['FUSIONMONEY_API_URL'] -notlike '*127.0.0.1:8099*') {
   Write-Host "`nCe parcours ne s'exécute que contre la doublure : FUSIONMONEY_API_URL vise actuellement la vraie passerelle." -ForegroundColor Yellow
-  Write-Host "  Pour le lancer : FUSIONMONEY_API_URL=http://127.0.0.1:8099/quiperd/paiement puis redémarrer l'API." -ForegroundColor Yellow
+  Write-Host "  Pour le lancer : FUSIONMONEY_API_URL=http://127.0.0.1:8099/defisenligne/paiement puis redémarrer l'API." -ForegroundColor Yellow
   exit 2
 }
 Check 'FUSIONMONEY_API_URL sans sous-domaine www. (certificat auto-signé)' (-not ($DotEnv['FUSIONMONEY_API_URL'] -match '://www\.'))
@@ -161,7 +161,7 @@ Check 'POST /paiements/depot -> 200/201' ($r.Status -in 200, 201) $r.Raw
 $P1 = $r.Body.paiement.id
 Check 'paiement créé en_attente' ($r.Body.paiement.statut -eq 'en_attente') $r.Raw
 Check 'urlPaiement renvoyée par le backend (page hébergée)' ($r.Body.urlPaiement -like "$Stub/paiement/*") $r.Body.urlPaiement
-Check 'la réponse ne divulgue pas l''URL d''API du marchand' (-not ($r.Raw -match 'quiperd/paiement')) $r.Raw
+Check 'la réponse ne divulgue pas l''URL d''API du marchand' (-not ($r.Raw -match 'defisenligne/paiement')) $r.Raw
 $tok1 = Sql "select reference_prestataire from paiements where id='$P1'"
 Check 'token du prestataire stocké (reference_prestataire)' ($tok1 -like 'stub-*') "token=$tok1"
 Check 'solde inchangé à la création' ((Solde $T) -eq $soldeDepart) "solde=$(Solde $T)"

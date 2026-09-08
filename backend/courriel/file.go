@@ -3,7 +3,7 @@ package courriel
 import (
 	"strings"
 
-	"quiperd/backend/jobs"
+	"defisenligne/backend/jobs"
 )
 
 // Enfiler programme l'envoi d'un message : le contrôleur rend la main immédiatement,

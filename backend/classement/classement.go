@@ -18,9 +18,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 )
 
 // Périodes acceptées par `?periode=`. Elles bornent la date de FIN du match : un match

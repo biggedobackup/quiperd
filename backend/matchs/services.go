@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/config"
+	"defisenligne/backend/portefeuilles"
+	"defisenligne/backend/tempsreel"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"quiperd/backend/administration"
-	"quiperd/backend/config"
-	"quiperd/backend/portefeuilles"
-	"quiperd/backend/tempsreel"
 )
 
 // ─── Points d'extension inter-modules (posés au démarrage, évitent les cycles) ─────────

@@ -4,11 +4,11 @@ import (
 	"errors"
 	"strings"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/auth"
-	"quiperd/backend/utils"
 )
 
 // MessageTropFrequent : message de la réponse 429 de l'anti-spam (contrat avec le frontend).

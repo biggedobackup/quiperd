@@ -109,14 +109,14 @@ func fabriquerCertificat() (tls.Certificate, string, []string, error) {
 
 	modele := x509.Certificate{
 		SerialNumber:          serie,
-		Subject:               pkix.Name{CommonName: "quiperd-recette", Organization: []string{"Défis en Ligne (recette)"}},
+		Subject:               pkix.Name{CommonName: "defisenligne-recette", Organization: []string{"Défis en Ligne (recette)"}},
 		NotBefore:             time.Now().Add(-time.Hour),
 		NotAfter:              time.Now().Add(24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 		BasicConstraintsValid: true,
 		IsCA:                  true,
-		DNSNames:              []string{"localhost", "quiperd-recette"},
+		DNSNames:              []string{"localhost", "defisenligne-recette"},
 		IPAddresses:           adresses,
 	}
 

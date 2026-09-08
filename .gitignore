@@ -14,8 +14,8 @@ google-services.json
 GoogleService-Info.plist
 
 # Backend Go
-backend/quiperd-backend
-backend/quiperd-backend.exe
+backend/defisenligne-backend
+backend/defisenligne-backend.exe
 backend/*.exe
 # Go laisse un `.exe~` quand l'ancien binaire est encore verrouillé par le processus en cours.
 backend/*.exe~

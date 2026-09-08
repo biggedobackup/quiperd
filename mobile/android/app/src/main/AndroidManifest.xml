@@ -41,7 +41,7 @@
                     https://<domaine>/.well-known/assetlinks.json avec l'empreinte SHA-256 du
                     certificat de signature. Sans ce fichier, le lien reste au navigateur — ce
                     qui n'est pas une panne : la page publique du site fait le travail.
-                 2. LE SCHÉMA PROPRE (quiperd://defis/<id>), qui ne demande aucune vérification
+                 2. LE SCHÉMA PROPRE (defisenligne://defis/<id>), qui ne demande aucune vérification
                     de domaine. Il sert au développement et de porte de secours. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
@@ -54,7 +54,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="quiperd" android:host="defis"/>
+                <data android:scheme="defisenligne" android:host="defis"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

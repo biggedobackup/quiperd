@@ -25,11 +25,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"quiperd/backend/config"
-	"quiperd/backend/defis"
-	"quiperd/backend/matchs"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
+	"defisenligne/backend/config"
+	"defisenligne/backend/defis"
+	"defisenligne/backend/matchs"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
 )
 
 func main() {

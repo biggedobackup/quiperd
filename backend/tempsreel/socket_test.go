@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 
-	"quiperd/backend/config"
+	"defisenligne/backend/config"
 )
 
 // Recette de bout en bout du socle temps réel : vrai serveur Fiber, vrai socket

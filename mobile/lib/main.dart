@@ -25,5 +25,5 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  runApp(const ApplicationQuiPerd());
+  runApp(const ApplicationDefisEnLigne());
 }

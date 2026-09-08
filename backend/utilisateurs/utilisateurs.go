@@ -6,13 +6,13 @@ package utilisateurs
 import (
 	"strings"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // Lister godoc

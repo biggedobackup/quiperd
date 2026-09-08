@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	"quiperd/backend/config"
+	"defisenligne/backend/config"
 )
 
 // Hôte par défaut de MoneyFusion. JAMAIS de `www.` : ce sous-domaine sert un

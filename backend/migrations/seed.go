@@ -3,13 +3,13 @@ package migrations
 import (
 	"time"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/jeux"
+	"defisenligne/backend/plateformes"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/jeux"
-	"quiperd/backend/plateformes"
 )
 
 // jeuSeed décrit une entrée du catalogue initial : les 50 jeux compétitifs les plus joués,

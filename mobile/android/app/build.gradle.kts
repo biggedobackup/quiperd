@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.quiperd.app"
+    namespace = "com.defisenligne.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,7 +20,7 @@ android {
     }
 
     defaultConfig {
-            applicationId = "com.quiperd.app"
+            applicationId = "com.defisenligne.app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -34,8 +34,8 @@ android {
         // Il ne peut PAS être écrit en dur dans le manifeste : c'est la même application qui
         // vise le domaine de production et, en développement, l'alias de l'hôte vu depuis
         // l'émulateur. On le passe donc au build :
-        //   flutter build apk --dart-define=SITE_BASE_URL=https://quiperd.com \
-        //                     -Pdeep-link-host=quiperd.com
+        //   flutter build apk --dart-define=SITE_BASE_URL=https://defisenligne.com \
+        //                     -Pdeep-link-host=defisenligne.com
         // Les deux vont ensemble : `SITE_BASE_URL` construit le lien, `deep-link-host` décide
         // quel lien l'application intercepte. Les désaccorder produit des liens que
         // l'application ignore, sans le moindre message d'erreur.

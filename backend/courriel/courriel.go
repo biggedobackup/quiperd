@@ -26,9 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"go.uber.org/zap"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // Délais bornés : un serveur SMTP lent ne doit jamais immobiliser une goroutine du
@@ -84,7 +84,7 @@ func Actif() bool {
 // domainesNonRoutables liste les suffixes réservés par les RFC 2606 / 6761 : aucune
 // boîte n'existe derrière, les envoyer à un relais réel ne produit que des rejets qui
 // abîment la réputation de l'expéditeur. Les adresses de recette (`@test.local`) et les
-// comptes anonymisés (`@quiperd.invalid`) tombent ici : le message est journalisé, pas
+// comptes anonymisés (`@defisenligne.invalid`) tombent ici : le message est journalisé, pas
 // envoyé.
 var domainesNonRoutables = []string{".test", ".example", ".invalid", ".localhost", ".local"}
 

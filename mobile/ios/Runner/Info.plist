@@ -13,7 +13,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>quiperd</string>
+	<string>defisenligne</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -59,19 +59,19 @@
 	<!-- iOS 14+ demande l'accord du joueur avant de joindre une machine du réseau local. -->
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Défis en Ligne se connecte au serveur de la plateforme sur votre réseau local.</string>
-	<!-- Lien profond par schéma propre : quiperd://defis/<id> ouvre la fiche du défi.
+	<!-- Lien profond par schéma propre : defisenligne://defis/<id> ouvre la fiche du défi.
 	     Le lien https, lui, demande un « Universal Link » : capacité Associated Domains dans
-	     Xcode (applinks:quiperd.com) ET un fichier apple-app-site-association servi par le
+	     Xcode (applinks:defisenligne.com) ET un fichier apple-app-site-association servi par le
 	     site. Tant que ces deux-là ne sont pas en place, un lien https reste au navigateur —
 	     la page publique du site fait alors le travail. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.quiperd.app</string>
+			<string>com.defisenligne.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>quiperd</string>
+				<string>defisenligne</string>
 			</array>
 		</dict>
 	</array>

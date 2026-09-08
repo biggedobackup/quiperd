@@ -22,7 +22,7 @@ type Config struct {
 
 	// WSOriginesAutorisees complète CorsOrigin pour l'ouverture du socket temps réel
 	// (GET /api/temps-reel). Liste séparée par des virgules, chaque entrée étant une
-	// origine complète (« https://quiperd.example »). Une origine absente des deux
+	// origine complète (« https://defisenligne.example »). Une origine absente des deux
 	// listes est refusée à la poignée de main : c'est la protection contre le
 	// détournement de socket inter-site (CSWSH). La valeur `*` désactive le contrôle
 	// et n'est tolérable qu'en développement.
@@ -123,7 +123,7 @@ func Charger() *Config {
 		UploadMaxOctets:    int64(getEnvInt("UPLOAD_MAX_MO", 50)) * 1024 * 1024,
 
 		SeedAdminNom:        getEnv("SEED_ADMIN_NOM", "Administrateur"),
-		SeedAdminEmail:      getEnv("SEED_ADMIN_EMAIL", "admin@quiperd.local"),
+		SeedAdminEmail:      getEnv("SEED_ADMIN_EMAIL", "admin@defisenligne.local"),
 		SeedAdminMotDePasse: getEnv("SEED_ADMIN_MOTDEPASSE", "Admin1234!"),
 
 		LigdicashAPIKey:      getEnv("LIGDICASH_API_KEY", ""),
@@ -140,7 +140,7 @@ func Charger() *Config {
 		FCMCredentialsFile: getEnv("FCM_CREDENTIALS_FILE", ""),
 
 		EmailActif:      getEnvBool("EMAIL_ACTIF", false),
-		EmailExpediteur: getEnv("EMAIL_EXPEDITEUR", "Défis en Ligne <no-reply@quiperd.local>"),
+		EmailExpediteur: getEnv("EMAIL_EXPEDITEUR", "Défis en Ligne <no-reply@defisenligne.local>"),
 		SMTPHote:        getEnv("SMTP_HOTE", ""),
 		SMTPPort:        getEnv("SMTP_PORT", "587"),
 		SMTPUtilisateur: getEnv("SMTP_UTILISATEUR", ""),

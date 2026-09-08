@@ -8,18 +8,18 @@ import (
 	"errors"
 	"time"
 
+	"defisenligne/backend/config"
+	"defisenligne/backend/courriel"
+	"defisenligne/backend/defis"
+	"defisenligne/backend/jobs"
+	"defisenligne/backend/litiges"
+	"defisenligne/backend/matchs"
+	"defisenligne/backend/notifications"
+	"defisenligne/backend/paiements"
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"go.uber.org/zap"
-	"quiperd/backend/config"
-	"quiperd/backend/courriel"
-	"quiperd/backend/defis"
-	"quiperd/backend/jobs"
-	"quiperd/backend/litiges"
-	"quiperd/backend/matchs"
-	"quiperd/backend/notifications"
-	"quiperd/backend/paiements"
-	"quiperd/backend/utils"
 )
 
 // Demarrer lance le serveur Asynq (worker) dans une goroutine.

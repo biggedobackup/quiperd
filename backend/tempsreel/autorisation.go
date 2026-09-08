@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
-	"quiperd/backend/config"
+	"defisenligne/backend/config"
 )
 
 // Préfixes des salons paramétrés (cf. SalonUtilisateur / SalonMatch).

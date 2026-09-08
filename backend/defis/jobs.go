@@ -3,13 +3,13 @@ package defis
 import (
 	"fmt"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/config"
+	"defisenligne/backend/notifications"
+	"defisenligne/backend/portefeuilles"
+	"defisenligne/backend/tempsreel"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/administration"
-	"quiperd/backend/config"
-	"quiperd/backend/notifications"
-	"quiperd/backend/portefeuilles"
-	"quiperd/backend/tempsreel"
 )
 
 // ExpirerSiOuvert expire un défi encore ouvert et rend sa mise au créateur, MOINS la

@@ -51,7 +51,7 @@ $Suffixe = (Get-Date -Format 'HHmmss')
 $MotDePasse = 'Recette1234!'
 
 Write-Host "=== Connexion administrateur ===" -ForegroundColor Cyan
-$admin = Api POST '/auth/admin/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'Admin1234!' }
+$admin = Api POST '/auth/admin/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'Admin1234!' }
 if ($admin.Status -ne 200) { Write-Host "ÉCHEC connexion admin : $($admin.Raw)" -ForegroundColor Red; exit 1 }
 $jetonAdmin = $admin.Body.jeton
 Write-Host "admin connecté"

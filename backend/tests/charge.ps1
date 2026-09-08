@@ -28,7 +28,7 @@
 #>
 param(
   [ValidateSet('local', 'production')] [string]$Cible = 'local',
-  [string]$UrlProduction = 'https://quiperd.ouesergegedeon.com',
+  [string]$UrlProduction = 'https://defisenligne.ouesergegedeon.com',
   [int]$Port = 8090,
   [int]$Comptes = 40,
   [string]$PaliersVisiteur = '250,500,1000,2000,4000,6000,8000',
@@ -75,7 +75,7 @@ Get-Content (Join-Path $Racine '.env') |
   Where-Object { $_ -match '^\s*([A-Z_0-9]+)\s*=\s*(.*?)\s*$' } |
   ForEach-Object { $DotEnv[$Matches[1]] = $Matches[2] }
 $env:PGPASSWORD = $DotEnv['DB_PASSWORD']
-$PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'quiperd'
+$PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'defisenligne'
 $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
 
 function Sql([string]$q) {
@@ -159,7 +159,7 @@ if ($Cible -eq 'production') {
 else {
   # ═══════════════════════════════════════════════ 1. Instance dédiée du backend
   Section '1. Instance dédiée du backend (mode production, e-mails coupés)'
-  $Binaire = Join-Path $Tmp 'quiperd-charge.exe'
+  $Binaire = Join-Path $Tmp 'defisenligne-charge.exe'
   Push-Location $Racine
   try {
     & go build -o $Binaire . 2>&1 | Write-Host

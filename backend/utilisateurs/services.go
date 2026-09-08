@@ -4,15 +4,15 @@ import (
 	"errors"
 	"strings"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/defis"
+	"defisenligne/backend/matchs"
+	"defisenligne/backend/portefeuilles"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/defis"
-	"quiperd/backend/matchs"
-	"quiperd/backend/portefeuilles"
 )
 
 // Erreurs métier de la suppression logique, mappées par le contrôleur (404 / 409).
@@ -89,7 +89,7 @@ func CreerParAdmin(db *gorm.DB, adminID uuid.UUID, in auth.EntreeInscription, st
 }
 
 // SupprimerLogiquement anonymise un compte — statut `supprime`, e-mail
-// `supprime-<id>@quiperd.invalid`, pseudo `supprime_<8 premiers caractères de l'id>`,
+// `supprime-<id>@defisenligne.invalid`, pseudo `supprime_<8 premiers caractères de l'id>`,
 // téléphone et photo vidés — après avoir vérifié, sous verrou, qu'aucun argent ni aucun
 // match n'est en jeu : solde bloqué nul, aucun défi `ouvert`, aucun match `en_cours`,
 // `verification` ou `litige`. La ligne reste en base (historique des matchs, audit).
@@ -136,7 +136,7 @@ func SupprimerLogiquement(db *gorm.DB, adminID, id uuid.UUID, ip string) error {
 
 		maj := map[string]any{
 			"statut":          auth.StatutSupprime,
-			"email":           "supprime-" + id.String() + "@quiperd.invalid",
+			"email":           "supprime-" + id.String() + "@defisenligne.invalid",
 			"nom_utilisateur": "supprime_" + id.String()[:8],
 			"telephone":       "",
 			"photo_profil":    "",

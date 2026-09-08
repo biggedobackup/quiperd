@@ -1,4 +1,4 @@
-module quiperd/backend
+module defisenligne/backend
 
 go 1.26.0
 

@@ -1,8 +1,8 @@
 package portefeuilles
 
 import (
+	"defisenligne/backend/auth"
 	"github.com/gofiber/fiber/v3"
-	"quiperd/backend/auth"
 )
 
 // Enregistrer monte les routes du portefeuille (toutes protégées).

@@ -13,8 +13,8 @@ import (
 	"github.com/valyala/fasthttp"
 	"go.uber.org/zap"
 
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 )
 
 // Réglages du transport. Le battement de cœur suit le cahier des charges :

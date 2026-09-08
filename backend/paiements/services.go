@@ -4,19 +4,19 @@ import (
 	"errors"
 	"time"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/courriel"
+	"defisenligne/backend/jobs"
+	"defisenligne/backend/notifications"
+	"defisenligne/backend/portefeuilles"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
-	"quiperd/backend/administration"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/courriel"
-	"quiperd/backend/jobs"
-	"quiperd/backend/notifications"
-	"quiperd/backend/portefeuilles"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
 )
 
 func reference() string { return "PAY-" + uuid.NewString() }

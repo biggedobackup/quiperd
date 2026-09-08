@@ -165,7 +165,7 @@ class _AideEcranState extends State<AideEcran> {
             const Encart(
               icone: Icons.mail_outline,
               texte: 'Une question précise ? Écrivez-nous depuis le formulaire ci-dessous ou '
-                  'par courriel : support@quiperd.com. L’équipe répond par e-mail, du lundi au '
+                  'par courriel : support@defisenligne.com. L’équipe répond par e-mail, du lundi au '
                   'samedi.',
             ),
             const SizedBox(height: 12),

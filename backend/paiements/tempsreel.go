@@ -1,9 +1,9 @@
 package paiements
 
 import (
+	"defisenligne/backend/tempsreel"
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
-	"quiperd/backend/tempsreel"
 )
 
 // ChargeStatut — paiement.statut : dépôt ou retrait ayant changé d'état (webhook Mobile

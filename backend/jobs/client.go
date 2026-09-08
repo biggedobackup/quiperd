@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"defisenligne/backend/config"
 	"github.com/hibiken/asynq"
-	"quiperd/backend/config"
 )
 
 // Noms des tâches asynchrones.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"quiperd/backend/utils"
+	"defisenligne/backend/utils"
 )
 
 // Enregistrer monte les routes d'authentification.

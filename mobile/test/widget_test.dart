@@ -2,17 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
-import 'package:quiperd/composants/communs/badge_statut.dart';
-import 'package:quiperd/composants/communs/squelette.dart';
-import 'package:quiperd/composants/communs/liste_deroulante.dart';
-import 'package:quiperd/composants/communs/pile_paresseuse.dart';
-import 'package:quiperd/composants/joueur/compte_a_rebours.dart';
-import 'package:quiperd/composants/joueur/feuilles/depot.feuille.dart';
-import 'package:quiperd/composants/joueur/tableau_score.dart';
-import 'package:quiperd/modeles/match_defi.modele.dart';
-import 'package:quiperd/modeles/paiement.modele.dart';
-import 'package:quiperd/noyau/format.dart';
-import 'package:quiperd/noyau/statuts.dart';
+import 'package:defisenligne/composants/communs/badge_statut.dart';
+import 'package:defisenligne/composants/communs/squelette.dart';
+import 'package:defisenligne/composants/communs/liste_deroulante.dart';
+import 'package:defisenligne/composants/communs/pile_paresseuse.dart';
+import 'package:defisenligne/composants/joueur/compte_a_rebours.dart';
+import 'package:defisenligne/composants/joueur/feuilles/depot.feuille.dart';
+import 'package:defisenligne/composants/joueur/tableau_score.dart';
+import 'package:defisenligne/modeles/match_defi.modele.dart';
+import 'package:defisenligne/modeles/paiement.modele.dart';
+import 'package:defisenligne/noyau/format.dart';
+import 'package:defisenligne/noyau/statuts.dart';
 
 /// Tests des points où une erreur coûterait de l'argent au joueur ou lui
 /// mentirait sur l'état de son match : formatage des montants, lecture des

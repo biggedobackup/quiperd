@@ -7,7 +7,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"quiperd/backend/utils"
+	"defisenligne/backend/utils"
 )
 
 // Redis est le client global (sessions JWT, cache statistiques/classements).

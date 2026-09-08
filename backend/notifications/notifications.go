@@ -4,14 +4,14 @@ package notifications
 import (
 	"time"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/jobs"
+	"defisenligne/backend/tempsreel"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/jobs"
-	"quiperd/backend/tempsreel"
-	"quiperd/backend/utils"
 )
 
 // Types de notification.

@@ -82,8 +82,8 @@ function PageAide() {
               <a href="#contact" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] bg-vert px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-craie transition-colors hover:bg-vert-sombre">
                 <FontAwesomeIcon icon={icone.message} /> Écrire un message
               </a>
-              <a href="mailto:support@quiperd.com" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-craie/40 px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-craie transition-colors hover:border-volt hover:text-volt">
-                <FontAwesomeIcon icon={icone.courriel} /> support@quiperd.com
+              <a href="mailto:support@defisenligne.com" className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[10px] border border-craie/40 px-4 py-2.5 font-titre text-[12px] font-bold uppercase tracking-wider text-craie transition-colors hover:border-volt hover:text-volt">
+                <FontAwesomeIcon icon={icone.courriel} /> support@defisenligne.com
               </a>
             </div>
           </div>

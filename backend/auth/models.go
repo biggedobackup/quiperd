@@ -3,8 +3,8 @@ package auth
 import (
 	"time"
 
+	"defisenligne/backend/utils"
 	"github.com/google/uuid"
-	"quiperd/backend/utils"
 )
 
 // Statuts de compte. `supprime` = suppression logique par un administrateur

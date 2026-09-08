@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"defisenligne/backend/administration"
+	"defisenligne/backend/config"
+	"defisenligne/backend/courriel"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
-	"quiperd/backend/administration"
-	"quiperd/backend/config"
-	"quiperd/backend/courriel"
-	"quiperd/backend/utils"
 )
 
 // Inscription godoc

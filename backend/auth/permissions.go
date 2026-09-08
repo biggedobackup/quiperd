@@ -3,9 +3,9 @@ package auth
 import (
 	"strings"
 
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"quiperd/backend/utils"
 )
 
 // Clés de contexte (Locals).

@@ -3,10 +3,10 @@ package portefeuilles
 import (
 	"strconv"
 
+	"defisenligne/backend/auth"
+	"defisenligne/backend/config"
+	"defisenligne/backend/utils"
 	"github.com/gofiber/fiber/v3"
-	"quiperd/backend/auth"
-	"quiperd/backend/config"
-	"quiperd/backend/utils"
 )
 
 // Lire godoc

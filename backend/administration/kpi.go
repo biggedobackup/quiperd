@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"quiperd/backend/config"
-	"quiperd/backend/tempsreel"
+	"defisenligne/backend/config"
+	"defisenligne/backend/tempsreel"
 )
 
 // CleCacheStats est la clé Redis du cache des statistiques du tableau de bord, partagée entre

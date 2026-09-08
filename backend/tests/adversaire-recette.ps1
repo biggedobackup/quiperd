@@ -86,7 +86,7 @@ switch ($Action) {
   }
   'arbitrer' {
     # Décision arbitrale : réservée à l'administration (le mobile ne l'expose pas).
-    $a = Api POST '/auth/admin/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'Admin1234!' }
+    $a = Api POST '/auth/admin/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'Admin1234!' }
     if ($a.Status -ne 200) { Write-Host "ÉCHEC connexion admin" -ForegroundColor Red; exit 1 }
     $corps = @{ decision = $Decision }
     if ($GagnantId) { $corps['gagnantId'] = $GagnantId }

@@ -1,6 +1,6 @@
 #Requires -Version 7
 # Parcours de test complet de l'API Défis en Ligne (requêtes HTTP réelles) — 20 sections, ~490 vérifications.
-# Usage : l'API doit tourner (go run . ou quiperd-backend.exe), PostgreSQL + Redis accessibles, psql dans le PATH.
+# Usage : l'API doit tourner (go run . ou defisenligne-backend.exe), PostgreSQL + Redis accessibles, psql dans le PATH.
 #   pwsh -File tests/parcours-api.ps1
 # Le script lit la connexion PostgreSQL dans ../.env, crée 3 joueurs (suffixe horaire) et un jeu/plateforme
 # temporaires, dépose 10 000 XOF par joueur (validation admin), puis déroule défis/matchs/preuves/litiges/retraits.
@@ -18,7 +18,7 @@ $env:PGCLIENTENCODING = 'UTF8'
 $Base = 'http://127.0.0.1:8080/api'   # IPv4 direct : « localhost » tente ::1 d'abord (~2 s de délai par requête sous Windows)
 $Scratch = Join-Path $PSScriptRoot 'tmp'; New-Item -ItemType Directory -Force $Scratch | Out-Null
 $DotEnv = @{}; Get-Content (Join-Path $PSScriptRoot '..\.env') | Where-Object { $_ -match '^\s*([A-Z_]+)\s*=\s*(.*?)\s*$' } | ForEach-Object { $DotEnv[$Matches[1]] = $Matches[2] }
-$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'quiperd'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
+$env:PGPASSWORD = $DotEnv['DB_PASSWORD']; $PgHost = $DotEnv['DB_HOST'] ?? 'localhost'; $PgUser = $DotEnv['DB_USER'] ?? 'defisenligne'; $PgDb = $DotEnv['DB_NAME'] ?? 'qui_perd'; $PgPort = $DotEnv['DB_PORT'] ?? '5432'
 $PreuvesDir = (Resolve-Path (Join-Path $PSScriptRoot ('..\' + ($DotEnv['STOCKAGE_PREUVES_DIR'] ?? 'public/preuves')))).Path
 $Suffix = (Get-Date -Format 'HHmmss')
 
@@ -221,14 +221,14 @@ Check 'autre session de Kader toujours valide -> 200' ($r.Status -eq 200)
 
 # ------------------------------------------------------------------ 2. Admin
 Section '2. Auth admin'
-$r = Api POST '/auth/admin/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'mauvais' }
+$r = Api POST '/auth/admin/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'mauvais' }
 Check 'POST /auth/admin/connexion mauvais mdp -> 401' ($r.Status -eq 401)
-$r = Api POST '/auth/admin/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'Admin1234!' }
+$r = Api POST '/auth/admin/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'Admin1234!' }
 Check 'POST /auth/admin/connexion -> 200 {administrateur, jeton}' ($r.Status -eq 200 -and $r.Body.administrateur.id -and $r.Body.jeton) $r.Raw.Substring(0, [Math]::Min(160, $r.Raw.Length))
 $TADM = $r.Body.jeton; $ADMID = $r.Body.administrateur.id
 $r = Api GET '/auth/moi' -Token $TADM
-Check 'GET /auth/moi admin -> 200 role admin' ($r.Status -eq 200 -and $r.Body.role -eq 'admin' -and $r.Body.administrateur.email -eq 'admin@quiperd.local')
-$r = Api POST '/auth/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'Admin1234!' }
+Check 'GET /auth/moi admin -> 200 role admin' ($r.Status -eq 200 -and $r.Body.role -eq 'admin' -and $r.Body.administrateur.email -eq 'admin@defisenligne.local')
+$r = Api POST '/auth/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'Admin1234!' }
 Check 'admin via /auth/connexion (table utilisateurs) -> 401 (tables distinctes)' ($r.Status -eq 401) $r.Raw
 $r = Api GET '/utilisateurs' -Token $TK
 Check 'joueur sur route admin GET /utilisateurs -> 403' ($r.Status -eq 403) $r.Raw
@@ -681,11 +681,11 @@ $ns = Sql "select count(*) from sessions_utilisateurs where utilisateur_id='$NID
 Check 'suppression: lignes sessions_utilisateurs supprimées' ([int]$ns -eq 0) "sessions=$ns"
 $r = Api POST '/auth/connexion' @{ email = $NAB.email; motDePasse = 'Nouveau456!' }
 Check 'suppression: connexion avec l''ancien email -> 401 (email anonymisé)' ($r.Status -eq 401) $r.Raw
-$r = Api POST '/auth/connexion' @{ email = "supprime-$NID@quiperd.invalid"; motDePasse = 'Nouveau456!' }
+$r = Api POST '/auth/connexion' @{ email = "supprime-$NID@defisenligne.invalid"; motDePasse = 'Nouveau456!' }
 Check 'suppression: connexion du compte supprimé -> 403 (comme un compte suspendu)' ($r.Status -eq 403) $r.Raw
 $r = Api GET "/utilisateurs/$NID" -Token $TADM
 Check 'GET /utilisateurs/:id supprimé -> 200 statut supprime (suppression logique : la ligne reste consultable)' ($r.Status -eq 200 -and $r.Body.statut -eq 'supprime') $r.Raw
-Check 'suppression: email supprime-<id>@quiperd.invalid, pseudo supprime_<8 car.>, téléphone et photo vidés' ($r.Body.email -eq "supprime-$NID@quiperd.invalid" -and $r.Body.nomUtilisateur -eq ('supprime_' + $NID.Substring(0, 8)) -and -not $r.Body.telephone -and -not $r.Body.photoProfil) $r.Raw
+Check 'suppression: email supprime-<id>@defisenligne.invalid, pseudo supprime_<8 car.>, téléphone et photo vidés' ($r.Body.email -eq "supprime-$NID@defisenligne.invalid" -and $r.Body.nomUtilisateur -eq ('supprime_' + $NID.Substring(0, 8)) -and -not $r.Body.telephone -and -not $r.Body.photoProfil) $r.Raw
 $r = Api GET '/utilisateurs?statut=supprime' -Token $TADM
 Check 'GET /utilisateurs?statut=supprime -> contient le compte supprimé' ($r.Status -eq 200 -and ($r.Body.elements.id -contains $NID) -and $r.Body.total -ge 1) ("total=" + $r.Body.total)
 $r = Api GET "/utilisateurs?recherche=nabil_$Suffix" -Token $TADM
@@ -1473,7 +1473,7 @@ Section 'Contact — formulaire public, anti-spam, traitement admin'
 function ViderAntiSpam { foreach ($cle in ([regex]::Matches((Redis 'KEYS contact:ip:*'), 'contact:ip:[^\r\n]+') | ForEach-Object { $_.Value })) { Redis "DEL $cle" | Out-Null } }
 ViderAntiSpam
 # Jeton admin frais : la section 15 a touché les mots de passe, on ne dépend pas de l'état de $TADM.
-$r = Api POST '/auth/admin/connexion' @{ email = 'admin@quiperd.local'; motDePasse = 'Admin1234!' }
+$r = Api POST '/auth/admin/connexion' @{ email = 'admin@defisenligne.local'; motDePasse = 'Admin1234!' }
 $TCA = if ($r.Status -eq 200 -and $r.Body.jeton) { $r.Body.jeton } else { $TADM }
 $MsgOK = @{ nom = "Kader $Suffix"; email = "kader_$Suffix@test.local"; sujet = "Recette $Suffix"; message = 'Bonjour, je souhaite en savoir plus sur la plateforme et ses règles de mise.' }
 
